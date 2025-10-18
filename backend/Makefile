@@ -3,7 +3,5 @@
 clean:
 	rm -rf build/*
 
-build: clean
-	cd build
-	cmake ..
-	make -j$(nproc)
+build:
+	mkdir -p build && cd build && cmake .. && make -j$(nproc)

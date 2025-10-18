@@ -2,40 +2,40 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "audio-context.hpp"
 
-BeatTrack::BeatTrack(float frequency) : AudioTrack(), frequency(frequency) {
-  auto& ctx = AudioContext::getInstance();
+WaveTable BeatTrack::waveTable(WaveTable::SINE, 2048);
 
-  // Beat
-  phase = 0.0f;
-  interval = 60.0f / ctx.tempoBPM;
-  duration = 0.2f;
-
+BeatTrack::BeatTrack(float frequency)
+    : AudioTrack(), frequency(frequency), duration(0.15f) {
   // Enveloppe
-  att = 0.02f;
+  att = 0.01f;
   dec = 0.02f;
-  sus = 1.0f;
+  sus = 0.8f;
   rel = 0.02f;
 }
 
 BeatTrack::~BeatTrack() {}
 
 float BeatTrack::getSampleValue(double sampleTime) {
-  if (!mute) {
-    auto& ctx = AudioContext::getInstance();
-    float pi = juce::MathConstants<float>::pi;
-    float timeSinceLastBeat = std::fmod(sampleTime, interval);
-    float enveloppeVolume = computeEnveloppe(timeSinceLastBeat);
-    float sampleValue = enveloppeVolume * volume * std::sin(phase);
-
-    // Follow the phase
-    phase += 2.0f * pi * frequency / (float)ctx.sampleRate;
-    if (phase >= 2.0f * pi)
-      phase -= 2.0f * pi;
-
-    return sampleValue;
-  } else {
+  if (mute) {
     return 0.0f;
   }
+
+  auto& ctx = AudioContext::getInstance();
+  float pi = juce::MathConstants<float>::pi;
+  float currentTempo = ctx.tempoBPM.load();
+  float interval = 60.0f / currentTempo;
+  float timeSinceLastBeat = std::fmod(sampleTime, interval);
+
+  if (timeSinceLastBeat < duration + rel) {
+    float enveloppeVolume = computeEnveloppe(timeSinceLastBeat);
+    float currentPhase = 2.0f * pi * frequency * timeSinceLastBeat;
+    float sampleValue =
+        enveloppeVolume * volume * waveTable.getSampleFast(currentPhase);
+
+    return sampleValue;
+  }
+
+  return 0.0f;
 }
 
 void BeatTrack::setMute(bool mute) {

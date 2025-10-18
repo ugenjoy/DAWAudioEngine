@@ -8,9 +8,9 @@ class AudioContext {
   double sampleRate = 44100.0;
   int bufferSize = 512;
 
-  float tempoBPM = 120.0f;
-  int timeSignatureNumerator = 4;
-  int timeSignatureDenominator = 4;
+  std::atomic<float> tempoBPM{120.0f};
+  std::atomic<int> timeSignatureNumerator{4};
+  std::atomic<int> timeSignatureDenominator{4};
 
   AudioContext(const AudioContext&) = delete;
 

@@ -3,17 +3,13 @@
 
 AudioEngineCore::AudioEngineCore()
     : playing(false), currentPosition(0.0), masterVolume(0.5f) {
-  BeatTrack* beatTrack = new BeatTrack(1000.0f);
-  tracks.push_back(beatTrack);
+  tracks.push_back(std::make_unique<BeatTrack>(500.0f));
 
   // Audio configuration : 0 inputs, 2 outputs
   setAudioChannels(0, 2);
 }
 
 AudioEngineCore::~AudioEngineCore() {
-  for (int i = 0; i < tracks.size(); i++) {
-    delete tracks[i];
-  }
   shutdownAudio();
 }
 

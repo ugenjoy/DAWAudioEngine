@@ -1,4 +1,5 @@
 #include "audio-track.hpp"
+#include "wave-table.hpp"
 
 class BeatTrack : public AudioTrack {
  public:
@@ -14,14 +15,12 @@ class BeatTrack : public AudioTrack {
   float computeEnveloppe(float timeSinceLastBeat);
 
   // Beat
-  float phase;
   float interval;
   float frequency;
   float duration;
 
-  // Enveloppe
-  float att;  // in s
-  float dec;  // in s
-  float sus;  // volume between 0 and 1
-  float rel;  // in s
+  // ADSR Enveloppe
+  float att, dec, sus, rel;
+
+  static WaveTable waveTable;
 };
