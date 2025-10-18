@@ -12,8 +12,11 @@ juce_add_console_app(DAWAudioEngine
     PRODUCT_NAME "DAW Audio Engine")
 
 # Source
-target_sources(DAWAudioEngine PRIVATE
-    src/main.cpp)
+file(GLOB_RECURSE SOURCES "src/*.cpp")
+target_sources(DAWAudioEngine PRIVATE ${SOURCES})
+
+target_include_directories(DAWAudioEngine PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Configuration JUCE
 target_compile_definitions(DAWAudioEngine PRIVATE
