@@ -93,7 +93,9 @@ jobs:
     name: Generate Documentation
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+      pages: write
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -111,21 +113,26 @@ jobs:
           # Disable Jekyll processing for GitHub Pages
           touch docs/html/.nojekyll
 
-      - name: Upload documentation
+      - name: Upload documentation artifact
         uses: actions/upload-artifact@v4
         with:
           name: documentation
           path: backend/docs/html/
           retention-days: 30
 
+      - name: Setup Pages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact for Pages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./backend/docs/html
+
       - name: Deploy to GitHub Pages
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./backend/docs/html
-          publish_branch: gh-pages
-          force_orphan: true
+        uses: actions/deploy-pages@v4
 
   static-analysis:
     name: Static Analysis
