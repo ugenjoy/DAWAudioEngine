@@ -92,6 +92,8 @@ jobs:
   documentation:
     name: Generate Documentation
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -121,6 +123,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./backend/docs/html
           publish_branch: gh-pages
+          force_orphan: true
 
   static-analysis:
     name: Static Analysis
