@@ -3,6 +3,13 @@
 #include <cmath>
 #include <vector>
 
+// TODO: [LOW] Add SIMD optimizations (SSE/AVX) for waveform generation and lookup
+// TODO: [LOW] Implement bandlimited waveforms to prevent aliasing:
+//   - Use PolyBLEP (Polynomial Band-Limited Step) for square/saw/triangle
+//   - Or use additive synthesis with limited harmonics based on frequency
+// TODO: [LOW] Add cache-friendly memory layout (align table to cache line)
+// TODO: [LOW] Consider cubic interpolation for higher quality (vs current linear)
+
 /**
  * @file wave-table.hpp
  * @brief Optimized wavetable oscillator for real-time audio synthesis
@@ -75,6 +82,8 @@ class WaveTable {
    * 
    * This method uses linear interpolation between adjacent samples
    * for better audio quality. Phase wrapping is handled automatically.
+   * @todo [LOW] Add cubic interpolation option for higher quality
+   * @todo [LOW] Optimize phase wrapping (currently uses while loops)
    */
   float getSample(float phase) const {
     float index =
@@ -113,7 +122,7 @@ class WaveTable {
 
  private:
   /** @brief Pre-computed waveform samples */
-  std::vector<float> table;
+  std::vector<float> table;  // TODO: [LOW] Align to 16/32 bytes for SIMD
   
   /** @brief Number of samples in the table */
   int size;

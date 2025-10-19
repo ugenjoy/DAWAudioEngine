@@ -1,5 +1,11 @@
 #pragma once
+
 #include <atomic>
+
+// TODO: [LOW] Add configuration file support (JSON/XML) for loading/saving settings
+// TODO: [MEDIUM] Add tempo change ramping to avoid clicks
+// TODO: [LOW] Add time signature change callback system
+// TODO: [LOW] Add preset management system
 
 /**
  * @file audio-context.hpp
@@ -38,6 +44,9 @@ class AudioContext {
 
   /** @brief Current tempo in beats per minute (thread-safe, default: 120.0) */
   std::atomic<float> tempoBPM{120.0f};
+  // TODO: [MEDIUM] Add tempo ramping to avoid clicks on tempo change:
+  // std::atomic<float> targetTempoBPM{120.0f};
+  // float tempoRampTime = 0.1f;  // 100ms ramp
   
   /** @brief Time signature numerator (thread-safe, default: 4) */
   std::atomic<int> timeSignatureNumerator{4};

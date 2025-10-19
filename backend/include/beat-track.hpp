@@ -2,6 +2,21 @@
 #include "audio-track.hpp"
 #include "wave-table.hpp"
 
+// TODO: [MEDIUM] Add ADSR configuration structure:
+// struct ADSRParameters {
+//   float attackTime = 0.01f;
+//   float decayTime = 0.02f;
+//   float sustainLevel = 0.4f;
+//   float releaseTime = 0.02f;
+//   enum Curve { Linear, Exponential, Logarithmic };
+//   Curve attackCurve = Exponential;
+//   Curve decayCurve = Exponential;
+//   Curve releaseCurve = Exponential;
+// };
+
+// TODO: [LOW] Add waveform type selection (currently hardcoded to SINE)
+// TODO: [LOW] Add velocity sensitivity for dynamic expression
+
 /**
  * @file beat-track.hpp
  * @brief Beat-synchronized audio track with ADSR envelope
@@ -48,6 +63,22 @@ class BeatTrack : public AudioTrack {
    * @param volume Volume level (clamped to range [0.0, 1.0])
    */
   void setVolume(float volume);
+  
+  // TODO: [MEDIUM] Add ADSR configuration methods:
+  // void setADSRParameters(const ADSRParameters& params);
+  // ADSRParameters getADSRParameters() const;
+  // void setAttackTime(float time);
+  // void setDecayTime(float time);
+  // void setSustainLevel(float level);
+  // void setReleaseTime(float time);
+  
+  // TODO: [LOW] Add waveform selection:
+  // void setWaveform(WaveTable::WaveformType type);
+  // WaveTable::WaveformType getWaveform() const;
+  
+  // TODO: [LOW] Add velocity control:
+  // void setVelocity(float velocity);  // 0.0 to 1.0
+  // float getVelocity() const;
 
  private:
   /**
@@ -80,4 +111,17 @@ class BeatTrack : public AudioTrack {
 
   /** @brief Shared wavetable oscillator (sine wave, 2048 samples) */
   static WaveTable waveTable;
+  
+  // TODO: [MEDIUM] Add configurable ADSR parameters member:
+  // ADSRParameters adsrParams;
+  
+  // TODO: [LOW] Add per-instance waveform (replace static shared wavetable):
+  // std::unique_ptr<WaveTable> oscillator;
+  
+  // TODO: [LOW] Add velocity member for dynamic response:
+  // float velocity = 1.0f;
+  
+  // TODO: [LOW] Add volume and mute state members:
+  // float volume = 0.4f;
+  // bool muted = false;
 };

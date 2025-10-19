@@ -249,4 +249,58 @@ For questions or suggestions, please open an issue on the repository.
 
 ---
 
+## 🚧 TODO & Development Roadmap
+
+### Critical Priority (Performance)
+
+- [ ] **[CRITICAL]** Eliminate allocations in audio callback thread
+- [ ] **[CRITICAL]** Pre-allocate audio buffers for mixing
+- [ ] **[HIGH]** Replace floating-point time accumulation with sample counter
+- [ ] **[HIGH]** Add lock-free structures for thread-safe track management
+
+### High Priority (Features)
+
+- [ ] **[HIGH]** Implement dynamic track management API (add/remove tracks)
+- [ ] **[HIGH]** Add error handling for audio device failures
+- [ ] **[MEDIUM]** Implement audio mixer with bus routing
+- [ ] **[MEDIUM]** Add panning control per track
+- [ ] **[MEDIUM]** Make ADSR parameters configurable
+
+### Medium Priority (Quality)
+
+- [ ] **[MEDIUM]** Add tempo change ramping to avoid clicks
+- [ ] **[MEDIUM]** Implement track solo/mute logic
+- [ ] **[MEDIUM]** Add configuration file support (JSON/XML)
+- [ ] **[MEDIUM]** Add effects chain support (reverb, delay, EQ)
+
+### Low Priority (Optimizations)
+
+- [ ] **[LOW]** Add SIMD optimizations for WaveTable
+- [ ] **[LOW]** Implement bandlimited waveforms (PolyBLEP)
+- [ ] **[LOW]** Add cubic interpolation for WaveTable
+- [ ] **[LOW]** Add velocity sensitivity to ADSR
+- [ ] **[LOW]** Add waveform selection API
+- [ ] **[LOW]** Add preset management system
+- [ ] **[LOW]** Add performance benchmarks
+
+### Documentation
+
+- [ ] Add architecture diagrams
+- [ ] Add API usage examples
+- [ ] Add performance profiling guide
+- [ ] Add contribution guidelines
+
+### Finding TODOs in Code
+
+Search the codebase for prioritized TODO comments:
+
+```bash
+grep -r "TODO: \[CRITICAL\]" backend/
+grep -r "TODO: \[HIGH\]" backend/
+grep -r "TODO: \[MEDIUM\]" backend/
+grep -r "TODO: \[LOW\]" backend/
+```
+
+---
+
 **Built with ❤️ using JUCE Framework**

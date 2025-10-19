@@ -7,6 +7,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Build options
 option(BUILD_TESTS "Build unit tests" OFF)
+# TODO: [LOW] Add more build options:
+# option(ENABLE_SIMD "Enable SIMD optimizations" ON)
+# option(BUILD_BENCHMARKS "Build performance benchmarks" OFF)
+# option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 
 # JUCE
 add_subdirectory(JUCE)

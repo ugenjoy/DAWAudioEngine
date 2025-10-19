@@ -2,6 +2,14 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "audio-context.hpp"
 
+// TODO: [MEDIUM] Make ADSR parameters configurable:
+// - Add ADSRParameters struct with attack, decay, sustain, release times
+// - Add setADSRParameters(const ADSRParameters& params) method
+// - Support different envelope curves (linear, exponential, logarithmic)
+
+// TODO: [LOW] Add velocity sensitivity to ADSR
+// TODO: [LOW] Add retrigger modes (legato, retrigger, free-run)
+
 WaveTable BeatTrack::waveTable(WaveTable::SINE, 2048);
 
 BeatTrack::BeatTrack(float frequency)
@@ -38,8 +46,8 @@ float BeatTrack::getSampleValue(double sampleTime) {
   return 0.0f;
 }
 
-void BeatTrack::setMute(bool mute) {
-  this->mute = mute;
+void BeatTrack::setMute(bool shouldMute) {
+  this->mute = shouldMute;
 }
 
 void BeatTrack::setVolume(float volume) {
