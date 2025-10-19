@@ -82,5 +82,55 @@
     "typeinfo": "cpp",
     "valarray": "cpp",
     "variant": "cpp"
+  },
+  "todo-tree.filtering.excludeGlobs": [
+    "**/JUCE/**",
+    "**/juce/**",
+    "**/build/**",
+    "**/.git/**"
+  ],
+  "todo-tree.filtering.ignoreGitSubmodules": true,
+  "todo-tree.general.tags": [
+    "TODO: [CRITICAL]",
+    "TODO: [HIGH]",
+    "TODO: [MEDIUM]",
+    "TODO: [LOW]",
+    "TODO",
+    "FIXME",
+    "BUG"
+  ],
+  "todo-tree.regex.regex": "(//|#|<!--|;|/\\*|^)\\s*($TAGS)",
+  "todo-tree.highlights.defaultHighlight": {
+    "type": "text-and-comment"
+  },
+  "todo-tree.highlights.customHighlight": {
+    "TODO: [CRITICAL]": {
+      "icon": "alert",
+      "iconColour": "#ff0000",
+      "foreground": "#ff0000",
+      "background": "#ff000033",
+      "type": "text-and-comment"
+    },
+    "TODO: [HIGH]": {
+      "icon": "flame",
+      "iconColour": "#ff6600",
+      "foreground": "#ff6600",
+      "background": "#ff660033",
+      "type": "text-and-comment"
+    },
+    "TODO: [MEDIUM]": {
+      "icon": "info",
+      "iconColour": "#ffaa00",
+      "foreground": "#ffaa00",
+      "background": "#ffaa0033",
+      "type": "text-and-comment"
+    },
+    "TODO: [LOW]": {
+      "icon": "note",
+      "iconColour": "#00aa00",
+      "foreground": "#00aa00",
+      "background": "#00aa0033",
+      "type": "text-and-comment"
+    }
   }
 }
