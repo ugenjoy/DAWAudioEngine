@@ -15,25 +15,25 @@ class AudioEngineApplication : public juce::JUCEApplication,
     // Create audio engine
     audioEngine = std::make_unique<AudioEngineCore>();
 
-    juce::Logger::writeToLog("Audio engine created. You should ear a beat.");
+    juce::Logger::writeToLog("Audio engine created. You should hear a beat.");
     juce::Logger::writeToLog("Press Ctrl+C to quit.");
 
-    // Prevent the app from closing
+    // Keep the application running
     startTimer(1000);
   }
 
   void shutdown() override {
-    juce::Logger::writeToLog("=== Stoping audio engine ===");
+    juce::Logger::writeToLog("=== Stopping audio engine ===");
     audioEngine.reset();
   }
 
   void timerCallback() override {
-    // Does not do nothing, just for keeping the app alive
+    // Empty callback to keep the application alive
   }
 
  private:
   std::unique_ptr<AudioEngineCore> audioEngine;
 };
 
-// Input point
+// Entry point
 START_JUCE_APPLICATION(AudioEngineApplication)

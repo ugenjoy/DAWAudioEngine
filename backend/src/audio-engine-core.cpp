@@ -5,7 +5,7 @@ AudioEngineCore::AudioEngineCore()
     : playing(false), currentPosition(0.0), masterVolume(0.5f) {
   tracks.push_back(std::make_unique<BeatTrack>(500.0f));
 
-  // Audio configuration : 0 inputs, 2 outputs
+  // Audio configuration: 0 inputs, 2 outputs
   setAudioChannels(0, 2);
 }
 
@@ -23,7 +23,7 @@ void AudioEngineCore::prepareToPlay(int samplesPerBlockExpected,
       "- Buffer size: " + juce::String(samplesPerBlockExpected) + " samples");
   juce::Logger::writeToLog("- Sample rate: " + juce::String(sampleRate) +
                            " Hz");
-  juce::Logger::writeToLog("- Ready to play !");
+  juce::Logger::writeToLog("- Ready to play!");
 
   // Start automatically (for testing)
   playing = true;
@@ -49,16 +49,16 @@ void AudioEngineCore::getNextAudioBlock(
       sampleValue += tracks[i]->getSampleValue(sampleTime) * masterVolume;
     }
 
-    // Apply on the 2 output channels
+    // Apply to both output channels
     for (int channel = 0; channel < buffer->getNumChannels(); ++channel) {
       buffer->setSample(channel, sample, sampleValue);
     }
   }
 
-  // Update time
+  // Update playback position
   currentPosition += (double)numSamples / ctx.sampleRate;
 }
 
 void AudioEngineCore::releaseResources() {
-  juce::Logger::writeToLog("Free audio resources");
+  juce::Logger::writeToLog("Releasing audio resources");
 }

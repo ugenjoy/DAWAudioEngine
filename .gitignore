@@ -1,2 +1,88 @@
-build
+# Build directories
+build/
+build-*/
+backend/build/
+backend/build-*/
+cmake-build-*/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+CMakeUserPresets.json
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# JUCE build artifacts
+backend/Builds/
+backend/*_artefacts/
+JuceLibraryCode/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+backend/docs/html/
+backend/docs/latex/
+backend/docs/xml/
+*.doxygen.log
+
+# Test results
+Testing/
+*.gcov
+*.gcda
+*.gcno
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Package managers
+conan.lock
+conaninfo.txt
+conanbuildinfo.*
+
+# Backup files
+*.bak
+*.backup
+
+# Core dumps
+core
+core.*
 .vscode

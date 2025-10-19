@@ -6,7 +6,7 @@ WaveTable BeatTrack::waveTable(WaveTable::SINE, 2048);
 
 BeatTrack::BeatTrack(float frequency)
     : AudioTrack(), frequency(frequency), duration(0.15f) {
-  // Enveloppe
+  // ADSR Envelope parameters
   att = 0.01f;
   dec = 0.02f;
   sus = 0.8f;
@@ -62,7 +62,7 @@ float BeatTrack::computeEnveloppe(float timeSinceLastBeat) {
       enveloppeVolume = sus;
     }
   } else {  // Release
-    enveloppeVolume = sus * (duration - timeSinceLastBeat) / rel + sus;
+    enveloppeVolume = sus * (1.0f - (timeSinceLastBeat - duration) / rel);
     enveloppeVolume = juce::jmax(0.0f, enveloppeVolume);
   }
 
