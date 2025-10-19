@@ -94,34 +94,9 @@ backend/
    ./build/DAWAudioEngine_artefacts/Debug/DAWAudioEngine
    ```
 
-### Building Tests
-
-```bash
-cd build
-cmake .. -DBUILD_TESTS=ON
-make -j$(nproc)
-ctest --output-on-failure
-```
-
 ## 🎛️ Usage
 
 The current implementation automatically starts playback on launch and generates a beat at 120 BPM (500 Hz sine wave).
-
-### Basic Example
-
-```cpp
-#include "audio-engine-core.hpp"
-
-int main() {
-    // Create and initialize the audio engine
-    AudioEngineCore engine;
-
-    // Audio starts automatically
-    // Press Ctrl+C to quit
-
-    return 0;
-}
-```
 
 ### Customizing Audio Context
 
@@ -135,6 +110,15 @@ ctx.timeSignatureDenominator = 4;
 ## 🧪 Testing
 
 Unit tests are located in the `tests/` directory and use JUCE's built-in testing framework.
+
+### Building Tests
+
+```bash
+cd build
+cmake .. -DBUILD_TESTS=ON
+make -j$(nproc)
+ctest --output-on-failure
+```
 
 ### Running Tests
 
@@ -183,46 +167,9 @@ JUCE_JACK=1                          # Enable JACK support
 - Always use include guards (`#pragma once`)
 - All comments in English
 
-### Adding a New Track Type
-
-1. Create header in `include/`:
-
-   ```cpp
-   #pragma once
-   #include "audio-track.hpp"
-
-   class MyTrack : public AudioTrack {
-   public:
-       float getSampleValue(double sampleTime) override;
-   };
-   ```
-
-2. Implement in `src/`:
-
-   ```cpp
-   #include "my-track.hpp"
-
-   float MyTrack::getSampleValue(double sampleTime) {
-       // Your audio generation code
-       return 0.0f;
-   }
-   ```
-
-3. Add to `AudioEngineCore`:
-   ```cpp
-   tracks.push_back(std::make_unique<MyTrack>());
-   ```
-
-## 🐛 Known Issues
-
-- No play/pause/stop controls (auto-starts on launch)
-- Limited to one beat track type
-- No audio file loading/playback yet
-- No effects processing chain
-
 ## 🗺️ Roadmap
 
-- [ ] Add play/pause/stop controls
+- [ ] Implement minimal API with basic controls
 - [ ] Implement audio file loading (WAV, MP3, FLAC)
 - [ ] Add effects processing (reverb, delay, EQ)
 - [ ] Implement MIDI support
@@ -233,74 +180,5 @@ JUCE_JACK=1                          # Enable JACK support
 ## 📝 License
 
 This project uses the JUCE framework. Please refer to JUCE's licensing terms for commercial use.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please ensure:
-
-1. Code follows the project style
-2. All tests pass
-3. New features include tests
-4. Comments are in English
-
-## 📧 Contact
-
-For questions or suggestions, please open an issue on the repository.
-
----
-
-## 🚧 TODO & Development Roadmap
-
-### Critical Priority (Performance)
-
-- [ ] **[CRITICAL]** Eliminate allocations in audio callback thread
-- [ ] **[CRITICAL]** Pre-allocate audio buffers for mixing
-- [ ] **[HIGH]** Replace floating-point time accumulation with sample counter
-- [ ] **[HIGH]** Add lock-free structures for thread-safe track management
-
-### High Priority (Features)
-
-- [ ] **[HIGH]** Implement dynamic track management API (add/remove tracks)
-- [ ] **[HIGH]** Add error handling for audio device failures
-- [ ] **[MEDIUM]** Implement audio mixer with bus routing
-- [ ] **[MEDIUM]** Add panning control per track
-- [ ] **[MEDIUM]** Make ADSR parameters configurable
-
-### Medium Priority (Quality)
-
-- [ ] **[MEDIUM]** Add tempo change ramping to avoid clicks
-- [ ] **[MEDIUM]** Implement track solo/mute logic
-- [ ] **[MEDIUM]** Add configuration file support (JSON/XML)
-- [ ] **[MEDIUM]** Add effects chain support (reverb, delay, EQ)
-
-### Low Priority (Optimizations)
-
-- [ ] **[LOW]** Add SIMD optimizations for WaveTable
-- [ ] **[LOW]** Implement bandlimited waveforms (PolyBLEP)
-- [ ] **[LOW]** Add cubic interpolation for WaveTable
-- [ ] **[LOW]** Add velocity sensitivity to ADSR
-- [ ] **[LOW]** Add waveform selection API
-- [ ] **[LOW]** Add preset management system
-- [ ] **[LOW]** Add performance benchmarks
-
-### Documentation
-
-- [ ] Add architecture diagrams
-- [ ] Add API usage examples
-- [ ] Add performance profiling guide
-- [ ] Add contribution guidelines
-
-### Finding TODOs in Code
-
-Search the codebase for prioritized TODO comments:
-
-```bash
-grep -r "TODO: \[CRITICAL\]" backend/
-grep -r "TODO: \[HIGH\]" backend/
-grep -r "TODO: \[MEDIUM\]" backend/
-grep -r "TODO: \[LOW\]" backend/
-```
-
----
 
 **Built with ❤️ using JUCE Framework**
