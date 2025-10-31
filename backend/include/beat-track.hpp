@@ -52,6 +52,18 @@ class BeatTrack : public AudioTrack {
    */
   float getSampleValue(double sampleTime) override;
 
+  /**
+   * @brief Render a block of audio samples (optimized batch processing)
+   * @param buffer The audio buffer to fill (mono, single channel)
+   * @param startSample The starting sample index in the buffer
+   * @param numSamples The number of samples to render
+   * @param startTime The time position in seconds for the first sample
+   */
+  void renderBlock(juce::AudioBuffer<float>& buffer,
+                   int startSample,
+                   int numSamples,
+                   double startTime) override;
+
   // TODO: [MEDIUM] Add ADSR configuration methods:
   // void setADSRParameters(const ADSRParameters& params);
   // ADSRParameters getADSRParameters() const;
@@ -75,7 +87,7 @@ class BeatTrack : public AudioTrack {
    * seconds)
    * @return Envelope amplitude multiplier (0.0 to 1.0)
    */
-  float computeEnveloppe(float timeSinceLastBeat);
+  float computeEnveloppe(float timeSinceLastBeat) const;
 
   /** @brief Beat interval in seconds (calculated from tempo) */
   float interval;

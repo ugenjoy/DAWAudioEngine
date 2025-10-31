@@ -27,9 +27,12 @@ void AudioEngineCore::prepareToPlay(int samplesPerBlockExpected,
   auto& ctx = AudioContext::getInstance();
   ctx.sampleRate = sampleRate;
 
-  // Pre-allocate mix buffer to avoid allocations in audio thread
+  // Pre-allocate buffers to avoid allocations in audio thread
   // Allocate for 2 channels (stereo output)
   mixBuffer.setSize(2, samplesPerBlockExpected, false, true, false);
+
+  // Allocate mono track buffer for individual track rendering
+  trackBuffer.setSize(1, samplesPerBlockExpected, false, true, false);
 
   // Initialize pan values for each track (center = 0.5)
   trackPanValues.resize(tracks.size(), 0.5f);
@@ -59,25 +62,22 @@ void AudioEngineCore::getNextAudioBlock(
   // Clear the pre-allocated mix buffer
   mixBuffer.clear();
 
-  // Mix all tracks into the buffer
-  // TODO: [HIGH] Optimize track rendering - consider:
-  // 1. Batch processing: tracks render entire buffer at once instead of per-sample
-  // 2. SIMD operations for mixing
-  // 3. Lock-free track list access
-  for (int sample = 0; sample < numSamples; ++sample) {
-    double sampleTime = currentPosition + (double)sample / ctx.sampleRate;
-    float mixedSample = 0.0f;
+  // OPTIMIZED: Batch processing with reduced virtual calls and SIMD-enabled mixing
+  // Render each track into trackBuffer, then mix into stereo mixBuffer
+  for (size_t trackIdx = 0; trackIdx < tracks.size(); ++trackIdx) {
+    // Render entire block at once (single virtual call instead of numSamples calls)
+    tracks[trackIdx]->renderBlock(trackBuffer, 0, numSamples, currentPosition);
 
-    // TODO: [MEDIUM] Add track solo/mute logic here
-    for (size_t trackIdx = 0; trackIdx < tracks.size(); ++trackIdx) {
-      mixedSample += tracks[trackIdx]->getSampleValue(sampleTime);
-    }
-
-    // Apply master volume and store in mix buffer (both channels)
-    mixedSample *= masterVolume;
+    // Mix track buffer into both stereo channels using JUCE's optimized addFrom
+    // This uses SIMD operations internally for much better performance
     for (int channel = 0; channel < mixBuffer.getNumChannels(); ++channel) {
-      mixBuffer.setSample(channel, sample, mixedSample);
+      mixBuffer.addFrom(channel, 0, trackBuffer, 0, 0, numSamples);
     }
+  }
+
+  // Apply master volume to mixed buffer using SIMD-optimized operation
+  for (int channel = 0; channel < mixBuffer.getNumChannels(); ++channel) {
+    mixBuffer.applyGain(channel, 0, numSamples, masterVolume);
   }
 
   // Copy from mix buffer to output buffer
