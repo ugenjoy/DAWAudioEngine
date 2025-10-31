@@ -28,13 +28,13 @@ float BeatTrack::getSampleValue(double sampleTime) {
     return 0.0f;
   }
 
-  auto& ctx = AudioContext::getInstance();
+  auto const& ctx = AudioContext::getInstance();
   float pi = juce::MathConstants<float>::pi;
   float currentTempo = ctx.tempoBPM.load();
   interval = 60.0f / currentTempo;
-  float timeSinceLastBeat = std::fmod(sampleTime, interval);
 
-  if (timeSinceLastBeat < duration + rel) {
+  if (float timeSinceLastBeat = std::fmod(sampleTime, interval);
+      timeSinceLastBeat < duration + rel) {
     float enveloppeVolume = computeEnveloppe(timeSinceLastBeat);
     float currentPhase = 2.0f * pi * frequency * timeSinceLastBeat;
     float sampleValue =
@@ -46,7 +46,42 @@ float BeatTrack::getSampleValue(double sampleTime) {
   return 0.0f;
 }
 
-float BeatTrack::computeEnveloppe(float timeSinceLastBeat) {
+void BeatTrack::renderBlock(juce::AudioBuffer<float>& buffer,
+                            int startSample,
+                            int numSamples,
+                            double startTime) {
+  // Early exit if muted
+  if (mute) {
+    buffer.clear(0, startSample, numSamples);
+    return;
+  }
+
+  auto const& ctx = AudioContext::getInstance();
+  const float pi = juce::MathConstants<float>::pi;
+  const float currentTempo = ctx.tempoBPM.load();
+  const double sampleRate = ctx.sampleRate;
+  interval = 60.0f / currentTempo;
+
+  // Get direct pointer to buffer for faster access
+  float* bufferData = buffer.getWritePointer(0, startSample);
+
+  // Render each sample in the block
+  for (int i = 0; i < numSamples; ++i) {
+    const double sampleTime = startTime + (double)i / sampleRate;
+    const float timeSinceLastBeat = std::fmod(sampleTime, interval);
+
+    if (timeSinceLastBeat < duration + rel) {
+      const float enveloppeVolume = computeEnveloppe(timeSinceLastBeat);
+      const float currentPhase = 2.0f * pi * frequency * timeSinceLastBeat;
+      bufferData[i] =
+          enveloppeVolume * volume * waveTable.getSampleFast(currentPhase);
+    } else {
+      bufferData[i] = 0.0f;
+    }
+  }
+}
+
+float BeatTrack::computeEnveloppe(float timeSinceLastBeat) const {
   float enveloppeVolume = 0.0f;
 
   if (timeSinceLastBeat < duration) {

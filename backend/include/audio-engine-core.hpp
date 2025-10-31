@@ -41,7 +41,8 @@ class AudioEngineCore : public juce::AudioAppComponent {
   float masterVolume;
 
   // Pre-allocated buffers for audio processing (avoid allocations in audio thread)
-  juce::AudioBuffer<float> mixBuffer;
+  juce::AudioBuffer<float> mixBuffer;  // Stereo mix buffer
+  juce::AudioBuffer<float> trackBuffer;  // Mono buffer for individual track rendering
   std::vector<float> trackPanValues;
 
   // TODO: [HIGH] Add thread-safe track management:

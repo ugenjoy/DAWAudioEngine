@@ -1,5 +1,7 @@
 #pragma once
 
+#include <juce_audio_basics/juce_audio_basics.h>
+
 /**
  * @file audio-track.hpp
  * @brief Abstract base class for all audio track types
@@ -36,6 +38,23 @@ class AudioTrack {
    * @note Pure virtual function - must be implemented by derived classes
    */
   virtual float getSampleValue(double sampleTime) = 0;
+
+  /**
+   * @brief Render a block of audio samples (batch processing)
+   * @param buffer The audio buffer to fill (mono, single channel)
+   * @param startSample The starting sample index in the buffer
+   * @param numSamples The number of samples to render
+   * @param startTime The time position in seconds for the first sample
+   *
+   * This method provides optimized batch processing instead of per-sample
+   * rendering. It allows for SIMD optimizations and reduces virtual call
+   * overhead.
+   *
+   * @note Pure virtual function - must be implemented by derived classes
+   * @note Buffer should be pre-allocated with sufficient size
+   */
+  virtual void renderBlock(juce::AudioBuffer<float>& buffer, int startSample,
+                          int numSamples, double startTime) = 0;
 
   /**
    * @brief Set the mute state of the track
