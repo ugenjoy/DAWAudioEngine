@@ -1,13 +1,13 @@
 #include <juce_core/juce_core.h>
-#include "../include/wave-table.hpp"
 #include <cmath>
+#include "../include/wave-table.hpp"
 
 /**
  * Unit tests for the WaveTable class
  * Tests waveform generation, phase wrapping, and interpolation
  */
 class WaveTableTests : public juce::UnitTest {
-public:
+ public:
   WaveTableTests() : juce::UnitTest("WaveTable Tests") {}
 
   void runTest() override {
@@ -33,9 +33,9 @@ public:
     testFastVsInterpolated();
   }
 
-private:
+ private:
   void testSineWave() {
-    WaveTable waveTable(WaveTable::SINE, 2048);
+    WaveTable waveTable(WaveTable::WaveType::SINE, 2048);
     float pi = juce::MathConstants<float>::pi;
 
     // Test at key points
@@ -53,7 +53,7 @@ private:
   }
 
   void testSquareWave() {
-    WaveTable waveTable(WaveTable::SQUARE, 2048);
+    WaveTable waveTable(WaveTable::WaveType::SQUARE, 2048);
     float pi = juce::MathConstants<float>::pi;
 
     // First half should be positive
@@ -66,7 +66,7 @@ private:
   }
 
   void testSawWave() {
-    WaveTable waveTable(WaveTable::SAW, 2048);
+    WaveTable waveTable(WaveTable::WaveType::SAW, 2048);
     float pi = juce::MathConstants<float>::pi;
 
     // Sawtooth should ramp from -1 to 1
@@ -81,7 +81,7 @@ private:
   }
 
   void testTriangleWave() {
-    WaveTable waveTable(WaveTable::TRIANGLE, 2048);
+    WaveTable waveTable(WaveTable::WaveType::TRIANGLE, 2048);
     float pi = juce::MathConstants<float>::pi;
 
     // Triangle should go -1 -> 1 -> -1
@@ -96,7 +96,7 @@ private:
   }
 
   void testPhaseWrapping() {
-    WaveTable waveTable(WaveTable::SINE, 2048);
+    WaveTable waveTable(WaveTable::WaveType::SINE, 2048);
     float pi = juce::MathConstants<float>::pi;
 
     // Test that phase wraps correctly
@@ -104,10 +104,8 @@ private:
     float sample2 = waveTable.getSample(2.0f * pi);
     float sample3 = waveTable.getSample(4.0f * pi);
 
-    expect(std::abs(sample1 - sample2) < 0.01f,
-           "Phase should wrap at 2pi");
-    expect(std::abs(sample1 - sample3) < 0.01f,
-           "Phase should wrap at 4pi");
+    expect(std::abs(sample1 - sample2) < 0.01f, "Phase should wrap at 2pi");
+    expect(std::abs(sample1 - sample3) < 0.01f, "Phase should wrap at 4pi");
 
     // Test negative phase
     float sample4 = waveTable.getSample(-2.0f * pi);
@@ -116,7 +114,8 @@ private:
   }
 
   void testInterpolation() {
-    WaveTable waveTable(WaveTable::SINE, 128);  // Smaller table to see interpolation effect
+    WaveTable waveTable(WaveTable::WaveType::SINE,
+                        128);  // Smaller table to see interpolation effect
     float pi = juce::MathConstants<float>::pi;
 
     // Test that interpolated values are smooth
@@ -124,17 +123,17 @@ private:
     for (int i = 1; i < 100; ++i) {
       float phase = (2.0f * pi * i) / 100.0f;
       float current = waveTable.getSample(phase);
-      
+
       // Check that changes are gradual (no huge jumps)
       float diff = std::abs(current - prev);
       expect(diff < 0.5f, "Interpolation should produce smooth values");
-      
+
       prev = current;
     }
   }
 
   void testFastVsInterpolated() {
-    WaveTable waveTable(WaveTable::SINE, 2048);
+    WaveTable waveTable(WaveTable::WaveType::SINE, 2048);
     float pi = juce::MathConstants<float>::pi;
 
     // Fast and interpolated should be similar for large tables
@@ -142,11 +141,11 @@ private:
       float phase = (2.0f * pi * i) / 10.0f;
       float fast = waveTable.getSampleFast(phase);
       float interpolated = waveTable.getSample(phase);
-      
+
       float diff = std::abs(fast - interpolated);
       expect(diff < 0.1f, "Fast and interpolated should be similar");
     }
   }
 };
 
-static WaveTableTests waveTableTests;
+static const WaveTableTests waveTableTests;
