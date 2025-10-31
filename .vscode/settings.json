@@ -132,5 +132,6 @@
       "background": "#00aa0033",
       "type": "text-and-comment"
     }
-  }
+  },
+  "sonarlint.pathToCompileCommands": "${workspaceFolder}/backend/build/compile_commands.json"
 }
