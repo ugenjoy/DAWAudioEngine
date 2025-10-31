@@ -36,8 +36,18 @@ class AudioTrack {
    * @note Pure virtual function - must be implemented by derived classes
    */
   virtual float getSampleValue(double sampleTime) = 0;
-  void setMute(bool shouldMute);
-  void setVolume(float volume);
+
+  /**
+   * @brief Set the mute state of the track
+   * @param mute True to mute, false to unmute
+   */
+  virtual void setMute(bool shouldMute);
+
+  /**
+   * @brief Set the volume level of the track
+   * @param volume Volume level (clamped to range [0.0, 1.0])
+   */
+  virtual void setVolume(float volume);
 
   /** @brief Track volume level (0.0 to 1.0) */
   float volume;

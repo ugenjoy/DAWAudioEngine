@@ -52,18 +52,6 @@ class BeatTrack : public AudioTrack {
    */
   float getSampleValue(double sampleTime) override;
 
-  /**
-   * @brief Set the mute state of the track
-   * @param mute True to mute, false to unmute
-   */
-  void setMute(bool mute);
-
-  /**
-   * @brief Set the volume level of the track
-   * @param volume Volume level (clamped to range [0.0, 1.0])
-   */
-  void setVolume(float volume);
-
   // TODO: [MEDIUM] Add ADSR configuration methods:
   // void setADSRParameters(const ADSRParameters& params);
   // ADSRParameters getADSRParameters() const;
