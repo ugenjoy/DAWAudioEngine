@@ -3,12 +3,14 @@
 #include <cmath>
 #include <vector>
 
-// TODO: [LOW] Add SIMD optimizations (SSE/AVX) for waveform generation and lookup
+// TODO: [LOW] Add SIMD optimizations (SSE/AVX) for waveform generation and
+// lookup
 // TODO: [LOW] Implement bandlimited waveforms to prevent aliasing:
 //   - Use PolyBLEP (Polynomial Band-Limited Step) for square/saw/triangle
 //   - Or use additive synthesis with limited harmonics based on frequency
 // TODO: [LOW] Add cache-friendly memory layout (align table to cache line)
-// TODO: [LOW] Consider cubic interpolation for higher quality (vs current linear)
+// TODO: [LOW] Consider cubic interpolation for higher quality (vs current
+// linear)
 
 /**
  * @file wave-table.hpp
@@ -18,12 +20,12 @@
 /**
  * @class WaveTable
  * @brief Pre-computed wavetable for efficient waveform generation
- * 
+ *
  * This class stores pre-computed waveform samples in a lookup table,
  * allowing for efficient real-time audio synthesis without expensive
  * trigonometric calculations. Supports multiple waveform types and
  * provides both fast and interpolated lookup methods.
- * 
+ *
  * @note The table is computed once during construction
  * @note Thread-safe for reading after construction
  */
@@ -33,22 +35,23 @@ class WaveTable {
    * @enum WaveType
    * @brief Available waveform types
    */
-  enum WaveType { 
-    SINE,     /**< Sine wave */
-    SQUARE,   /**< Square wave */
-    SAW,      /**< Sawtooth wave */
-    TRIANGLE  /**< Triangle wave */
+  enum class WaveType {
+    SINE,    /**< Sine wave */
+    SQUARE,  /**< Square wave */
+    SAW,     /**< Sawtooth wave */
+    TRIANGLE /**< Triangle wave */
   };
 
   /**
    * @brief Construct a new WaveTable
    * @param type The waveform type to generate
    * @param tableSize Number of samples in the lookup table (default: 2048)
-   * 
+   *
    * Larger table sizes provide better quality but use more memory.
    * A size of 2048 is typically sufficient for most applications.
    */
-  WaveTable(WaveType type = SINE, int tableSize = 2048) : size(tableSize) {
+  explicit WaveTable(WaveType type = WaveType::SINE, int tableSize = 2048)
+      : size(tableSize) {
     table.resize(size);
     float pi = juce::MathConstants<float>::pi;
 
@@ -56,16 +59,16 @@ class WaveTable {
       float phase = (2.0f * pi * i) / (float)size;
 
       switch (type) {
-        case SINE:
+        case WaveType::SINE:
           table[i] = std::sin(phase);
           break;
-        case SQUARE:
+        case WaveType::SQUARE:
           table[i] = (phase < pi) ? 1.0f : -1.0f;
           break;
-        case SAW:
+        case WaveType::SAW:
           table[i] = 2.0f * (phase / (2.0f * pi)) - 1.0f;
           break;
-        case TRIANGLE:
+        case WaveType::TRIANGLE:
           if (phase < pi)
             table[i] = -1.0f + (2.0f * phase / pi);
           else
@@ -79,7 +82,7 @@ class WaveTable {
    * @brief Get an interpolated sample from the wavetable
    * @param phase The phase angle in radians (0 to 2π)
    * @return Interpolated sample value (typically in range [-1.0, 1.0])
-   * 
+   *
    * This method uses linear interpolation between adjacent samples
    * for better audio quality. Phase wrapping is handled automatically.
    * @todo [LOW] Add cubic interpolation option for higher quality
@@ -94,7 +97,7 @@ class WaveTable {
     while (index < 0)
       index += size;
 
-    int index0 = (int)index;
+    auto index0 = (int)index;
     int index1 = (index0 + 1) % size;
     float frac = index - (float)index0;
 
@@ -105,7 +108,7 @@ class WaveTable {
    * @brief Get a sample from the wavetable without interpolation
    * @param phase The phase angle in radians (0 to 2π)
    * @return Sample value (typically in range [-1.0, 1.0])
-   * 
+   *
    * This method is faster than getSample() but may introduce aliasing.
    * Use for performance-critical code where quality can be sacrificed.
    * Phase wrapping is handled automatically.
@@ -123,7 +126,7 @@ class WaveTable {
  private:
   /** @brief Pre-computed waveform samples */
   std::vector<float> table;  // TODO: [LOW] Align to 16/32 bytes for SIMD
-  
+
   /** @brief Number of samples in the table */
   int size;
 };

@@ -39,11 +39,11 @@ class AudioEngineCore : public juce::AudioAppComponent {
   bool playing;
   double currentPosition;  // TODO: [MEDIUM] Replace with int64_t totalSampleCount
   float masterVolume;
-  
-  // TODO: [CRITICAL] Add pre-allocated buffers:
-  // juce::AudioBuffer<float> mixBuffer;
-  // std::vector<float> trackPanValues;
-  
+
+  // Pre-allocated buffers for audio processing (avoid allocations in audio thread)
+  juce::AudioBuffer<float> mixBuffer;
+  std::vector<float> trackPanValues;
+
   // TODO: [HIGH] Add thread-safe track management:
   // juce::SpinLock trackLock;  // or use lock-free structure
 

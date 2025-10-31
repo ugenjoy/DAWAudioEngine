@@ -10,7 +10,7 @@
 // TODO: [LOW] Add velocity sensitivity to ADSR
 // TODO: [LOW] Add retrigger modes (legato, retrigger, free-run)
 
-WaveTable BeatTrack::waveTable(WaveTable::SINE, 2048);
+WaveTable BeatTrack::waveTable(WaveTable::WaveType::SINE, 2048);
 
 BeatTrack::BeatTrack(float frequency)
     : AudioTrack(), frequency(frequency), duration(0.15f) {
@@ -21,7 +21,7 @@ BeatTrack::BeatTrack(float frequency)
   rel = 0.02f;
 }
 
-BeatTrack::~BeatTrack() {}
+BeatTrack::~BeatTrack() = default;
 
 float BeatTrack::getSampleValue(double sampleTime) {
   if (mute) {
@@ -31,7 +31,7 @@ float BeatTrack::getSampleValue(double sampleTime) {
   auto& ctx = AudioContext::getInstance();
   float pi = juce::MathConstants<float>::pi;
   float currentTempo = ctx.tempoBPM.load();
-  float interval = 60.0f / currentTempo;
+  interval = 60.0f / currentTempo;
   float timeSinceLastBeat = std::fmod(sampleTime, interval);
 
   if (timeSinceLastBeat < duration + rel) {
@@ -44,14 +44,6 @@ float BeatTrack::getSampleValue(double sampleTime) {
   }
 
   return 0.0f;
-}
-
-void BeatTrack::setMute(bool shouldMute) {
-  this->mute = shouldMute;
-}
-
-void BeatTrack::setVolume(float volume) {
-  this->volume = juce::jlimit(0.0f, 1.0f, volume);
 }
 
 float BeatTrack::computeEnveloppe(float timeSinceLastBeat) {
