@@ -4,9 +4,11 @@ import { Outlet } from 'react-router'
 
 function MainLayout(): React.JSX.Element {
   return (
-    <main>
+    <main className="flex flex-col h-screen">
       <Toolbar />
-      <Outlet />
+      <div className="flex-1 overflow-auto">
+        <Outlet />
+      </div>
     </main>
   )
 }

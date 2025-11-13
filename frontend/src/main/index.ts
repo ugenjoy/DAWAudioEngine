@@ -3,6 +3,10 @@ import { join } from 'node:path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import getHealth from './services/api/health'
+import { WebSocketService } from './services/websocket/WebSocketService'
+
+// Initialize WebSocket service
+const wsService = new WebSocketService('ws://localhost:8080/ws')
 
 function createWindow(): void {
   // Create the browser window.
@@ -55,6 +59,26 @@ app.whenReady().then(() => {
 
   // IPC handler for health check
   ipcMain.handle('getHealth', getHealth)
+
+  // WebSocket IPC handlers
+  ipcMain.handle('websocket:getStatus', () => {
+    return wsService.getStatus()
+  })
+
+  ipcMain.handle('websocket:send', (_event, message) => {
+    wsService.send(message)
+  })
+
+  ipcMain.handle('websocket:connect', () => {
+    wsService.connect()
+  })
+
+  ipcMain.handle('websocket:disconnect', () => {
+    wsService.disconnect()
+  })
+
+  // Auto-connect WebSocket on app ready
+  wsService.connect()
 
   createWindow()
 
