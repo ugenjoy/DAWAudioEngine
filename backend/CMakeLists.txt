@@ -15,6 +15,26 @@ option(BUILD_TESTS "Build unit tests" OFF)
 # JUCE
 add_subdirectory(JUCE)
 
+# Crow (WebSocket server) + ASIO dependency
+include(FetchContent)
+
+# Fetch ASIO (required by Crow)
+FetchContent_Declare(
+    asio
+    GIT_REPOSITORY https://github.com/chriskohlhoff/asio.git
+    GIT_TAG asio-1-30-2
+)
+FetchContent_MakeAvailable(asio)
+set(ASIO_INCLUDE_DIR ${asio_SOURCE_DIR}/asio/include)
+
+# Fetch Crow
+FetchContent_Declare(
+    crow
+    GIT_REPOSITORY https://github.com/CrowCpp/Crow.git
+    GIT_TAG v1.2.0
+)
+FetchContent_MakeAvailable(crow)
+
 # Console application
 juce_add_console_app(DAWAudioEngine 
     PRODUCT_NAME "DAW Audio Engine")
@@ -46,7 +66,8 @@ target_link_libraries(DAWAudioEngine PRIVATE
     juce::juce_audio_formats
     juce::juce_audio_utils
     juce::juce_core
-    juce::juce_events)
+    juce::juce_events
+    Crow::Crow)
 
 # Unit tests
 if(BUILD_TESTS)

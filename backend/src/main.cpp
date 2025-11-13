@@ -1,4 +1,5 @@
 #include "audio-engine-core.hpp"
+#include "websocket-server.hpp"
 
 class AudioEngineApplication : public juce::JUCEApplication,
                                public juce::Timer {
@@ -16,23 +17,36 @@ class AudioEngineApplication : public juce::JUCEApplication,
     audioEngine = std::make_unique<AudioEngineCore>();
 
     juce::Logger::writeToLog("Audio engine created. You should hear a beat.");
+
+    // Start WebSocket server
+    wsServer = std::make_unique<WebSocketServer>();
+    wsServer->start(8080);
+
     juce::Logger::writeToLog("Press Ctrl+C to quit.");
 
-    // Keep the application running
-    startTimer(1000);
+    // Monitor server status every 500ms
+    startTimer(500);
   }
 
   void shutdown() override {
+    juce::Logger::writeToLog("=== Stopping WebSocket server ===");
+    wsServer.reset();
+
     juce::Logger::writeToLog("=== Stopping audio engine ===");
     audioEngine.reset();
   }
 
   void timerCallback() override {
-    // Empty callback to keep the application alive
+    // Check if WebSocket server thread has exited (e.g., due to Ctrl+C)
+    if (wsServer && wsServer->hasExited()) {
+      juce::Logger::writeToLog("=== Server thread exited, quitting application ===");
+      quit();
+    }
   }
 
  private:
   std::unique_ptr<AudioEngineCore> audioEngine;
+  std::unique_ptr<WebSocketServer> wsServer;
 };
 
 // Entry point
