@@ -14,12 +14,12 @@ class AudioEngineApplication : public juce::JUCEApplication,
     juce::Logger::writeToLog("=== DAW Audio Engine - Starting ===");
 
     // Create audio engine
-    audioEngine = std::make_unique<AudioEngineCore>();
+    auto audioEngine = std::make_shared<AudioEngineCore>();
 
     juce::Logger::writeToLog("Audio engine created. You should hear a beat.");
 
     // Start WebSocket server
-    wsServer = std::make_unique<WebSocketServer>();
+    wsServer = std::make_unique<WebSocketServer>(audioEngine);
     wsServer->start(8080);
 
     juce::Logger::writeToLog("Press Ctrl+C to quit.");
@@ -39,7 +39,8 @@ class AudioEngineApplication : public juce::JUCEApplication,
   void timerCallback() override {
     // Check if WebSocket server thread has exited (e.g., due to Ctrl+C)
     if (wsServer && wsServer->hasExited()) {
-      juce::Logger::writeToLog("=== Server thread exited, quitting application ===");
+      juce::Logger::writeToLog(
+          "=== Server thread exited, quitting application ===");
       quit();
     }
   }

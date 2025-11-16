@@ -43,9 +43,19 @@ void AudioEngineCore::prepareToPlay(int samplesPerBlockExpected,
   juce::Logger::writeToLog("- Sample rate: " + juce::String(sampleRate) +
                            " Hz");
   juce::Logger::writeToLog("- Ready to play!");
+}
 
-  // Start automatically (for testing)
-  playing = true;
+void AudioEngineCore::play() {
+  if (!playing) {
+    playing.store(true);
+  }
+}
+
+void AudioEngineCore::stop() {
+  if (playing) {
+    playing.store(false);
+    currentPosition = 0.0;
+  }
 }
 
 void AudioEngineCore::getNextAudioBlock(
@@ -62,10 +72,11 @@ void AudioEngineCore::getNextAudioBlock(
   // Clear the pre-allocated mix buffer
   mixBuffer.clear();
 
-  // OPTIMIZED: Batch processing with reduced virtual calls and SIMD-enabled mixing
-  // Render each track into trackBuffer, then mix into stereo mixBuffer
+  // OPTIMIZED: Batch processing with reduced virtual calls and SIMD-enabled
+  // mixing Render each track into trackBuffer, then mix into stereo mixBuffer
   for (size_t trackIdx = 0; trackIdx < tracks.size(); ++trackIdx) {
-    // Render entire block at once (single virtual call instead of numSamples calls)
+    // Render entire block at once (single virtual call instead of numSamples
+    // calls)
     tracks[trackIdx]->renderBlock(trackBuffer, 0, numSamples, currentPosition);
 
     // Mix track buffer into both stereo channels using JUCE's optimized addFrom
@@ -82,8 +93,8 @@ void AudioEngineCore::getNextAudioBlock(
 
   // Copy from mix buffer to output buffer
   for (int channel = 0; channel < buffer->getNumChannels(); ++channel) {
-    buffer->copyFrom(channel, bufferToFill.startSample, mixBuffer,
-                     channel, 0, numSamples);
+    buffer->copyFrom(channel, bufferToFill.startSample, mixBuffer, channel, 0,
+                     numSamples);
   }
 
   // Update playback position

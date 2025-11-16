@@ -35,6 +35,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(crow)
 
+# Fetch nlohmann/json
+include(FetchContent)
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_MakeAvailable(json)
+
 # Console application
 juce_add_console_app(DAWAudioEngine 
     PRODUCT_NAME "DAW Audio Engine")
@@ -67,7 +75,8 @@ target_link_libraries(DAWAudioEngine PRIVATE
     juce::juce_audio_utils
     juce::juce_core
     juce::juce_events
-    Crow::Crow)
+    Crow::Crow
+    nlohmann_json::nlohmann_json)
 
 # Unit tests
 if(BUILD_TESTS)

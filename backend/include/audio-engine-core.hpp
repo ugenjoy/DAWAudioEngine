@@ -1,3 +1,5 @@
+#pragma once
+
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_devices/juce_audio_devices.h>
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -35,14 +37,21 @@ class AudioEngineCore : public juce::AudioAppComponent {
       const juce::AudioSourceChannelInfo& bufferToFill) override;
   void releaseResources() override;
 
+  // Play control
+  void play();
+  void stop();
+
  private:
-  bool playing;
-  double currentPosition;  // TODO: [MEDIUM] Replace with int64_t totalSampleCount
+  std::atomic<bool> playing;
+  // TODO: [MEDIUM] Replace with int64_t totalSampleCount
+  double currentPosition;
   float masterVolume;
 
-  // Pre-allocated buffers for audio processing (avoid allocations in audio thread)
+  // Pre-allocated buffers for audio processing (avoid allocations in audio
+  // thread)
   juce::AudioBuffer<float> mixBuffer;  // Stereo mix buffer
-  juce::AudioBuffer<float> trackBuffer;  // Mono buffer for individual track rendering
+  juce::AudioBuffer<float>
+      trackBuffer;  // Mono buffer for individual track rendering
   std::vector<float> trackPanValues;
 
   // TODO: [HIGH] Add thread-safe track management:
