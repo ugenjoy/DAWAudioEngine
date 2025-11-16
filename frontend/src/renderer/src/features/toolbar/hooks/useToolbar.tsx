@@ -7,6 +7,7 @@ interface UseToolbarReturn {
   handlePlayClick: () => void
   handlePauseClick: () => void
   handleStopClick: () => void
+  handleSwitchSong: () => void
 }
 
 function useToolbar(): UseToolbarReturn {
@@ -43,7 +44,11 @@ function useToolbar(): UseToolbarReturn {
     sendAction('stop')
   }
 
-  async function sendAction(action: string): Promise<void> {
+  const handleSwitchSong = (): void => {
+    sendAction('switchSong', { songId: 1 })
+  }
+
+  async function sendAction(action: string, params?: object): Promise<void> {
     if (!isConnected) {
       setStatus('✗ WebSocket not connected')
       setTimeout(() => {
@@ -55,7 +60,7 @@ function useToolbar(): UseToolbarReturn {
     try {
       await send({
         type: 'action',
-        payload: { action }
+        payload: { action, ...params }
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -67,7 +72,7 @@ function useToolbar(): UseToolbarReturn {
     }
   }
 
-  return { playing, status, handlePlayClick, handlePauseClick, handleStopClick }
+  return { playing, status, handlePlayClick, handlePauseClick, handleStopClick, handleSwitchSong }
 }
 
 export default useToolbar

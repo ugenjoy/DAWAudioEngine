@@ -3,11 +3,12 @@ import React from 'react'
 import { useWebSocket } from '@/features/webSocket/hooks/useWebSocket'
 import { WebSocketStatus } from '@/features/webSocket/components/WebSocketStatus'
 import useToolbar from '../hooks/useToolbar'
-import { Pause, Play, Square } from 'lucide-react'
+import { ArrowLeftRight, Pause, Play, Square } from 'lucide-react'
 
 function Toolbar(): React.JSX.Element {
   const { connectionStatus } = useWebSocket()
-  const { playing, status, handlePlayClick, handlePauseClick, handleStopClick } = useToolbar()
+  const { playing, status, handlePlayClick, handlePauseClick, handleStopClick, handleSwitchSong } =
+    useToolbar()
 
   return (
     <div className="w-full p-2 flex flex-col gap-2 border-border border-b">
@@ -23,6 +24,9 @@ function Toolbar(): React.JSX.Element {
         )}
         <Button onClick={handleStopClick} variant="ghost" size="icon-sm">
           <Square />
+        </Button>
+        <Button onClick={handleSwitchSong} variant="ghost" size="icon-sm">
+          <ArrowLeftRight />
         </Button>
         <WebSocketStatus className="absolute right-6 top-4.5" status={connectionStatus} />
       </div>

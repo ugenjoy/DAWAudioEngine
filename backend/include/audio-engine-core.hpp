@@ -33,11 +33,7 @@ class AudioEngineCore : public juce::AudioAppComponent {
   void releaseResources() override;
 
   // Song management
-  void loadSong(std::unique_ptr<Song> newSong) {
-    activeSong = std::move(newSong);
-  }
-
-  void switchToSong(Song* song) { activeSong.reset(song); }
+  void loadSong(Song* newSong) { activeSong = newSong; }
 
   // Play control
   void play();
@@ -47,7 +43,6 @@ class AudioEngineCore : public juce::AudioAppComponent {
 
  private:
   std::atomic<bool> playing;
-  // TODO: [MEDIUM] Replace with int64_t totalSampleCount
   float masterVolume;
 
   // Pre-allocated buffers for audio processing (avoid allocations in audio
@@ -56,7 +51,7 @@ class AudioEngineCore : public juce::AudioAppComponent {
   juce::AudioBuffer<float>
       trackBuffer;  // Mono buffer for individual track rendering
 
-  std::unique_ptr<Song> activeSong;
+  Song* activeSong;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioEngineCore)
 };

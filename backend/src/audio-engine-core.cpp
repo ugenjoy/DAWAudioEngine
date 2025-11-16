@@ -5,7 +5,8 @@
 // TODO: [MEDIUM] Implement error handling for audio device failures
 // TODO: [LOW] Add panning control per track
 
-AudioEngineCore::AudioEngineCore() : playing(false), masterVolume(0.5f) {
+AudioEngineCore::AudioEngineCore()
+    : playing(false), masterVolume(0.5f), activeSong(nullptr) {
   // Audio configuration: 0 inputs, 2 outputs
   // TODO: [MEDIUM] Add error handling for audio device initialization
   setAudioChannels(0, 2);
@@ -48,10 +49,12 @@ void AudioEngineCore::pause() {
 }
 
 void AudioEngineCore::stop() {
-  if (activeSong && playing) {
-    playing.store(false);
+  if (activeSong) {
+    if (playing) {
+      playing.store(false);
+    }
+    activeSong->setCurrentPosition(0.0);
   }
-  activeSong->setCurrentPosition(0.0);
 }
 
 void AudioEngineCore::switchPlaying() {
@@ -69,8 +72,6 @@ void AudioEngineCore::getNextAudioBlock(
     buffer->clear();
     return;
   }
-
-  juce::Logger::writeToLog(juce::String(activeSong->getCurrentPosition()));
 
   // Clear the pre-allocated mix buffer
   mixBuffer.clear();

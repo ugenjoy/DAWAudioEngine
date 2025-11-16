@@ -4,15 +4,16 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "audio-engine-core.hpp"
+#include "songs-manager.hpp"
 
 using json = nlohmann::json;
 
 class MessageHandler {
  public:
-  MessageHandler(std::shared_ptr<AudioEngineCore> engine)
-      : audioEngine(engine) {}
+  explicit MessageHandler(AudioEngineCore* engine, SongsManager* songsManager)
+      : audioEngine(engine), songsManager(songsManager) {}
 
-  json handleMessage(const std::string& rawMessage) {
+  json handleMessage(const std::string& rawMessage) const {
     try {
       auto message = json::parse(rawMessage);
       std::string type = message.value("type", "");
@@ -30,6 +31,13 @@ class MessageHandler {
           return handlePause();
         if (action == "stop")
           return handleStop();
+        if (action == "switchSong") {
+          int songId = message["payload"].value("songId", -1);
+          if (songId < 0) {
+            return errorResponse("Missing or invalid songId");
+          }
+          return handleSwitchSong(songId);
+        }
         // if (action == "toggle")
         //   return handleToggle();
         // if (action == "setVolume")
@@ -50,21 +58,32 @@ class MessageHandler {
   }
 
  private:
-  std::shared_ptr<AudioEngineCore> audioEngine;
+  AudioEngineCore* audioEngine;
+  SongsManager* songsManager;
 
-  json handlePlay() {
+  json handlePlay() const {
     audioEngine->play();
     return {{"status", "ok"}, {"playing", true}};
   }
 
-  json handlePause() {
+  json handlePause() const {
     audioEngine->pause();
     return {{"status", "ok"}, {"playing", false}};
   }
 
-  json handleStop() {
+  json handleStop() const {
     audioEngine->stop();
     return {{"status", "ok"}, {"playing", false}};
+  }
+
+  json handleSwitchSong(int songId) const {
+    auto* song = songsManager->getSong(songId);
+    if (!song) {
+      return errorResponse("Invalid song ID");
+    }
+
+    audioEngine->loadSong(song);
+    return {{"status", "ok"}, {"songId", songId}};
   }
 
   // json handleToggle() {
@@ -99,7 +118,7 @@ class MessageHandler {
   //           {"tempo", audioEngine->getTempo()}};
   // }
 
-  json errorResponse(const std::string& message) {
+  json errorResponse(const std::string& message) const {
     return {{"status", "error"}, {"message", message}};
   }
 };

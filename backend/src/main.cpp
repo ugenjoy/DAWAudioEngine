@@ -1,4 +1,5 @@
 #include "audio-engine-core.hpp"
+#include "songs-manager.hpp"
 #include "websocket-server.hpp"
 
 class AudioEngineApplication : public juce::JUCEApplication,
@@ -14,16 +15,31 @@ class AudioEngineApplication : public juce::JUCEApplication,
     juce::Logger::writeToLog("=== DAW Audio Engine - Starting ===");
 
     // Create audio engine
-    auto audioEngine = std::make_shared<AudioEngineCore>();
+    audioEngine = std::make_unique<AudioEngineCore>();
 
-    auto newSong = std::make_unique<Song>();
-    newSong->addTrack(std::make_unique<BeatTrack>(1000.0f));
-    audioEngine->loadSong(std::move(newSong));
+    // Create songsManager
+    songsManager = std::make_unique<SongsManager>();
+
+    auto song1 = std::make_unique<Song>();
+    auto track1 = std::make_unique<BeatTrack>(1000.0f);
+    song1->setTempo(100);
+    song1->addTrack(std::move(track1));
+
+    auto song2 = std::make_unique<Song>();
+    auto track2 = std::make_unique<BeatTrack>(600.0f);
+    song2->setTempo(60);
+    song2->addTrack(std::move(track2));
+
+    audioEngine->loadSong(song1.get());
+
+    songsManager->addSong(std::move(song1));
+    songsManager->addSong(std::move(song2));
 
     juce::Logger::writeToLog("Audio engine created. You should hear a beat.");
 
     // Start WebSocket server
-    wsServer = std::make_unique<WebSocketServer>(audioEngine);
+    wsServer = std::make_unique<WebSocketServer>(audioEngine.get(),
+                                                 songsManager.get());
     wsServer->start(8080);
 
     juce::Logger::writeToLog("Press Ctrl+C to quit.");
@@ -50,6 +66,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
   }
 
  private:
+  std::unique_ptr<SongsManager> songsManager;
   std::unique_ptr<AudioEngineCore> audioEngine;
   std::unique_ptr<WebSocketServer> wsServer;
 };

@@ -45,12 +45,13 @@ private:
     BeatTrack track(440.0f);
     auto& ctx = AudioContext::getInstance();
     ctx.sampleRate = 44100.0;
-    
+    const float testTempo = 120.0f;
+
     // Track should be initialized and not muted - check RMS over a period
     float sumSquares = 0.0f;
     int numSamples = 100;
     for (int i = 0; i < numSamples; ++i) {
-      float sample = track.getSampleValue(i / 44100.0);
+      float sample = track.getSampleValue(i / 44100.0, testTempo);
       sumSquares += sample * sample;
     }
     float rms = std::sqrt(sumSquares / numSamples);
@@ -61,13 +62,13 @@ private:
     BeatTrack track(440.0f);
     auto& ctx = AudioContext::getInstance();
     ctx.sampleRate = 44100.0;
-    ctx.tempoBPM = 120.0f;
+    const float testTempo = 120.0f;
 
     // During attack phase, RMS volume should increase
     auto getRMS = [&](double time, int samples = 50) {
       float sum = 0.0f;
       for (int i = 0; i < samples; ++i) {
-        float s = track.getSampleValue(time + i / 44100.0);
+        float s = track.getSampleValue(time + i / 44100.0, testTempo);
         sum += s * s;
       }
       return std::sqrt(sum / samples);
@@ -85,13 +86,13 @@ private:
     BeatTrack track(440.0f);
     auto& ctx = AudioContext::getInstance();
     ctx.sampleRate = 44100.0;
-    ctx.tempoBPM = 120.0f;
+    const float testTempo = 120.0f;
 
     // After attack (10ms), during decay (20ms), RMS volume should decrease
     auto getRMS = [&](double time, int samples = 50) {
       float sum = 0.0f;
       for (int i = 0; i < samples; ++i) {
-        float s = track.getSampleValue(time + i / 44100.0);
+        float s = track.getSampleValue(time + i / 44100.0, testTempo);
         sum += s * s;
       }
       return std::sqrt(sum / samples);
@@ -107,13 +108,13 @@ private:
     BeatTrack track(440.0f);
     auto& ctx = AudioContext::getInstance();
     ctx.sampleRate = 44100.0;
-    ctx.tempoBPM = 120.0f;
+    const float testTempo = 120.0f;
 
     // During sustain phase, RMS volume should remain relatively constant
     auto getRMS = [&](double time, int samples = 100) {
       float sum = 0.0f;
       for (int i = 0; i < samples; ++i) {
-        float s = track.getSampleValue(time + i / 44100.0);
+        float s = track.getSampleValue(time + i / 44100.0, testTempo);
         sum += s * s;
       }
       return std::sqrt(sum / samples);
@@ -130,12 +131,12 @@ private:
     BeatTrack track(440.0f);
     auto& ctx = AudioContext::getInstance();
     ctx.sampleRate = 44100.0;
-    ctx.tempoBPM = 120.0f;
+    const float testTempo = 120.0f;
 
     // After note duration (150ms), during release (20ms), volume should decrease to 0
-    float sampleStartRelease = std::abs(track.getSampleValue(0.151));  // Start of release
-    float sampleMidRelease = std::abs(track.getSampleValue(0.160));    // Mid release
-    float sampleEndRelease = std::abs(track.getSampleValue(0.170));    // End of release
+    float sampleStartRelease = std::abs(track.getSampleValue(0.151, testTempo));  // Start of release
+    float sampleMidRelease = std::abs(track.getSampleValue(0.160, testTempo));    // Mid release
+    float sampleEndRelease = std::abs(track.getSampleValue(0.170, testTempo));    // End of release
 
     expect(sampleMidRelease < sampleStartRelease, "Volume should decrease during release");
     expect(sampleEndRelease < sampleMidRelease, "Volume should continue decreasing during release");
@@ -146,13 +147,13 @@ private:
     BeatTrack track(440.0f);
     auto& ctx = AudioContext::getInstance();
     ctx.sampleRate = 44100.0;
-    ctx.tempoBPM = 120.0f;  // 120 BPM = 0.5 second per beat
+    const float testTempo = 120.0f;  // 120 BPM = 0.5 second per beat
 
     // Check RMS at beat starts
     auto getRMS = [&](double time, int samples = 100) {
       float sum = 0.0f;
       for (int i = 0; i < samples; ++i) {
-        float s = track.getSampleValue(time + i / 44100.0);
+        float s = track.getSampleValue(time + i / 44100.0, testTempo);
         sum += s * s;
       }
       return std::sqrt(sum / samples);
@@ -171,11 +172,12 @@ private:
     BeatTrack track(440.0f);
     auto& ctx = AudioContext::getInstance();
     ctx.sampleRate = 44100.0;
+    const float testTempo = 120.0f;
 
     auto getRMS = [&](int samples = 200) {
       float sum = 0.0f;
       for (int i = 0; i < samples; ++i) {
-        float s = track.getSampleValue(0.05 + i / 44100.0);
+        float s = track.getSampleValue(0.05 + i / 44100.0, testTempo);
         sum += s * s;
       }
       return std::sqrt(sum / samples);
@@ -205,11 +207,12 @@ private:
     BeatTrack track(440.0f);
     auto& ctx = AudioContext::getInstance();
     ctx.sampleRate = 44100.0;
+    const float testTempo = 120.0f;
 
     auto getRMS = [&](int samples = 200) {
       float sum = 0.0f;
       for (int i = 0; i < samples; ++i) {
-        float s = track.getSampleValue(0.05 + i / 44100.0);
+        float s = track.getSampleValue(0.05 + i / 44100.0, testTempo);
         sum += s * s;
       }
       return std::sqrt(sum / samples);
@@ -234,14 +237,14 @@ private:
     BeatTrack track(440.0f);
     auto& ctx = AudioContext::getInstance();
     ctx.sampleRate = 44100.0;
-    ctx.tempoBPM = 120.0f;  // 120 BPM = 0.5 second per beat
+    const float testTempo = 120.0f;  // 120 BPM = 0.5 second per beat
 
     // After release phase (150ms + 20ms = 170ms), there should be silence
-    float sampleSilence = track.getSampleValue(0.200);  // 200ms into the beat
+    float sampleSilence = track.getSampleValue(0.200, testTempo);  // 200ms into the beat
     expect(std::abs(sampleSilence) < 0.01f, "Should be silent between beats");
 
     // Just before next beat (at 0.49s), should still be silent
-    float sampleBeforeNextBeat = track.getSampleValue(0.49);
+    float sampleBeforeNextBeat = track.getSampleValue(0.49, testTempo);
     expect(std::abs(sampleBeforeNextBeat) < 0.01f, "Should be silent before next beat");
   }
 };

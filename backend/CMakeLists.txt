@@ -55,6 +55,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/beat-track.cpp
     src/song.cpp
     src/tracks-manager.cpp
+    src/songs-manager.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE

@@ -1,4 +1,5 @@
 #pragma once
+#include <juce_audio_basics/juce_audio_basics.h>
 #include "audio-track.hpp"
 
 class TracksManager {
@@ -13,7 +14,8 @@ class TracksManager {
   void renderTracks(juce::AudioBuffer<float>& mixBuffer,
                     juce::AudioBuffer<float>& trackBuffer,
                     int numSamples,
-                    double currentPosition);
+                    double currentPosition,
+                    float tempo);
 
  private:
   std::vector<std::unique_ptr<AudioTrack>> tracks;

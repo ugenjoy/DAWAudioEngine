@@ -23,15 +23,13 @@ BeatTrack::BeatTrack(float frequency)
 
 BeatTrack::~BeatTrack() = default;
 
-float BeatTrack::getSampleValue(double sampleTime) {
+float BeatTrack::getSampleValue(double sampleTime, float tempo) {
   if (mute) {
     return 0.0f;
   }
 
-  auto const& ctx = AudioContext::getInstance();
   float pi = juce::MathConstants<float>::pi;
-  float currentTempo = ctx.tempoBPM.load();
-  interval = 60.0f / currentTempo;
+  interval = 60.0f / tempo;
 
   if (float timeSinceLastBeat = std::fmod(sampleTime, interval);
       timeSinceLastBeat < duration + rel) {
@@ -49,7 +47,8 @@ float BeatTrack::getSampleValue(double sampleTime) {
 void BeatTrack::renderBlock(juce::AudioBuffer<float>& buffer,
                             int startSample,
                             int numSamples,
-                            double startTime) {
+                            double startTime,
+                            float tempo) {
   // Early exit if muted
   if (mute) {
     buffer.clear(0, startSample, numSamples);
@@ -58,9 +57,8 @@ void BeatTrack::renderBlock(juce::AudioBuffer<float>& buffer,
 
   auto const& ctx = AudioContext::getInstance();
   const float pi = juce::MathConstants<float>::pi;
-  const float currentTempo = ctx.tempoBPM.load();
   const double sampleRate = ctx.sampleRate;
-  interval = 60.0f / currentTempo;
+  interval = 60.0f / tempo;
 
   // Get direct pointer to buffer for faster access
   float* bufferData = buffer.getWritePointer(0, startSample);
