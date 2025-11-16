@@ -26,6 +26,8 @@ class MessageHandler {
 
         if (action == "play")
           return handlePlay();
+        if (action == "pause")
+          return handlePause();
         if (action == "stop")
           return handleStop();
         // if (action == "toggle")
@@ -53,6 +55,11 @@ class MessageHandler {
   json handlePlay() {
     audioEngine->play();
     return {{"status", "ok"}, {"playing", true}};
+  }
+
+  json handlePause() {
+    audioEngine->pause();
+    return {{"status", "ok"}, {"playing", false}};
   }
 
   json handleStop() {

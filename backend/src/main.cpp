@@ -16,6 +16,10 @@ class AudioEngineApplication : public juce::JUCEApplication,
     // Create audio engine
     auto audioEngine = std::make_shared<AudioEngineCore>();
 
+    auto newSong = std::make_unique<Song>();
+    newSong->addTrack(std::make_unique<BeatTrack>(1000.0f));
+    audioEngine->loadSong(std::move(newSong));
+
     juce::Logger::writeToLog("Audio engine created. You should hear a beat.");
 
     // Start WebSocket server

@@ -2,31 +2,41 @@ import { useState, useEffect } from 'react'
 import { useWebSocket } from '@/features/webSocket/hooks/useWebSocket'
 
 interface UseToolbarReturn {
-  testStatus: string
+  playing: boolean
+  status: string
   handlePlayClick: () => void
+  handlePauseClick: () => void
   handleStopClick: () => void
 }
 
 function useToolbar(): UseToolbarReturn {
   const { isConnected, send, lastMessage } = useWebSocket()
-  const [testStatus, setTestStatus] = useState<string>('')
-  const [isTesting, setIsTesting] = useState(false)
+  const [status, setStatus] = useState<string>('')
+  const [playing, setPlaying] = useState<boolean>(false)
 
   // Listen for echo responses
   useEffect(() => {
-    if (lastMessage && isTesting) {
-      setTestStatus(`✓ Received: ${lastMessage}`)
-      setIsTesting(false)
+    if (lastMessage) {
+      setStatus(`✓ Received: ${lastMessage}`)
+      const response = JSON.parse(lastMessage)
+
+      if (response.playing !== undefined) {
+        setPlaying(response.playing as boolean)
+      }
 
       // Clear status after 5 seconds
       setTimeout(() => {
-        setTestStatus('')
+        setStatus('')
       }, 5000)
     }
-  }, [lastMessage, isTesting])
+  }, [lastMessage])
 
   const handlePlayClick = (): void => {
     sendAction('play')
+  }
+
+  const handlePauseClick = (): void => {
+    sendAction('pause')
   }
 
   const handleStopClick = (): void => {
@@ -35,31 +45,29 @@ function useToolbar(): UseToolbarReturn {
 
   async function sendAction(action: string): Promise<void> {
     if (!isConnected) {
-      setTestStatus('✗ WebSocket not connected')
+      setStatus('✗ WebSocket not connected')
       setTimeout(() => {
-        setTestStatus('')
+        setStatus('')
       }, 5000)
       return
     }
 
     try {
-      // Send play message
       await send({
         type: 'action',
         payload: { action }
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      setTestStatus(`✗ Error: ${errorMessage}`)
-      setIsTesting(false)
+      setStatus(`✗ Error: ${errorMessage}`)
 
       setTimeout(() => {
-        setTestStatus('')
+        setStatus('')
       }, 5000)
     }
   }
 
-  return { testStatus, handlePlayClick, handleStopClick }
+  return { playing, status, handlePlayClick, handlePauseClick, handleStopClick }
 }
 
 export default useToolbar

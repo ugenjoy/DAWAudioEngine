@@ -53,6 +53,8 @@ target_sources(DAWAudioEngine PRIVATE
     src/audio-engine-core.cpp
     src/audio-track.cpp
     src/beat-track.cpp
+    src/song.cpp
+    src/tracks-manager.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE
