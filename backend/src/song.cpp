@@ -2,7 +2,8 @@
 #include "audio-context.hpp"
 
 Song::Song()
-    : tempo(120.0f),
+    : id(juce::Uuid().toDashedString().toStdString()),
+      tempo(120.0f),
       currentPosition(0.0),
       tracksManager(std::make_unique<TracksManager>()) {}
 
@@ -24,4 +25,31 @@ void Song::render(juce::AudioBuffer<float>& mixBuffer,
 
   auto const& ctx = AudioContext::getInstance();
   currentPosition += (double)numSamples / ctx.sampleRate;
+}
+
+nlohmann::json Song::toJson() const {
+  nlohmann::json j;
+  j["id"] = id;
+  j["tempo"] = tempo;
+  j["tracks"] = tracksManager->toJson();
+  return j;
+}
+
+std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j) {
+  auto song = std::make_unique<Song>();
+
+  // Restore ID if present
+  if (j.contains("id")) {
+    song->id = j["id"].get<std::string>();
+  }
+
+  song->tempo = j.value("tempo", 120.0f);
+  song->currentPosition = 0.0;  // Always start at beginning when loading
+
+  // Load tracks
+  if (j.contains("tracks")) {
+    song->tracksManager->loadFromJson(j["tracks"]);
+  }
+
+  return song;
 }

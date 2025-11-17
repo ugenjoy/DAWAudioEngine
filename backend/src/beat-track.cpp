@@ -101,3 +101,30 @@ float BeatTrack::computeEnveloppe(float timeSinceLastBeat) const {
 
   return enveloppeVolume;
 }
+
+nlohmann::json BeatTrack::toJson() const {
+  nlohmann::json j;
+  j["type"] = getTrackType();
+  j["id"] = id;
+  j["volume"] = volume;
+  j["pan"] = pan;
+  j["mute"] = mute;
+  j["frequency"] = frequency;
+  return j;
+}
+
+std::unique_ptr<BeatTrack> BeatTrack::fromJson(const nlohmann::json& j) {
+  float freq = j.value("frequency", 1000.0f);
+  auto track = std::make_unique<BeatTrack>(freq);
+
+  // Restore ID if present, otherwise keep the auto-generated one
+  if (j.contains("id")) {
+    track->id = j["id"].get<std::string>();
+  }
+
+  track->volume = j.value("volume", 0.4f);
+  track->pan = j.value("pan", 0.0f);
+  track->mute = j.value("mute", false);
+
+  return track;
+}

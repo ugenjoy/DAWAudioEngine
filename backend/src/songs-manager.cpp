@@ -27,3 +27,25 @@ Song* SongsManager::getSong(int songId) {
   }
   return songs[songId].get();
 }
+
+nlohmann::json SongsManager::toJson() const {
+  nlohmann::json j = nlohmann::json::array();
+
+  for (const auto& song : songs) {
+    j.push_back(song->toJson());
+  }
+
+  return j;
+}
+
+void SongsManager::loadFromJson(const nlohmann::json& j) {
+  songs.clear();
+
+  if (!j.is_array()) {
+    return;
+  }
+
+  for (const auto& songJson : j) {
+    songs.push_back(Song::fromJson(songJson));
+  }
+}

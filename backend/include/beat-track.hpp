@@ -67,6 +67,11 @@ class BeatTrack : public AudioTrack {
                    double startTime,
                    float tempo) override;
 
+  // Serialization
+  nlohmann::json toJson() const override;
+  static std::unique_ptr<BeatTrack> fromJson(const nlohmann::json& j);
+  std::string getTrackType() const override { return "BeatTrack"; }
+
   // TODO: [MEDIUM] Add ADSR configuration methods:
   // void setADSRParameters(const ADSRParameters& params);
   // ADSRParameters getADSRParameters() const;

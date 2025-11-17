@@ -1,9 +1,11 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "audio-engine-core.hpp"
+#include "project-manager.hpp"
 #include "songs-manager.hpp"
 
 using json = nlohmann::json;
@@ -11,7 +13,9 @@ using json = nlohmann::json;
 class MessageHandler {
  public:
   explicit MessageHandler(AudioEngineCore* engine, SongsManager* songsManager)
-      : audioEngine(engine), songsManager(songsManager) {}
+      : audioEngine(engine),
+        songsManager(songsManager),
+        projectManager(std::make_unique<ProjectManager>()) {}
 
   json handleMessage(const std::string& rawMessage) const {
     try {
@@ -38,14 +42,23 @@ class MessageHandler {
           }
           return handleSwitchSong(songId);
         }
-        // if (action == "toggle")
-        //   return handleToggle();
-        // if (action == "setVolume")
-        //   return handleSetVolume(message);
-        // if (action == "setTempo")
-        //   return handleSetTempo(message);
-        // if (action == "getState")
-        //   return handleGetState();
+        if (action == "saveProject") {
+          std::string path = message["payload"].value("path", "");
+          if (path.empty()) {
+            return errorResponse("Missing or invalid path");
+          }
+          return handleSaveProject(path);
+        }
+        if (action == "loadProject") {
+          std::string path = message["payload"].value("path", "");
+          if (path.empty()) {
+            return errorResponse("Missing or invalid path");
+          }
+          return handleLoadProject(path);
+        }
+        if (action == "getSongs") {
+          return handleGetSongs();
+        }
 
         return errorResponse("Unknown action: " + action);
       }
@@ -60,6 +73,7 @@ class MessageHandler {
  private:
   AudioEngineCore* audioEngine;
   SongsManager* songsManager;
+  std::unique_ptr<ProjectManager> projectManager;
 
   json handlePlay() const {
     audioEngine->play();
@@ -86,37 +100,29 @@ class MessageHandler {
     return {{"status", "ok"}, {"songId", songId}};
   }
 
-  // json handleToggle() {
-  //   audioEngine->togglePlayback();
-  //   return {{"status", "ok"}, {"playing", audioEngine->isPlaying()}};
-  // }
+  json handleSaveProject(const std::string& path) const {
+    if (!projectManager->saveProject(path, *songsManager)) {
+      return errorResponse("Failed to save project: " +
+                           projectManager->getLastError());
+    }
+    return {{"status", "ok"},
+            {"message", "Project saved successfully"},
+            {"path", path}};
+  }
 
-  // json handleSetVolume(const json& message) {
-  //   if (!message.contains("value")) {
-  //     return errorResponse("Missing 'value' parameter");
-  //   }
+  json handleLoadProject(const std::string& path) const {
+    if (!projectManager->loadProject(path, *songsManager)) {
+      return errorResponse("Failed to load project: " +
+                           projectManager->getLastError());
+    }
+    return {{"status", "ok"},
+            {"message", "Project loaded successfully"},
+            {"path", path}};
+  }
 
-  //   float volume = message["value"];
-  //   audioEngine->setMasterVolume(volume);
-  //   return {{"status", "ok"}, {"volume", volume}};
-  // }
-
-  // json handleSetTempo(const json& message) {
-  //   if (!message.contains("value")) {
-  //     return errorResponse("Missing 'value' parameter");
-  //   }
-
-  //   float tempo = message["value"];
-  //   audioEngine->setTempo(tempo);
-  //   return {{"status", "ok"}, {"tempo", tempo}};
-  // }
-
-  // json handleGetState() {
-  //   return {{"status", "ok"},
-  //           {"playing", audioEngine->isPlaying()},
-  //           {"volume", audioEngine->getMasterVolume()},
-  //           {"tempo", audioEngine->getTempo()}};
-  // }
+  json handleGetSongs() const {
+    return {{"status", "ok"}, {"songs", songsManager->toJson()}};
+  }
 
   json errorResponse(const std::string& message) const {
     return {{"status", "error"}, {"message", message}};

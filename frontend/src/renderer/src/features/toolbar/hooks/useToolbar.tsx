@@ -8,6 +8,7 @@ interface UseToolbarReturn {
   handlePauseClick: () => void
   handleStopClick: () => void
   handleSwitchSong: () => void
+  handleGetSongs: () => void
 }
 
 function useToolbar(): UseToolbarReturn {
@@ -23,6 +24,10 @@ function useToolbar(): UseToolbarReturn {
 
       if (response.playing !== undefined) {
         setPlaying(response.playing as boolean)
+      }
+
+      if (response.songs !== undefined) {
+        console.log(response.songs)
       }
 
       // Clear status after 5 seconds
@@ -46,6 +51,10 @@ function useToolbar(): UseToolbarReturn {
 
   const handleSwitchSong = (): void => {
     sendAction('switchSong', { songId: 1 })
+  }
+
+  const handleGetSongs = (): void => {
+    sendAction('getSongs')
   }
 
   async function sendAction(action: string, params?: object): Promise<void> {
@@ -72,7 +81,15 @@ function useToolbar(): UseToolbarReturn {
     }
   }
 
-  return { playing, status, handlePlayClick, handlePauseClick, handleStopClick, handleSwitchSong }
+  return {
+    playing,
+    status,
+    handlePlayClick,
+    handlePauseClick,
+    handleStopClick,
+    handleSwitchSong,
+    handleGetSongs
+  }
 }
 
 export default useToolbar

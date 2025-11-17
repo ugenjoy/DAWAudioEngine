@@ -1,6 +1,9 @@
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_core/juce_core.h>
+#include <nlohmann/json.hpp>
+#include <string>
 
 /**
  * @file audio-track.hpp
@@ -72,6 +75,26 @@ class AudioTrack {
    * @param volume Volume level (clamped to range [0.0, 1.0])
    */
   virtual void setVolume(float volume);
+
+  /**
+   * @brief Serialize track to JSON
+   * @return JSON representation of the track
+   * @note Pure virtual function - must be implemented by derived classes
+   */
+  virtual nlohmann::json toJson() const = 0;
+
+  /**
+   * @brief Get the track type identifier
+   * @return String identifier for the track type (e.g., "BeatTrack")
+   * @note Pure virtual function - must be implemented by derived classes
+   */
+  virtual std::string getTrackType() const = 0;
+
+  // Getters
+  std::string getId() const { return id; }
+
+  /** @brief Unique identifier for this track */
+  std::string id;
 
   /** @brief Track volume level (0.0 to 1.0) */
   float volume;

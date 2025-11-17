@@ -56,6 +56,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/song.cpp
     src/tracks-manager.cpp
     src/songs-manager.cpp
+    src/project-manager.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE
