@@ -1,18 +1,12 @@
 #include "audio-engine-core.hpp"
 #include "audio-context.hpp"
 
-// TODO: [HIGH] Implement dynamic track management API (addTrack, removeTrack,
-// getTracks)
 // TODO: [MEDIUM] Add audio mixer with bus routing and effects chain
 // TODO: [MEDIUM] Implement error handling for audio device failures
 // TODO: [LOW] Add panning control per track
 
 AudioEngineCore::AudioEngineCore()
-    : playing(false), currentPosition(0.0), masterVolume(0.5f) {
-  // TODO: [HIGH] Replace hardcoded track with dynamic track management
-  // Suggestion: loadTracksFromConfig() or addTrack() API
-  tracks.push_back(std::make_unique<BeatTrack>(1000.0f));
-
+    : playing(false), masterVolume(0.5f), activeSong(nullptr) {
   // Audio configuration: 0 inputs, 2 outputs
   // TODO: [MEDIUM] Add error handling for audio device initialization
   setAudioChannels(0, 2);
@@ -34,9 +28,6 @@ void AudioEngineCore::prepareToPlay(int samplesPerBlockExpected,
   // Allocate mono track buffer for individual track rendering
   trackBuffer.setSize(1, samplesPerBlockExpected, false, true, false);
 
-  // Initialize pan values for each track (center = 0.5)
-  trackPanValues.resize(tracks.size(), 0.5f);
-
   juce::Logger::writeToLog("Audio initialized:");
   juce::Logger::writeToLog(
       "- Buffer size: " + juce::String(samplesPerBlockExpected) + " samples");
@@ -46,25 +37,38 @@ void AudioEngineCore::prepareToPlay(int samplesPerBlockExpected,
 }
 
 void AudioEngineCore::play() {
-  if (!playing) {
+  if (activeSong && !playing) {
     playing.store(true);
   }
 }
 
-void AudioEngineCore::stop() {
-  if (playing) {
+void AudioEngineCore::pause() {
+  if (activeSong && playing) {
     playing.store(false);
-    currentPosition = 0.0;
+  }
+}
+
+void AudioEngineCore::stop() {
+  if (activeSong) {
+    if (playing) {
+      playing.store(false);
+    }
+    activeSong->setCurrentPosition(0.0);
+  }
+}
+
+void AudioEngineCore::switchPlaying() {
+  if (activeSong) {
+    playing.store(!playing);
   }
 }
 
 void AudioEngineCore::getNextAudioBlock(
     const juce::AudioSourceChannelInfo& bufferToFill) {
-  auto const& ctx = AudioContext::getInstance();
   auto* buffer = bufferToFill.buffer;
   auto numSamples = bufferToFill.numSamples;
 
-  if (!playing) {
+  if (!playing || !activeSong) {
     buffer->clear();
     return;
   }
@@ -72,19 +76,8 @@ void AudioEngineCore::getNextAudioBlock(
   // Clear the pre-allocated mix buffer
   mixBuffer.clear();
 
-  // OPTIMIZED: Batch processing with reduced virtual calls and SIMD-enabled
-  // mixing Render each track into trackBuffer, then mix into stereo mixBuffer
-  for (size_t trackIdx = 0; trackIdx < tracks.size(); ++trackIdx) {
-    // Render entire block at once (single virtual call instead of numSamples
-    // calls)
-    tracks[trackIdx]->renderBlock(trackBuffer, 0, numSamples, currentPosition);
-
-    // Mix track buffer into both stereo channels using JUCE's optimized addFrom
-    // This uses SIMD operations internally for much better performance
-    for (int channel = 0; channel < mixBuffer.getNumChannels(); ++channel) {
-      mixBuffer.addFrom(channel, 0, trackBuffer, 0, 0, numSamples);
-    }
-  }
+  // Render song
+  activeSong->render(mixBuffer, trackBuffer, numSamples);
 
   // Apply master volume to mixed buffer using SIMD-optimized operation
   for (int channel = 0; channel < mixBuffer.getNumChannels(); ++channel) {
@@ -96,11 +89,6 @@ void AudioEngineCore::getNextAudioBlock(
     buffer->copyFrom(channel, bufferToFill.startSample, mixBuffer, channel, 0,
                      numSamples);
   }
-
-  // Update playback position
-  // TODO: [MEDIUM] Replace floating-point accumulation with integer sample
-  // counter to avoid drift: totalSampleCount += numSamples;
-  currentPosition += (double)numSamples / ctx.sampleRate;
 }
 
 void AudioEngineCore::releaseResources() {

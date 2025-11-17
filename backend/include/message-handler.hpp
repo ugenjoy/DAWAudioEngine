@@ -1,18 +1,23 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include "audio-engine-core.hpp"
+#include "project-manager.hpp"
+#include "songs-manager.hpp"
 
 using json = nlohmann::json;
 
 class MessageHandler {
  public:
-  MessageHandler(std::shared_ptr<AudioEngineCore> engine)
-      : audioEngine(engine) {}
+  explicit MessageHandler(AudioEngineCore* engine, SongsManager* songsManager)
+      : audioEngine(engine),
+        songsManager(songsManager),
+        projectManager(std::make_unique<ProjectManager>()) {}
 
-  json handleMessage(const std::string& rawMessage) {
+  json handleMessage(const std::string& rawMessage) const {
     try {
       auto message = json::parse(rawMessage);
       std::string type = message.value("type", "");
@@ -26,16 +31,34 @@ class MessageHandler {
 
         if (action == "play")
           return handlePlay();
+        if (action == "pause")
+          return handlePause();
         if (action == "stop")
           return handleStop();
-        // if (action == "toggle")
-        //   return handleToggle();
-        // if (action == "setVolume")
-        //   return handleSetVolume(message);
-        // if (action == "setTempo")
-        //   return handleSetTempo(message);
-        // if (action == "getState")
-        //   return handleGetState();
+        if (action == "switchSong") {
+          int songId = message["payload"].value("songId", -1);
+          if (songId < 0) {
+            return errorResponse("Missing or invalid songId");
+          }
+          return handleSwitchSong(songId);
+        }
+        if (action == "saveProject") {
+          std::string path = message["payload"].value("path", "");
+          if (path.empty()) {
+            return errorResponse("Missing or invalid path");
+          }
+          return handleSaveProject(path);
+        }
+        if (action == "loadProject") {
+          std::string path = message["payload"].value("path", "");
+          if (path.empty()) {
+            return errorResponse("Missing or invalid path");
+          }
+          return handleLoadProject(path);
+        }
+        if (action == "getSongs") {
+          return handleGetSongs();
+        }
 
         return errorResponse("Unknown action: " + action);
       }
@@ -48,51 +71,60 @@ class MessageHandler {
   }
 
  private:
-  std::shared_ptr<AudioEngineCore> audioEngine;
+  AudioEngineCore* audioEngine;
+  SongsManager* songsManager;
+  std::unique_ptr<ProjectManager> projectManager;
 
-  json handlePlay() {
+  json handlePlay() const {
     audioEngine->play();
     return {{"status", "ok"}, {"playing", true}};
   }
 
-  json handleStop() {
+  json handlePause() const {
+    audioEngine->pause();
+    return {{"status", "ok"}, {"playing", false}};
+  }
+
+  json handleStop() const {
     audioEngine->stop();
     return {{"status", "ok"}, {"playing", false}};
   }
 
-  // json handleToggle() {
-  //   audioEngine->togglePlayback();
-  //   return {{"status", "ok"}, {"playing", audioEngine->isPlaying()}};
-  // }
+  json handleSwitchSong(int songId) const {
+    auto* song = songsManager->getSong(songId);
+    if (!song) {
+      return errorResponse("Invalid song ID");
+    }
 
-  // json handleSetVolume(const json& message) {
-  //   if (!message.contains("value")) {
-  //     return errorResponse("Missing 'value' parameter");
-  //   }
+    audioEngine->loadSong(song);
+    return {{"status", "ok"}, {"songId", songId}};
+  }
 
-  //   float volume = message["value"];
-  //   audioEngine->setMasterVolume(volume);
-  //   return {{"status", "ok"}, {"volume", volume}};
-  // }
+  json handleSaveProject(const std::string& path) const {
+    if (!projectManager->saveProject(path, *songsManager)) {
+      return errorResponse("Failed to save project: " +
+                           projectManager->getLastError());
+    }
+    return {{"status", "ok"},
+            {"message", "Project saved successfully"},
+            {"path", path}};
+  }
 
-  // json handleSetTempo(const json& message) {
-  //   if (!message.contains("value")) {
-  //     return errorResponse("Missing 'value' parameter");
-  //   }
+  json handleLoadProject(const std::string& path) const {
+    if (!projectManager->loadProject(path, *songsManager)) {
+      return errorResponse("Failed to load project: " +
+                           projectManager->getLastError());
+    }
+    return {{"status", "ok"},
+            {"message", "Project loaded successfully"},
+            {"path", path}};
+  }
 
-  //   float tempo = message["value"];
-  //   audioEngine->setTempo(tempo);
-  //   return {{"status", "ok"}, {"tempo", tempo}};
-  // }
+  json handleGetSongs() const {
+    return {{"status", "ok"}, {"songs", songsManager->toJson()}};
+  }
 
-  // json handleGetState() {
-  //   return {{"status", "ok"},
-  //           {"playing", audioEngine->isPlaying()},
-  //           {"volume", audioEngine->getMasterVolume()},
-  //           {"tempo", audioEngine->getTempo()}};
-  // }
-
-  json errorResponse(const std::string& message) {
+  json errorResponse(const std::string& message) const {
     return {{"status", "error"}, {"message", message}};
   }
 };

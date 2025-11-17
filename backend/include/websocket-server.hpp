@@ -16,8 +16,11 @@
  */
 class WebSocketServer {
  public:
-  WebSocketServer(std::shared_ptr<AudioEngineCore> audioEngine)
-      : running_(false), thread_exited_(false), audioEngine(audioEngine) {}
+  WebSocketServer(AudioEngineCore* audioEngine, SongsManager* songsManager)
+      : running_(false),
+        thread_exited_(false),
+        audioEngine(audioEngine),
+        songsManager(songsManager) {}
 
   ~WebSocketServer() { stop(); }
 
@@ -78,7 +81,8 @@ class WebSocketServer {
  private:
   void run() {
     app_ = std::make_unique<crow::SimpleApp>();
-    messageHandler = std::make_unique<MessageHandler>(audioEngine);
+    messageHandler =
+        std::make_unique<MessageHandler>(audioEngine, songsManager);
 
     // WebSocket endpoint
     CROW_WEBSOCKET_ROUTE((*app_), "/ws")
@@ -119,6 +123,7 @@ class WebSocketServer {
   std::atomic<bool> thread_exited_;
   uint16_t port_;
 
-  std::shared_ptr<AudioEngineCore> audioEngine;
+  AudioEngineCore* audioEngine;
+  SongsManager* songsManager;
   std::unique_ptr<MessageHandler> messageHandler;
 };

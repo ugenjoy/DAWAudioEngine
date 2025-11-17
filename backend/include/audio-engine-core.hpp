@@ -10,12 +10,7 @@
 #include <vector>
 #include "audio-track.hpp"
 #include "beat-track.hpp"
-
-// TODO: [HIGH] Add dynamic track management API:
-// - void addTrack(std::unique_ptr<AudioTrack> track);
-// - void removeTrack(size_t index);
-// - AudioTrack* getTrack(size_t index);
-// - size_t getTrackCount() const;
+#include "song.hpp"
 
 // TODO: [MEDIUM] Add mixer functionality:
 // - struct MixerBus { float volume, pan; std::vector<Effect*> effects; };
@@ -37,14 +32,17 @@ class AudioEngineCore : public juce::AudioAppComponent {
       const juce::AudioSourceChannelInfo& bufferToFill) override;
   void releaseResources() override;
 
+  // Song management
+  void loadSong(Song* newSong) { activeSong = newSong; }
+
   // Play control
   void play();
+  void pause();
   void stop();
+  void switchPlaying();
 
  private:
   std::atomic<bool> playing;
-  // TODO: [MEDIUM] Replace with int64_t totalSampleCount
-  double currentPosition;
   float masterVolume;
 
   // Pre-allocated buffers for audio processing (avoid allocations in audio
@@ -52,12 +50,8 @@ class AudioEngineCore : public juce::AudioAppComponent {
   juce::AudioBuffer<float> mixBuffer;  // Stereo mix buffer
   juce::AudioBuffer<float>
       trackBuffer;  // Mono buffer for individual track rendering
-  std::vector<float> trackPanValues;
 
-  // TODO: [HIGH] Add thread-safe track management:
-  // juce::SpinLock trackLock;  // or use lock-free structure
-
-  std::vector<std::unique_ptr<AudioTrack>> tracks;
+  Song* activeSong;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioEngineCore)
 };
