@@ -66,8 +66,8 @@ target_include_directories(DAWAudioEngine PRIVATE
 target_compile_definitions(DAWAudioEngine PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
-    JUCE_ALSA=1
     JUCE_JACK=1
+    JUCE_ALSA=1
     JUCE_APPLICATION_NAME_STRING="DAW Audio Engine"
     JUCE_APPLICATION_VERSION_STRING="1.0.0")
 
@@ -126,8 +126,8 @@ if(BUILD_TESTS)
     target_compile_definitions(DAWAudioEngine_Tests PRIVATE
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
-        JUCE_ALSA=1
         JUCE_JACK=1
+        JUCE_ALSA=1
         JUCE_APPLICATION_NAME_STRING="DAW Audio Engine Tests"
         JUCE_APPLICATION_VERSION_STRING="1.0.0")
     
