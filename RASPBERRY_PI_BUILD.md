@@ -65,20 +65,7 @@ sudo apt-get install -y \
 
 ⚠️ **Important** : `libfontconfig1-dev` est indispensable pour compiler `juceaide` (outil interne JUCE).
 
-### JACK (optionnel - détection automatique)
-
-```bash
-# Si vous voulez utiliser JACK Audio Connection Kit
-sudo apt-get install -y \
-    jackd2 \
-    libjack-jackd2-dev
-```
-
-**Note** :
-- Le support JACK est **automatiquement détecté** lors de la configuration CMake
-- Si JACK est installé, il sera activé automatiquement
-- Si JACK n'est pas présent, le projet utilisera ALSA uniquement
-- Pour débuter, ALSA seul est suffisant et plus simple à configurer
+💡 **Note** : Ce projet utilise **ALSA uniquement** sur Raspberry Pi (pas de JACK requis). Configuration simple et latence correcte.
 
 ---
 
@@ -116,8 +103,6 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 
 La sortie devrait afficher :
 - ✅ `Found ALSA`
-- ✅ `JACK Audio Connection Kit found - enabling JACK support` (si JACK installé)
-  - OU `JACK not found - using ALSA only` (si JACK absent)
 - ✅ `Configuring juceaide` → `Building juceaide` (peut prendre 5-10 minutes)
 - ✅ `Configuring done`
 
@@ -212,15 +197,13 @@ WebSocket server started on port 8080
 
 ### Avertissements normaux (non bloquants)
 
-Si vous voyez :
+Vous pourriez voir ce message au lancement :
 ```
 Cannot connect to server socket err = No such file or directory
 jack server is not running or cannot be started
 ```
 
-**C'est normal !** JUCE essaie JACK d'abord, puis utilise ALSA automatiquement. Le son fonctionne via ALSA.
-
-Pour supprimer cet avertissement, voir [Configuration JACK](#utilisation-de-jack-optionnel).
+**C'est totalement normal !** JUCE essaie automatiquement JACK en premier (même si désactivé à la compilation), puis bascule sur ALSA. Le son fonctionne correctement via ALSA. Cet avertissement est inoffensif et peut être ignoré.
 
 ---
 
@@ -258,24 +241,6 @@ rm -rf build
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 ```
-
-### Erreur : `jack/jack.h: No such file or directory`
-
-**Cause** : Cette erreur ne devrait plus apparaître avec la détection automatique de JACK. Si elle persiste, le cache CMake est peut-être corrompu.
-
-**Solution** :
-```bash
-# Supprimer le build et reconfigurer
-cd ~/daw/backend
-rm -rf build
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
-```
-
-Lors de la configuration, vous devriez voir :
-- `JACK Audio Connection Kit found` (si installé)
-- `JACK not found - using ALSA only` (si absent)
 
 ### Erreur de link : `undefined reference to __atomic_*`
 
@@ -317,137 +282,6 @@ sudo netstat -tulpn | grep :8080
 
 # Tuer le processus si nécessaire
 sudo kill -9 <PID>
-```
-
----
-
-## Utilisation de JACK (optionnel)
-
-JACK offre une latence plus basse et un routage audio flexible, mais nécessite une configuration supplémentaire.
-
-### Installation de JACK
-
-```bash
-sudo apt-get install -y jackd2 libjack-jackd2-dev
-
-# Configurer les permissions temps-réel
-sudo dpkg-reconfigure -p high jackd2
-# Répondre "Yes" pour activer les priorités temps-réel
-```
-
-### Configuration des permissions temps-réel
-
-Le fichier `/etc/security/limits.d/audio.conf` devrait contenir :
-```
-@audio   -  rtprio     95
-@audio   -  memlock    unlimited
-```
-
-**Redémarrer** la Raspberry Pi après configuration :
-```bash
-sudo reboot
-```
-
-### Vérification des permissions
-
-Après reconnexion :
-```bash
-# Devrait afficher 95
-ulimit -r
-
-# Devrait afficher "unlimited"
-ulimit -l
-```
-
-### Lancement de JACK
-
-**Terminal 1** : Démarrer le serveur JACK
-```bash
-# Pour interface USB (remplacer hw:2 par votre carte)
-jackd -dalsa -dhw:2 -r48000 -p512 -n3
-```
-
-**Paramètres expliqués** :
-- `-dalsa` : Backend ALSA
-- `-dhw:2` : Carte audio 2 (voir `aplay -l`)
-- `-r48000` : Sample rate 48kHz
-- `-p512` : Buffer 512 samples (~10.7ms de latence)
-- `-n3` : 3 périodes (plus stable sur Raspberry Pi)
-
-**Terminal 2** : Lancer l'application
-```bash
-cd ~/daw/backend/build
-./DAWAudioEngine_artefacts/Release/DAWAudioEngine
-```
-
-### Connecter les ports audio
-
-**Terminal 3** : Vérifier les ports
-```bash
-# Lister tous les ports JACK
-jack_lsp -c
-```
-
-Si votre application utilise JACK, vous verrez :
-```
-system:capture_1
-system:playback_1
-system:playback_2
-DAWAudioEngine:output_1
-DAWAudioEngine:output_2
-```
-
-**Connecter manuellement** :
-```bash
-jack_connect DAWAudioEngine:output_1 system:playback_1
-jack_connect DAWAudioEngine:output_2 system:playback_2
-```
-
-### Activer le support JACK
-
-Le support JACK est détecté et activé automatiquement. Pour l'activer :
-
-```bash
-# 1. Installer JACK
-sudo apt-get install -y libjack-jackd2-dev
-
-# 2. Recompiler (JACK sera détecté automatiquement)
-cd ~/daw/backend
-rm -rf build
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-```
-
-Vous devriez voir le message :
-```
--- JACK Audio Connection Kit found - enabling JACK support
-```
-
-Puis compiler :
-```bash
-make -j$(nproc)
-```
-
-Vérifier que JACK est bien lié :
-```bash
-ldd ./DAWAudioEngine_artefacts/Release/DAWAudioEngine | grep jack
-```
-
-### Optimisations JACK pour Raspberry Pi
-
-**Pour audio intégré** (haute latence) :
-```bash
-jackd -dalsa -dhw:0 -r48000 -p2048 -n3
-```
-
-**Pour interface USB** (basse latence) :
-```bash
-jackd -dalsa -dhw:2 -r48000 -p256 -n2
-```
-
-**Pour RME Babyface Pro** (très basse latence) :
-```bash
-jackd -dalsa -dhw:2 -r48000 -p128 -n2
 ```
 
 ---
@@ -582,7 +416,6 @@ sudo journalctl -u daw-audio-engine -n 50
 
 - [JUCE Documentation](https://docs.juce.com/)
 - [Raspberry Pi Audio Documentation](https://www.raspberrypi.com/documentation/computers/os.html#audio)
-- [JACK Audio Connection Kit](https://jackaudio.org/)
 - [ALSA Project](https://www.alsa-project.org/)
 
 ---

@@ -6,7 +6,7 @@ import getHealth from './services/api/health'
 import { WebSocketService } from './services/websocket/WebSocketService'
 
 // Initialize WebSocket service
-const wsService = new WebSocketService('ws://localhost:8080/ws')
+const wsService = new WebSocketService('ws://raspberry5:8080/ws')
 
 function createWindow(): void {
   // Create the browser window.
