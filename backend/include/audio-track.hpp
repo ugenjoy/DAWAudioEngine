@@ -1,6 +1,9 @@
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_core/juce_core.h>
+#include <nlohmann/json.hpp>
+#include <string>
 
 /**
  * @file audio-track.hpp
@@ -34,10 +37,11 @@ class AudioTrack {
   /**
    * @brief Generate an audio sample at a given time
    * @param sampleTime The time position in seconds
+   * @param tempo The tempo in beats per minute (from parent Song)
    * @return The audio sample value (typically in range [-1.0, 1.0])
    * @note Pure virtual function - must be implemented by derived classes
    */
-  virtual float getSampleValue(double sampleTime) = 0;
+  virtual float getSampleValue(double sampleTime, float tempo) = 0;
 
   /**
    * @brief Render a block of audio samples (batch processing)
@@ -45,6 +49,7 @@ class AudioTrack {
    * @param startSample The starting sample index in the buffer
    * @param numSamples The number of samples to render
    * @param startTime The time position in seconds for the first sample
+   * @param tempo The tempo in beats per minute (from parent Song)
    *
    * This method provides optimized batch processing instead of per-sample
    * rendering. It allows for SIMD optimizations and reduces virtual call
@@ -53,8 +58,11 @@ class AudioTrack {
    * @note Pure virtual function - must be implemented by derived classes
    * @note Buffer should be pre-allocated with sufficient size
    */
-  virtual void renderBlock(juce::AudioBuffer<float>& buffer, int startSample,
-                          int numSamples, double startTime) = 0;
+  virtual void renderBlock(juce::AudioBuffer<float>& buffer,
+                           int startSample,
+                           int numSamples,
+                           double startTime,
+                           float tempo) = 0;
 
   /**
    * @brief Set the mute state of the track
@@ -67,6 +75,26 @@ class AudioTrack {
    * @param volume Volume level (clamped to range [0.0, 1.0])
    */
   virtual void setVolume(float volume);
+
+  /**
+   * @brief Serialize track to JSON
+   * @return JSON representation of the track
+   * @note Pure virtual function - must be implemented by derived classes
+   */
+  virtual nlohmann::json toJson() const = 0;
+
+  /**
+   * @brief Get the track type identifier
+   * @return String identifier for the track type (e.g., "BeatTrack")
+   * @note Pure virtual function - must be implemented by derived classes
+   */
+  virtual std::string getTrackType() const = 0;
+
+  // Getters
+  std::string getId() const { return id; }
+
+  /** @brief Unique identifier for this track */
+  std::string id;
 
   /** @brief Track volume level (0.0 to 1.0) */
   float volume;

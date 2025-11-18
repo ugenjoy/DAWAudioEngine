@@ -1,10 +1,13 @@
-.PHONY: clean tests build
+.PHONY: clean tests build run
 
 clean:
-	rm -rf build/*
+        rm -rf build/*
 
 tests:
-	cd /home/ugo/dev/daw/backend && mkdir -p build && cd build && cmake .. -DBUILD_TESTS=ON && make -j$(nproc) && ctest --output-on-failure --verbose
+        mkdir -p build && cd build && cmake .. -DBUILD_TESTS=ON && make -j$(nproc) && ctest --output-on-fai>
 
 build:
-	mkdir -p build && cd build && cmake .. && make -j$(nproc)
+        mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
+
+run:
+        ./build/DAWAudioEngine_artefacts/Release/DAWAudioEngine

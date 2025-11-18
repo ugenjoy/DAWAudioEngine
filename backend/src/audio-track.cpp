@@ -1,7 +1,11 @@
 #include "audio-track.hpp"
 #include <juce_audio_utils/juce_audio_utils.h>
 
-AudioTrack::AudioTrack() : volume(0.4f), pan(0.0f), mute(false) {}
+AudioTrack::AudioTrack()
+    : id(juce::Uuid().toDashedString().toStdString()),
+      volume(0.4f),
+      pan(0.0f),
+      mute(false) {}
 
 void AudioTrack::setMute(bool shouldMute) {
   this->mute = shouldMute;

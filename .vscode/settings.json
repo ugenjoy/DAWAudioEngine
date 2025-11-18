@@ -81,7 +81,11 @@
     "typeindex": "cpp",
     "typeinfo": "cpp",
     "valarray": "cpp",
-    "variant": "cpp"
+    "variant": "cpp",
+    "strstream": "cpp",
+    "coroutine": "cpp",
+    "csignal": "cpp",
+    "source_location": "cpp"
   },
   "todo-tree.filtering.excludeGlobs": [
     "**/JUCE/**",
@@ -133,5 +137,6 @@
       "type": "text-and-comment"
     }
   },
+  "cmake.sourceDirectory": "/home/ugo/dev/daw/backend",
   "sonarlint.pathToCompileCommands": "${workspaceFolder}/backend/build/compile_commands.json"
 }

@@ -48,9 +48,10 @@ class BeatTrack : public AudioTrack {
   /**
    * @brief Generate an audio sample at a given time
    * @param sampleTime The time position in seconds
+   * @param tempo The tempo in beats per minute
    * @return The audio sample value with ADSR envelope applied
    */
-  float getSampleValue(double sampleTime) override;
+  float getSampleValue(double sampleTime, float tempo) override;
 
   /**
    * @brief Render a block of audio samples (optimized batch processing)
@@ -58,11 +59,18 @@ class BeatTrack : public AudioTrack {
    * @param startSample The starting sample index in the buffer
    * @param numSamples The number of samples to render
    * @param startTime The time position in seconds for the first sample
+   * @param tempo The tempo in beats per minute
    */
   void renderBlock(juce::AudioBuffer<float>& buffer,
                    int startSample,
                    int numSamples,
-                   double startTime) override;
+                   double startTime,
+                   float tempo) override;
+
+  // Serialization
+  nlohmann::json toJson() const override;
+  static std::unique_ptr<BeatTrack> fromJson(const nlohmann::json& j);
+  std::string getTrackType() const override { return "BeatTrack"; }
 
   // TODO: [MEDIUM] Add ADSR configuration methods:
   // void setADSRParameters(const ADSRParameters& params);

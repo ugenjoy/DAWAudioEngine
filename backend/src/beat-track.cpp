@@ -23,15 +23,13 @@ BeatTrack::BeatTrack(float frequency)
 
 BeatTrack::~BeatTrack() = default;
 
-float BeatTrack::getSampleValue(double sampleTime) {
+float BeatTrack::getSampleValue(double sampleTime, float tempo) {
   if (mute) {
     return 0.0f;
   }
 
-  auto const& ctx = AudioContext::getInstance();
   float pi = juce::MathConstants<float>::pi;
-  float currentTempo = ctx.tempoBPM.load();
-  interval = 60.0f / currentTempo;
+  interval = 60.0f / tempo;
 
   if (float timeSinceLastBeat = std::fmod(sampleTime, interval);
       timeSinceLastBeat < duration + rel) {
@@ -49,7 +47,8 @@ float BeatTrack::getSampleValue(double sampleTime) {
 void BeatTrack::renderBlock(juce::AudioBuffer<float>& buffer,
                             int startSample,
                             int numSamples,
-                            double startTime) {
+                            double startTime,
+                            float tempo) {
   // Early exit if muted
   if (mute) {
     buffer.clear(0, startSample, numSamples);
@@ -58,9 +57,8 @@ void BeatTrack::renderBlock(juce::AudioBuffer<float>& buffer,
 
   auto const& ctx = AudioContext::getInstance();
   const float pi = juce::MathConstants<float>::pi;
-  const float currentTempo = ctx.tempoBPM.load();
   const double sampleRate = ctx.sampleRate;
-  interval = 60.0f / currentTempo;
+  interval = 60.0f / tempo;
 
   // Get direct pointer to buffer for faster access
   float* bufferData = buffer.getWritePointer(0, startSample);
@@ -102,4 +100,31 @@ float BeatTrack::computeEnveloppe(float timeSinceLastBeat) const {
   }
 
   return enveloppeVolume;
+}
+
+nlohmann::json BeatTrack::toJson() const {
+  nlohmann::json j;
+  j["type"] = getTrackType();
+  j["id"] = id;
+  j["volume"] = volume;
+  j["pan"] = pan;
+  j["mute"] = mute;
+  j["frequency"] = frequency;
+  return j;
+}
+
+std::unique_ptr<BeatTrack> BeatTrack::fromJson(const nlohmann::json& j) {
+  float freq = j.value("frequency", 1000.0f);
+  auto track = std::make_unique<BeatTrack>(freq);
+
+  // Restore ID if present, otherwise keep the auto-generated one
+  if (j.contains("id")) {
+    track->id = j["id"].get<std::string>();
+  }
+
+  track->volume = j.value("volume", 0.4f);
+  track->pan = j.value("pan", 0.0f);
+  track->mute = j.value("mute", false);
+
+  return track;
 }

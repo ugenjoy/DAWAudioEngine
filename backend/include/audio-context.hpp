@@ -4,7 +4,6 @@
 
 // TODO: [LOW] Add configuration file support (JSON/XML) for loading/saving
 // settings
-// TODO: [MEDIUM] Add tempo change ramping to avoid clicks
 // TODO: [LOW] Add time signature change callback system
 // TODO: [LOW] Add preset management system
 
@@ -15,15 +14,16 @@
 
 /**
  * @class AudioContext
- * @brief Singleton class managing global audio parameters
+ * @brief Singleton class managing global audio hardware parameters
  *
  * This class provides a thread-safe singleton instance that stores global
- * audio configuration parameters such as sample rate, buffer size, tempo,
+ * audio hardware configuration parameters such as sample rate, buffer size,
  * and time signature. These parameters are accessible from any part of the
  * audio engine.
  *
  * @note This class uses the Meyer's Singleton pattern for thread-safety
- * @note Tempo and time signature use atomic types for thread-safe access
+ * @note Time signature uses atomic types for thread-safe access
+ * @note Tempo is now managed per-Song, not globally
  */
 class AudioContext {
  public:
@@ -42,12 +42,6 @@ class AudioContext {
 
   /** @brief Audio buffer size in samples (default: 512) */
   int bufferSize = 512;
-
-  /** @brief Current tempo in beats per minute (thread-safe, default: 120.0) */
-  std::atomic<float> tempoBPM{120.0f};
-  // TODO: [MEDIUM] Add tempo ramping to avoid clicks on tempo change:
-  // std::atomic<float> targetTempoBPM{120.0f};
-  // float tempoRampTime = 0.1f;  // 100ms ramp
 
   /** @brief Time signature numerator (thread-safe, default: 4) */
   std::atomic<int> timeSignatureNumerator{4};

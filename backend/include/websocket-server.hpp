@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <thread>
+#include "message-handler.hpp"
 
 /**
  * WebSocketServer - Simple WebSocket server using Crow
@@ -15,7 +16,11 @@
  */
 class WebSocketServer {
  public:
-  WebSocketServer() : running_(false), thread_exited_(false) {}
+  WebSocketServer(AudioEngineCore* audioEngine, SongsManager* songsManager)
+      : running_(false),
+        thread_exited_(false),
+        audioEngine(audioEngine),
+        songsManager(songsManager) {}
 
   ~WebSocketServer() { stop(); }
 
@@ -76,6 +81,8 @@ class WebSocketServer {
  private:
   void run() {
     app_ = std::make_unique<crow::SimpleApp>();
+    messageHandler =
+        std::make_unique<MessageHandler>(audioEngine, songsManager);
 
     // WebSocket endpoint
     CROW_WEBSOCKET_ROUTE((*app_), "/ws")
@@ -87,11 +94,12 @@ class WebSocketServer {
               std::cout << "[WebSocket] Client disconnected: " << reason
                         << std::endl;
             })
-        .onmessage([](crow::websocket::connection& conn,
-                      const std::string& data, bool is_binary) {
+        .onmessage([this](crow::websocket::connection& conn,
+                          const std::string& data, bool is_binary) {
           std::cout << "[WebSocket] Received message: " << data << std::endl;
-          // Echo back for now
-          conn.send_text("Echo: " + data);
+
+          auto response = messageHandler->handleMessage(data);
+          conn.send_text(response.dump());
         })
         .onerror(
             [](crow::websocket::connection& conn, const std::string& error) {
@@ -114,4 +122,8 @@ class WebSocketServer {
   std::atomic<bool> running_;
   std::atomic<bool> thread_exited_;
   uint16_t port_;
+
+  AudioEngineCore* audioEngine;
+  SongsManager* songsManager;
+  std::unique_ptr<MessageHandler> messageHandler;
 };
