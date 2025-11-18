@@ -15,6 +15,18 @@ option(BUILD_TESTS "Build unit tests" OFF)
 # JUCE
 add_subdirectory(JUCE)
 
+# Check for JACK audio support (optional)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JACK jack)
+
+if(JACK_FOUND)
+    message(STATUS "JACK Audio Connection Kit found - enabling JACK support")
+    set(JUCE_JACK_ENABLED 1)
+else()
+    message(STATUS "JACK not found - using ALSA only")
+    set(JUCE_JACK_ENABLED 0)
+endif()
+
 # Crow (WebSocket server) + ASIO dependency
 include(FetchContent)
 
@@ -67,7 +79,7 @@ target_compile_definitions(DAWAudioEngine PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_ALSA=1
-    JUCE_JACK=1
+    JUCE_JACK=${JUCE_JACK_ENABLED}
     JUCE_APPLICATION_NAME_STRING="DAW Audio Engine"
     JUCE_APPLICATION_VERSION_STRING="1.0.0")
 
@@ -81,6 +93,12 @@ target_link_libraries(DAWAudioEngine PRIVATE
     juce::juce_events
     Crow::Crow
     nlohmann_json::nlohmann_json)
+
+# Link JACK if available
+if(JACK_FOUND)
+    target_link_libraries(DAWAudioEngine PRIVATE ${JACK_LIBRARIES})
+    target_include_directories(DAWAudioEngine PRIVATE ${JACK_INCLUDE_DIRS})
+endif()
 
 # Unit tests
 if(BUILD_TESTS)
@@ -127,7 +145,7 @@ if(BUILD_TESTS)
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_ALSA=1
-        JUCE_JACK=1
+        JUCE_JACK=${JUCE_JACK_ENABLED}
         JUCE_APPLICATION_NAME_STRING="DAW Audio Engine Tests"
         JUCE_APPLICATION_VERSION_STRING="1.0.0")
     
@@ -138,7 +156,13 @@ if(BUILD_TESTS)
         juce::juce_audio_utils
         juce::juce_core
         juce::juce_events)
-    
+
+    # Link JACK if available (for tests)
+    if(JACK_FOUND)
+        target_link_libraries(DAWAudioEngine_Tests PRIVATE ${JACK_LIBRARIES})
+        target_include_directories(DAWAudioEngine_Tests PRIVATE ${JACK_INCLUDE_DIRS})
+    endif()
+
     # Register tests with CTest
     add_test(NAME WaveTableTests 
              COMMAND DAWAudioEngine_Tests)
