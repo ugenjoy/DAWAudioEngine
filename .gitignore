@@ -86,3 +86,7 @@ conanbuildinfo.*
 core
 core.*
 .vscode
+
+.cache
+.claude
+CLAUDE.md

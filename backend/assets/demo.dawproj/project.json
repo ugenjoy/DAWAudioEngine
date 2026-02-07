@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "songs": [
+    {
+      "id": "demo-song-1",
+      "tempo": 160,
+      "tracks": [
+        {
+          "type": "BeatTrack",
+          "id": "demo-track-kick",
+          "volume": 0.5,
+          "pan": 0.0,
+          "mute": false,
+          "frequency": 120.0
+        },
+        {
+          "type": "BeatTrack",
+          "id": "demo-track-hihat",
+          "volume": 0.3,
+          "pan": 0.2,
+          "mute": false,
+          "frequency": 800.0
+        }
+      ]
+    },
+    {
+      "id": "demo-song-2",
+      "tempo": 90,
+      "tracks": [
+        {
+          "type": "BeatTrack",
+          "id": "demo-track-bass",
+          "volume": 0.6,
+          "pan": 0.0,
+          "mute": false,
+          "frequency": 110.0
+        }
+      ]
+    }
+  ]
+}

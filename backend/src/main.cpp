@@ -1,6 +1,11 @@
-#include "audio-engine-core.hpp"
-#include "songs-manager.hpp"
-#include "websocket-server.hpp"
+#include "app-context.hpp"
+#include "audio/audio-engine-core.hpp"
+#include "commands/command-factory.hpp"
+#include "commands/command-processor.hpp"
+#include "commands/command-queue.hpp"
+#include "services/project-manager.hpp"
+#include "services/songs-manager.hpp"
+#include "websocket/websocket-server.hpp"
 
 class AudioEngineApplication : public juce::JUCEApplication,
                                public juce::Timer {
@@ -12,36 +17,36 @@ class AudioEngineApplication : public juce::JUCEApplication,
   const juce::String getApplicationVersion() override { return "1.0.0"; }
 
   void initialise(const juce::String& commandLine) override {
+    juce::ignoreUnused(commandLine);
     juce::Logger::writeToLog("=== DAW Audio Engine - Starting ===");
 
-    // Create audio engine
+    // Create core components
     audioEngine = std::make_unique<AudioEngineCore>();
-
-    // Create songsManager
     songsManager = std::make_unique<SongsManager>();
+    projectManager = std::make_unique<ProjectManager>();
 
-    auto song1 = std::make_unique<Song>();
-    auto track1 = std::make_unique<BeatTrack>(1000.0f);
-    song1->setTempo(100);
-    song1->addTrack(std::move(track1));
+    // Create command factory (auto-registered commands)
+    commandFactory = CommandFactory::create();
 
-    auto song2 = std::make_unique<Song>();
-    auto track2 = std::make_unique<BeatTrack>(600.0f);
-    song2->setTempo(60);
-    song2->addTrack(std::move(track2));
+    // Create WebSocket server (needed for AppContext)
+    commandQueue = std::make_unique<CommandQueue>();
+    wsServer = std::make_unique<WebSocketServer>(*commandQueue, *commandFactory,
+                                                 8080);
 
-    audioEngine->loadSong(song1.get());
+    // Create application context (with all services including wsServer)
+    appContext = std::make_unique<AppContext>(*audioEngine, *songsManager,
+                                              *projectManager, *wsServer);
 
-    songsManager->addSong(std::move(song1));
-    songsManager->addSong(std::move(song2));
-
-    juce::Logger::writeToLog("Audio engine created. You should hear a beat.");
+    // Create command processor
+    commandProcessor =
+        std::make_unique<CommandProcessor>(*commandQueue, *appContext);
+    commandProcessor->startProcessing();
+    juce::Logger::writeToLog("Command processor started");
 
     // Start WebSocket server
-    wsServer = std::make_unique<WebSocketServer>(audioEngine.get(),
-                                                 songsManager.get());
-    wsServer->start(8080);
+    wsServer->startAsync();
 
+    juce::Logger::writeToLog("WebSocket server starting on port 8080");
     juce::Logger::writeToLog("Press Ctrl+C to quit.");
 
     // Monitor server status every 500ms
@@ -52,8 +57,19 @@ class AudioEngineApplication : public juce::JUCEApplication,
     juce::Logger::writeToLog("=== Stopping WebSocket server ===");
     wsServer.reset();
 
+    juce::Logger::writeToLog("=== Stopping command processor ===");
+    if (commandProcessor) {
+      commandProcessor->stopProcessing();
+    }
+    commandProcessor.reset();
+    commandQueue.reset();
+
     juce::Logger::writeToLog("=== Stopping audio engine ===");
+    appContext.reset();
     audioEngine.reset();
+    songsManager.reset();
+    projectManager.reset();
+    commandFactory.reset();
   }
 
   void timerCallback() override {
@@ -66,8 +82,13 @@ class AudioEngineApplication : public juce::JUCEApplication,
   }
 
  private:
-  std::unique_ptr<SongsManager> songsManager;
   std::unique_ptr<AudioEngineCore> audioEngine;
+  std::unique_ptr<SongsManager> songsManager;
+  std::unique_ptr<ProjectManager> projectManager;
+  std::unique_ptr<AppContext> appContext;
+  std::unique_ptr<CommandFactory> commandFactory;
+  std::unique_ptr<CommandQueue> commandQueue;
+  std::unique_ptr<CommandProcessor> commandProcessor;
   std::unique_ptr<WebSocketServer> wsServer;
 };
 
