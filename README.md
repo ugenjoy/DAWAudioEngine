@@ -16,31 +16,31 @@ A real-time audio engine built with C++ and JUCE framework for digital audio wor
 ### Core Components
 
 - **AudioEngineCore**: Main audio engine managing playback and track mixing
-- **AudioContext**: Singleton providing global audio configuration (sample rate, tempo, time signature)
+- **AppContext**: Service locator providing access to all core services
+- **CommandFactory**: Auto-registration system for commands (zero boilerplate!)
+- **WebSocketServer**: Crow-based JSON API on port 8080
 - **AudioTrack**: Abstract base class for all audio track types
 - **BeatTrack**: Concrete implementation generating beat-synchronized tones
 - **WaveTable**: Optimized wavetable oscillator with multiple waveform types
+
+See [backend/ARCHITECTURE.md](./backend/ARCHITECTURE.md) for detailed documentation.
 
 ### Project Structure
 
 ```
 backend/
 ├── CMakeLists.txt          # Build configuration
-├── Makefile                # Convenience build wrapper
-├── include/                # Header files
-│   ├── audio-context.hpp
-│   ├── audio-engine-core.hpp
-│   ├── audio-track.hpp
-│   ├── beat-track.hpp
-│   └── wave-table.hpp
-├── src/                    # Implementation files
-│   ├── audio-engine-core.cpp
-│   ├── audio-track.cpp
-│   ├── beat-track.cpp
-│   └── main.cpp
-├── tests/                  # Unit tests
-│   ├── test.wavetable.cpp
-│   └── test.beattrack.cpp
+├── ARCHITECTURE.md         # Detailed architecture docs
+├── include/
+│   ├── app-context.hpp
+│   ├── audio/              # Audio engine components
+│   ├── commands/           # Command pattern + factory
+│   ├── model/              # Domain models (Song, Track)
+│   ├── services/           # ProjectManager, SongsManager
+│   └── websocket/          # WebSocket server
+├── src/                    # Implementations
+├── assets/
+│   └── demo.dawproj/       # Demo project
 └── JUCE/                   # JUCE framework (submodule)
 ```
 
@@ -91,21 +91,60 @@ backend/
 
 4. **Run the audio engine**:
    ```bash
-   ./build/DAWAudioEngine_artefacts/Debug/DAWAudioEngine
+   ./build/DAWAudioEngine_artefacts/Release/DAWAudioEngine
    ```
 
 ## 🎛️ Usage
 
-The current implementation automatically starts playback on launch and generates a beat at 120 BPM (500 Hz sine wave).
+### WebSocket API
 
-### Customizing Audio Context
+The engine starts a WebSocket server on `ws://localhost:8080/ws`.
 
-```cpp
-auto& ctx = AudioContext::getInstance();
-ctx.tempoBPM = 140.0f;              // Set tempo to 140 BPM
-ctx.timeSignatureNumerator = 3;     // 3/4 time signature
-ctx.timeSignatureDenominator = 4;
+**Load demo project:**
+```json
+{"action": "project.load", "path": "/path/to/backend/assets/demo.dawproj"}
 ```
+
+**Transport controls:**
+```json
+{"action": "transport.play"}
+{"action": "transport.pause"}
+{"action": "transport.stop"}
+```
+
+**Save project:**
+```json
+{"action": "project.save", "path": "/path/to/myproject.dawproj"}
+```
+
+**Health check:**
+```bash
+curl http://localhost:8080/health
+```
+
+### Adding a New Command
+
+Commands auto-register themselves - no boilerplate!
+
+**1. Create class** (`include/commands/my-command.hpp`):
+```cpp
+class MyCommand : public Command {
+ public:
+  void execute(AppContext& ctx) override;
+  std::string getName() const override { return "my.command"; }
+};
+```
+
+**2. Implement + register** (`src/commands/my-command.cpp`):
+```cpp
+void MyCommand::execute(AppContext& ctx) {
+  ctx.getAudioEngine().doSomething();
+}
+
+REGISTER_COMMAND("my.command", MyCommand);  // Auto-registration!
+```
+
+**3. Add to CMakeLists.txt** - Done! 🎉
 
 ## 🧪 Testing
 
@@ -169,11 +208,13 @@ JUCE_JACK=1                          # Enable JACK support
 
 ## 🗺️ Roadmap
 
-- [ ] Implement minimal API with basic controls
-- [ ] Implement audio file loading (WAV, MP3, FLAC)
-- [ ] Add effects processing (reverb, delay, EQ)
-- [ ] Implement MIDI support
-- [ ] Add GUI interface
+- [x] WebSocket API with command system
+- [x] Auto-registration for commands (zero boilerplate)
+- [x] Project serialization (.dawproj format)
+- [x] Command pattern with lock-free queue
+- [ ] Audio file loading (WAV, MP3, FLAC)
+- [ ] Effects processing (reverb, delay, EQ)
+- [ ] MIDI support
 - [ ] Multi-track recording
 - [ ] Plugin system (VST3, AU)
 

@@ -62,13 +62,19 @@ juce_add_console_app(DAWAudioEngine
 # Source files (explicit listing is better than GLOB)
 target_sources(DAWAudioEngine PRIVATE
     src/main.cpp
-    src/audio-engine-core.cpp
-    src/audio-track.cpp
-    src/beat-track.cpp
-    src/song.cpp
-    src/tracks-manager.cpp
-    src/songs-manager.cpp
-    src/project-manager.cpp
+    src/audio/audio-engine-core.cpp
+    src/audio/audio-track.cpp
+    src/audio/beat-track.cpp
+    src/services/song.cpp
+    src/services/tracks-manager.cpp
+    src/services/songs-manager.cpp
+    src/services/project-manager.cpp
+    src/websocket/websocket-server.cpp
+    src/commands/command-factory.cpp
+    src/commands/command-queue.cpp
+    src/commands/command-processor.cpp
+    src/commands/transport-commands.cpp
+    src/commands/project-commands.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE
