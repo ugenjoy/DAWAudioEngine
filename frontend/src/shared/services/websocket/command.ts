@@ -1,4 +1,9 @@
-type ProjectCommand = 'project.load' | 'project.save' | 'project.getLoaded'
+type ProjectCommand =
+  | 'project.load'
+  | 'project.save'
+  | 'project.getLoaded'
+  | 'project.list'
+
 type TransportCommand = 'transport.play' | 'transport.stop' | 'transport.pause'
 
 type Command = ProjectCommand | TransportCommand

@@ -42,3 +42,14 @@ class GetLoadedProjectCommand : public Command {
   void execute(AppContext& ctx) override;
   std::string getName() const override { return "project.getLoaded"; }
 };
+
+/**
+ * Command to list all projects in the default projects directory.
+ */
+class ListProjectsCommand : public Command {
+ public:
+  ListProjectsCommand() = default;
+
+  void execute(AppContext& ctx) override;
+  std::string getName() const override { return "project.list"; }
+};

@@ -1,19 +1,20 @@
 import './index.css'
 import { Route, Routes } from 'react-router'
-import MainLayout from './shared/layouts/MainLayout'
-import ProjectsHome from './pages/ProjectsHome'
-import Sequencer from './features/sequencer/Sequencer'
+import HomePage from './pages/HomePage'
 import { WebSocketProvider } from './shared/contexts/websocket-provider'
+import { ProjectsProvider } from './shared/contexts/projects-provider'
+import { ProjectProvider } from './shared/contexts/project-provider'
 
 function App() {
   return (
     <WebSocketProvider>
-      <Routes>
-        <Route element={<MainLayout />}>
-          <Route index element={<ProjectsHome />} />
-          <Route path="project/:projectId" element={<Sequencer />} />
-        </Route>
-      </Routes>
+      <ProjectsProvider>
+        <ProjectProvider>
+          <Routes>
+            <Route index element={<HomePage />} />
+          </Routes>
+        </ProjectProvider>
+      </ProjectsProvider>
     </WebSocketProvider>
   )
 }

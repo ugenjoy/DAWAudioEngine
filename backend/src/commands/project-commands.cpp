@@ -30,12 +30,13 @@ void LoadProjectCommand::execute(AppContext& ctx) {
       juce::Logger::writeToLog("[LoadProjectCommand] First song loaded");
     }
 
+    nlohmann::json project = projectManager.getProject(projectPath);
+
     // Broadcast project loaded event to all clients
     nlohmann::json broadcast;
     broadcast["type"] = "broadcast";
     broadcast["event"] = "project.loaded";
-    broadcast["path"] = projectPath;
-    broadcast["songsCount"] = (int)songsManager.getSongList().size();
+    broadcast["project"] = project;
 
     wsServer.broadcast(broadcast.dump());
   } else {
@@ -73,11 +74,14 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
   auto& projectManager = ctx.getProjectManager();
   auto& wsServer = ctx.getWebSocketServer();
 
+  nlohmann::json project =
+      projectManager.getProject(projectManager.getCurrentProjectPath());
+
   nlohmann::json response;
   response["type"] = "broadcast";
   response["event"] = "project.currentLoaded";
   response["hasProject"] = projectManager.hasLoadedProject();
-  response["path"] = projectManager.getCurrentProjectPath();
+  response["project"] = project;
 
   wsServer.broadcast(response.dump());
 
@@ -113,4 +117,37 @@ static CommandRegistrar registerGetLoadedProject(
     "project.getLoaded",
     [](const nlohmann::json& /* payload */) -> CommandPtr {
       return std::make_unique<GetLoadedProjectCommand>();
+    });
+
+void ListProjectsCommand::execute(AppContext& ctx) {
+  auto& projectManager = ctx.getProjectManager();
+  auto& wsServer = ctx.getWebSocketServer();
+
+  std::string directory = ProjectManager::getDefaultProjectsDirectory();
+
+  // Create directory if it doesn't exist
+  juce::File dir(directory);
+  if (!dir.exists()) {
+    dir.createDirectory();
+  }
+
+  nlohmann::json projects = projectManager.listProjects(directory);
+
+  nlohmann::json response;
+  response["type"] = "broadcast";
+  response["event"] = "project.listed";
+  response["directory"] = directory;
+  response["projects"] = projects;
+
+  wsServer.broadcast(response.dump());
+
+  juce::Logger::writeToLog("[ListProjectsCommand] Listed " +
+                           juce::String((int)projects.size()) +
+                           " projects from " + juce::String(directory));
+}
+
+static CommandRegistrar registerListProjects(
+    "project.list",
+    [](const nlohmann::json& /* payload */) -> CommandPtr {
+      return std::make_unique<ListProjectsCommand>();
     });

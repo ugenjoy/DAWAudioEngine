@@ -1,6 +1,5 @@
 import { useProject } from '@/shared/contexts/project-provider'
-import Track from './Track'
-import Toolbar from '../toolbar/components/Toolbar'
+import { Transport } from '../../transport/components/Transport'
 
 function Sequencer() {
   const { project } = useProject()
@@ -8,10 +7,7 @@ function Sequencer() {
   return (
     project && (
       <div>
-        <Toolbar />
-        {project.tracks.map((track) => (
-          <Track key={track.id} trackId={track.id} />
-        ))}
+        <Transport />
       </div>
     )
   )
