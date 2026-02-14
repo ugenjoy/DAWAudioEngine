@@ -42,3 +42,28 @@ class GetLoadedProjectCommand : public Command {
   void execute(AppContext& ctx) override;
   std::string getName() const override { return "project.getLoaded"; }
 };
+
+/**
+ * Command to list all projects in the default projects directory.
+ */
+class ListProjectsCommand : public Command {
+ public:
+  ListProjectsCommand() = default;
+
+  void execute(AppContext& ctx) override;
+  std::string getName() const override { return "project.list"; }
+};
+
+/**
+ * Command to load a song of the project.
+ */
+class LoadSongCommand : public Command {
+ public:
+  explicit LoadSongCommand(std::string uuid);
+
+  void execute(AppContext& ctx) override;
+  std::string getName() const override { return "project.loadSong"; }
+
+ private:
+  std::string uuid;
+};

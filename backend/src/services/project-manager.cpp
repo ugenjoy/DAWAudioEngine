@@ -1,7 +1,8 @@
 #include "services/project-manager.hpp"
 #include <fstream>
 
-ProjectManager::ProjectManager() : lastError(""), currentProjectPath("") {}
+ProjectManager::ProjectManager()
+    : lastError(""), currentProjectPath(""), currentProjectId("") {}
 
 ProjectManager::~ProjectManager() = default;
 
@@ -21,6 +22,11 @@ bool ProjectManager::saveProject(const std::string& projectPath,
   // Create project directory structure
   if (!createProjectStructure(projectFolder)) {
     return false;
+  }
+
+  // Generate a UUID if the project doesn't have one yet
+  if (currentProjectId.empty()) {
+    currentProjectId = juce::Uuid().toString().toStdString();
   }
 
   // Serialize the project to JSON
@@ -127,6 +133,7 @@ nlohmann::json ProjectManager::serializeProject(
   nlohmann::json projectJson;
 
   // Project metadata
+  projectJson["id"] = currentProjectId;
   projectJson["version"] = "1.0.0";
 
   // Serialize songs
@@ -135,8 +142,85 @@ nlohmann::json ProjectManager::serializeProject(
   return projectJson;
 }
 
+std::string ProjectManager::getDefaultProjectsDirectory() {
+  juce::File home =
+      juce::File::getSpecialLocation(juce::File::userHomeDirectory);
+  return home.getChildFile("daw/projects").getFullPathName().toStdString();
+}
+
+nlohmann::json ProjectManager::listProjects(const std::string& directory) {
+  nlohmann::json projects = nlohmann::json::array();
+
+  juce::File dir(directory);
+  if (!dir.exists() || !dir.isDirectory()) {
+    return projects;
+  }
+
+  auto children =
+      dir.findChildFiles(juce::File::findDirectories, false, "*.dawproj");
+
+  for (const auto& child : children) {
+    nlohmann::json project = getProject(child.getFullPathName().toStdString());
+    projects.push_back(project);
+  }
+
+  return projects;
+}
+
+nlohmann::json ProjectManager::getProject(const std::string& path) {
+  nlohmann::json project;
+
+  juce::File dir(path);
+  if (!dir.exists() || !dir.isDirectory()) {
+    return project;
+  }
+
+  project["name"] = dir.getFileNameWithoutExtension().toStdString();
+  project["path"] = dir.getFullPathName().toStdString();
+
+  juce::File projectFile = dir.getChildFile("project.json");
+  if (projectFile.existsAsFile()) {
+    // Get last modified time as ISO 8601
+    juce::Time modTime = projectFile.getLastModificationTime();
+    project["lastModified"] = modTime.toISO8601(true).toStdString();
+
+    // Read project metadata from project.json
+    try {
+      std::string jsonString = projectFile.loadFileAsString().toStdString();
+      nlohmann::json projectJson = nlohmann::json::parse(jsonString);
+
+      if (projectJson.contains("id") && projectJson["id"].is_string()) {
+        project["id"] = projectJson["id"].get<std::string>();
+      } else {
+        project["id"] = nullptr;
+      }
+
+      if (projectJson.contains("songs") && projectJson["songs"].is_array()) {
+        project["songs"] = projectJson["songs"];
+      } else {
+        project["songs"] = 0;
+      }
+    } catch (...) {
+      project["id"] = nullptr;
+      project["songs"] = -1;
+    }
+  } else {
+    project["lastModified"] = nullptr;
+    project["songs"] = -1;
+  }
+
+  return project;
+}
+
 void ProjectManager::deserializeProject(const nlohmann::json& projectJson,
                                         SongsManager& songsManager) {
+  // Load project UUID, or generate one if missing (backward compatibility)
+  if (projectJson.contains("id") && projectJson["id"].is_string()) {
+    currentProjectId = projectJson["id"].get<std::string>();
+  } else {
+    currentProjectId = juce::Uuid().toString().toStdString();
+  }
+
   // Check version (for future compatibility)
   if (projectJson.contains("version")) {
     std::string version = projectJson["version"];

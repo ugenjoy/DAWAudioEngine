@@ -8,7 +8,9 @@ WebSocketServer::WebSocketServer(CommandQueue& commandQueue,
                                  int port)
     : commandQueue(commandQueue), commandFactory(commandFactory), port(port) {}
 
-WebSocketServer::~WebSocketServer() { stop(); }
+WebSocketServer::~WebSocketServer() {
+  stop();
+}
 
 void WebSocketServer::startAsync() {
   if (running.load())
@@ -38,16 +40,16 @@ void WebSocketServer::run() {
                         {"message", "Connected to DAW Audio Engine"}};
         conn.send_text(welcome.dump());
       })
-      .onclose([this](crow::websocket::connection& conn,
-                      const std::string& reason) {
-        {
-          std::lock_guard<std::mutex> lock(clientsMutex);
-          clients.erase(&conn);
-        }
-        juce::Logger::writeToLog("[WebSocket] Client disconnected: " +
-                                 juce::String(reason) + " (total: " +
-                                 juce::String((int)clients.size()) + ")");
-      })
+      .onclose(
+          [this](crow::websocket::connection& conn, const std::string& reason) {
+            {
+              std::lock_guard<std::mutex> lock(clientsMutex);
+              clients.erase(&conn);
+            }
+            juce::Logger::writeToLog(
+                "[WebSocket] Client disconnected: " + juce::String(reason) +
+                " (total: " + juce::String((int)clients.size()) + ")");
+          })
       .onmessage([this](crow::websocket::connection& conn,
                         const std::string& data, bool /*is_binary*/) {
         juce::Logger::writeToLog("[WebSocket] Received: " + juce::String(data));
@@ -130,5 +132,20 @@ void WebSocketServer::broadcast(const std::string& message) {
       juce::Logger::writeToLog("[WebSocket] Error broadcasting: " +
                                juce::String(e.what()));
     }
+  }
+}
+
+void WebSocketServer::send(crow::websocket::connection* client,
+                           const std::string& message) {
+  std::lock_guard<std::mutex> lock(clientsMutex);
+
+  juce::Logger::writeToLog("[WebSocket] Broadcasting to " +
+                           juce::String((int)clients.size()) + " client(s)");
+
+  try {
+    client->send_text(message);
+  } catch (const std::exception& e) {
+    juce::Logger::writeToLog("[WebSocket] Error broadcasting: " +
+                             juce::String(e.what()));
   }
 }

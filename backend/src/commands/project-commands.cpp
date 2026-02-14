@@ -27,15 +27,16 @@ void LoadProjectCommand::execute(AppContext& ctx) {
     // Load first song into audio engine if available
     if (auto* firstSong = songsManager.getSong(0)) {
       audioEngine.loadSong(firstSong);
-      juce::Logger::writeToLog("[LoadProjectCommand] First song loaded");
     }
+
+    nlohmann::json project = projectManager.getProject(projectPath);
+    nlohmann::json songs = songsManager.toJson();
 
     // Broadcast project loaded event to all clients
     nlohmann::json broadcast;
     broadcast["type"] = "broadcast";
     broadcast["event"] = "project.loaded";
-    broadcast["path"] = projectPath;
-    broadcast["songsCount"] = (int)songsManager.getSongList().size();
+    broadcast["project"] = project;
 
     wsServer.broadcast(broadcast.dump());
   } else {
@@ -71,13 +72,25 @@ void SaveProjectCommand::execute(AppContext& ctx) {
 
 void GetLoadedProjectCommand::execute(AppContext& ctx) {
   auto& projectManager = ctx.getProjectManager();
+  auto& audioEngine = ctx.getAudioEngine();
   auto& wsServer = ctx.getWebSocketServer();
+
+  nlohmann::json project =
+      projectManager.getProject(projectManager.getCurrentProjectPath());
+
+  Song* activeSong = audioEngine.getActiveSong();
+  nlohmann::json songJson = "";
+
+  if (activeSong != nullptr) {
+    songJson = activeSong->toJson();
+  }
 
   nlohmann::json response;
   response["type"] = "broadcast";
   response["event"] = "project.currentLoaded";
   response["hasProject"] = projectManager.hasLoadedProject();
-  response["path"] = projectManager.getCurrentProjectPath();
+  response["project"] = project;
+  response["activeSong"] = songJson;
 
   wsServer.broadcast(response.dump());
 
@@ -86,6 +99,62 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
       juce::String(projectManager.hasLoadedProject()
                        ? projectManager.getCurrentProjectPath()
                        : "none"));
+}
+
+void ListProjectsCommand::execute(AppContext& ctx) {
+  auto& projectManager = ctx.getProjectManager();
+  auto& wsServer = ctx.getWebSocketServer();
+
+  std::string directory = ProjectManager::getDefaultProjectsDirectory();
+
+  // Create directory if it doesn't exist
+  juce::File dir(directory);
+  if (!dir.exists()) {
+    dir.createDirectory();
+  }
+
+  nlohmann::json projects = projectManager.listProjects(directory);
+
+  nlohmann::json response;
+  response["type"] = "broadcast";
+  response["event"] = "project.listed";
+  response["directory"] = directory;
+  response["projects"] = projects;
+
+  wsServer.broadcast(response.dump());
+
+  juce::Logger::writeToLog("[ListProjectsCommand] Listed " +
+                           juce::String((int)projects.size()) +
+                           " projects from " + juce::String(directory));
+}
+
+LoadSongCommand::LoadSongCommand(std::string uuid) : uuid(std::move(uuid)) {}
+
+void LoadSongCommand::execute(AppContext& ctx) {
+  auto& songsManager = ctx.getSongsManager();
+  auto& audioEngine = ctx.getAudioEngine();
+
+  Song* activeSong = audioEngine.getActiveSong();
+
+  if (activeSong == nullptr) {
+    juce::Logger::writeToLog("[LoadSongCommand] activeSong is null");
+    return;
+  }
+  std::vector<Song*> songs = songsManager.getSongList();
+  Song* nextSong = nullptr;
+
+  for (int i = 0; i < songs.size(); i++) {
+    if (uuid == songs[i]->getId() && songs[i] != activeSong) {
+      nextSong = songs[i];
+    }
+  }
+
+  if (nextSong == nullptr) {
+    juce::Logger::writeToLog("[LoadSongCommand] nextSong is null");
+    return;
+  }
+
+  audioEngine.loadSong(nextSong);
 }
 
 // Auto-registration
@@ -113,4 +182,20 @@ static CommandRegistrar registerGetLoadedProject(
     "project.getLoaded",
     [](const nlohmann::json& /* payload */) -> CommandPtr {
       return std::make_unique<GetLoadedProjectCommand>();
+    });
+
+static CommandRegistrar registerListProjects(
+    "project.list",
+    [](const nlohmann::json& /* payload */) -> CommandPtr {
+      return std::make_unique<ListProjectsCommand>();
+    });
+
+static CommandRegistrar registerLoadSongCommand(
+    "project.loadSong",
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string uuid = payload.value("uuid", "");
+      if (uuid.empty()) {
+        return nullptr;
+      }
+      return std::make_unique<LoadSongCommand>(uuid);
     });

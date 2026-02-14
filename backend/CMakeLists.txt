@@ -65,6 +65,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/audio/audio-engine-core.cpp
     src/audio/audio-track.cpp
     src/audio/beat-track.cpp
+    src/audio/audio-file-track.cpp
     src/services/song.cpp
     src/services/tracks-manager.cpp
     src/services/songs-manager.cpp
@@ -141,6 +142,7 @@ if(BUILD_TESTS)
         tests/test.wavetable.cpp
         tests/test.beattrack.cpp
         src/audio-track.cpp
+        src/audio-file-track.cpp
         src/beat-track.cpp
     )
     

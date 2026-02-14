@@ -1,4 +1,5 @@
 #include "model/tracks-manager.hpp"
+#include "audio/audio-file-track.hpp"
 #include "audio/beat-track.hpp"
 
 TracksManager::TracksManager() = default;
@@ -57,10 +58,8 @@ void TracksManager::loadFromJson(const nlohmann::json& j) {
 
     if (type == "BeatTrack") {
       tracks.push_back(BeatTrack::fromJson(trackJson));
+    } else if (type == "AudioFileTrack") {
+      tracks.push_back(AudioFileTrack::fromJson(trackJson));
     }
-    // Future track types can be added here:
-    // else if (type == "AudioFileTrack") {
-    //   tracks.push_back(AudioFileTrack::fromJson(trackJson));
-    // }
   }
 }

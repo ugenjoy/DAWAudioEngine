@@ -2,12 +2,22 @@
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
+#include "websocket/websocket-server.hpp"
 
-void PlayCommand::execute(AppContext& ctx) { ctx.getAudioEngine().play(); }
+void PlayCommand::execute(AppContext& ctx) {
+  auto& wsServer = ctx.getWebSocketServer();
+  ctx.getAudioEngine().play();
+}
 
-void PauseCommand::execute(AppContext& ctx) { ctx.getAudioEngine().pause(); }
+void PauseCommand::execute(AppContext& ctx) {
+  auto& wsServer = ctx.getWebSocketServer();
+  ctx.getAudioEngine().pause();
+}
 
-void StopCommand::execute(AppContext& ctx) { ctx.getAudioEngine().stop(); }
+void StopCommand::execute(AppContext& ctx) {
+  auto& wsServer = ctx.getWebSocketServer();
+  ctx.getAudioEngine().stop();
+}
 
 // Auto-registration
 REGISTER_COMMAND("transport.play", PlayCommand);

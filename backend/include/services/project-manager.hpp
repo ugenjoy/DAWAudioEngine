@@ -60,6 +60,34 @@ class ProjectManager {
    */
   bool hasLoadedProject() const { return !currentProjectPath.empty(); }
 
+  /**
+   * @brief Get the UUID of the currently loaded project
+   * @return UUID string, or empty string if no project is loaded
+   */
+  std::string getCurrentProjectId() const { return currentProjectId; }
+
+  /**
+   * @brief Get the default projects directory path (~/daw/projects/)
+   * @return Absolute path to the default projects directory
+   */
+  static std::string getDefaultProjectsDirectory();
+
+  /**
+   * @brief List all .dawproj projects in a given directory
+   * @param directory Path to scan for projects
+   * @return JSON array of project metadata (name, path, lastModified,
+   * songsCount)
+   */
+  nlohmann::json listProjects(const std::string& directory);
+
+  /**
+   * @brief Get a .dawproj project
+   * @param path Path of the project
+   * @return JSON of project metadata (name, path, lastModified,
+   * songsCount)
+   */
+  nlohmann::json getProject(const std::string& path);
+
  private:
   /**
    * @brief Create the project directory structure
@@ -85,4 +113,5 @@ class ProjectManager {
 
   std::string lastError;
   std::string currentProjectPath;
+  std::string currentProjectId;
 };
