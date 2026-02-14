@@ -11,6 +11,7 @@
 #include "audio/audio-track.hpp"
 #include "audio/beat-track.hpp"
 #include "model/song.hpp"
+#include "websocket/websocket-server.hpp"
 
 // TODO: [MEDIUM] Add mixer functionality:
 // - struct MixerBus { float volume, pan; std::vector<Effect*> effects; };
@@ -33,13 +34,17 @@ class AudioEngineCore : public juce::AudioAppComponent {
   void releaseResources() override;
 
   // Song management
-  void loadSong(Song* newSong) { activeSong = newSong; }
+  void loadSong(Song* newSong);
+  Song* getActiveSong() { return activeSong; }
 
   // Play control
   void play();
   void pause();
   void stop();
   void switchPlaying();
+
+  // WS
+  void setWebSocketServer(WebSocketServer* server) { wsServer = server; }
 
  private:
   std::atomic<bool> playing;
@@ -52,6 +57,8 @@ class AudioEngineCore : public juce::AudioAppComponent {
       trackBuffer;  // Mono buffer for individual track rendering
 
   Song* activeSong;
+
+  WebSocketServer* wsServer = nullptr;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioEngineCore)
 };

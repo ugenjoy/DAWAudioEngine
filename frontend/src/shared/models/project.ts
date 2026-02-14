@@ -1,7 +1,9 @@
+import { Song } from './song'
+
 export interface Project {
   id: string
   name: string
   path: string
-  songsCount: number
+  songs: Song[]
   lastModified: string
 }

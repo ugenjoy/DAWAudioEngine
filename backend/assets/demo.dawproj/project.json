@@ -21,6 +21,33 @@
           "pan": 0.2,
           "mute": false,
           "frequency": 800.0
+        },
+        {
+          "type": "AudioTrack",
+          "id": "audio-track",
+          "volume": 0.3,
+          "pan": 0.2,
+          "mute": false,
+          "clips": [
+            {
+              "position": 3,
+              "duration": 2,
+              "offset": 0,
+              "fadeIn": 0.1,
+              "fadeOut": 0.1,
+              "gain": 1,
+              "fileName": "audio-1"
+            },
+            {
+              "position": 6,
+              "duration": 2,
+              "offset": 0,
+              "fadeIn": 0.1,
+              "fadeOut": 0.1,
+              "gain": 1,
+              "fileName": "audio-2"
+            }
+          ]
         }
       ]
     },

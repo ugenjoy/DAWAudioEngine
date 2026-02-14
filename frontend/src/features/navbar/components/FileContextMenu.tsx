@@ -1,4 +1,7 @@
 import { Button } from '@/shared/shadcn/components/button'
+
+import OpenProjectContextMenu from './OpenProjectContextMenu'
+import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,8 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/shadcn/components/dropdown-menu'
-import OpenProjectContextMenu from './OpenProjectContextMenu'
-import { useWebSocket } from '@/shared/contexts/websocket-provider'
 
 function FileDropdownMenu() {
   const { isConnected } = useWebSocket()

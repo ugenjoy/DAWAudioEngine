@@ -196,17 +196,17 @@ nlohmann::json ProjectManager::getProject(const std::string& path) {
       }
 
       if (projectJson.contains("songs") && projectJson["songs"].is_array()) {
-        project["songsCount"] = (int)projectJson["songs"].size();
+        project["songs"] = projectJson["songs"];
       } else {
-        project["songsCount"] = 0;
+        project["songs"] = 0;
       }
     } catch (...) {
       project["id"] = nullptr;
-      project["songsCount"] = -1;
+      project["songs"] = -1;
     }
   } else {
     project["lastModified"] = nullptr;
-    project["songsCount"] = -1;
+    project["songs"] = -1;
   }
 
   return project;

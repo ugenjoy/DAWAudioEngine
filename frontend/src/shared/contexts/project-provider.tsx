@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { Project } from '../models/project'
 import { useWebSocket } from './websocket-provider'
+import { Song } from '../models/song'
 
 type ProjectProviderProps = {
   children: React.ReactNode
@@ -11,11 +12,13 @@ type ProjectProviderProps = {
 type ProjectProviderState = {
   project: Project | undefined
   setProject: (project: Project) => void
+  activeSong: Song | undefined
 }
 
 const initialState: ProjectProviderState = {
   project: undefined,
   setProject: () => null,
+  activeSong: undefined,
 }
 
 const ProjectProviderContext = createContext<ProjectProviderState>(initialState)
@@ -26,6 +29,7 @@ export function ProjectProvider({
 }: Readonly<ProjectProviderProps>) {
   const { ws, isConnected, send } = useWebSocket()
   const [project, setProject] = useState<Project>()
+  const [activeSong, setActiveSong] = useState<Song>()
 
   useEffect(() => {
     if (ws && isConnected) {
@@ -47,11 +51,16 @@ export function ProjectProvider({
     if (data.event === 'project.currentLoaded') {
       if (data.hasProject) {
         const project = data.project
+        const song = data.activeSong
         setProject(project)
+        setActiveSong(song)
       }
     } else if (data.event === 'project.loaded') {
       const project = data.project
       setProject(project)
+    } else if (data.event === 'song.loaded') {
+      const song = data.song
+      setActiveSong(song)
     }
   }
 
@@ -60,6 +69,7 @@ export function ProjectProvider({
     setProject: (project: Project) => {
       setProject(project)
     },
+    activeSong,
   }
 
   return (

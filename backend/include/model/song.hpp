@@ -1,8 +1,8 @@
 #pragma once
 
-#include "tracks-manager.hpp"
 #include <juce_core/juce_core.h>
 #include <nlohmann/json.hpp>
+#include "tracks-manager.hpp"
 
 class Song {
  public:
@@ -33,6 +33,7 @@ class Song {
 
  private:
   std::string id;
+  std::string name;
   float tempo;
   double currentPosition;
 

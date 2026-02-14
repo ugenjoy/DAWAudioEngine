@@ -39,7 +39,7 @@ function ProjectsDialog({ open, setOpen }: Readonly<ProjectDialogProps>) {
                 onClick={() => loadProject(p.path)}
               >
                 <h3 className="text-lg font-semibold">{p.name}</h3>
-                <p>songs: {p.songsCount}</p>
+                <p>songs: {p.songs.length}</p>
                 <p>
                   last modified: {new Date(p.lastModified).toLocaleDateString()}
                 </p>

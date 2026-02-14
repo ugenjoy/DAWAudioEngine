@@ -1,3 +1,4 @@
+import { useProject } from '@/shared/contexts/project-provider'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { Button } from '@/shared/shadcn/components/button'
 import { Input } from '@/shared/shadcn/components/input'
@@ -22,6 +23,7 @@ export function Transport() {
   const [position, setPosition] = useState('1.1.1')
 
   const { send, ws } = useWebSocket()
+  const { activeSong } = useProject()
 
   function onMessage(ev: MessageEvent<string>) {
     const data = JSON.parse(ev.data)
@@ -46,6 +48,12 @@ export function Transport() {
       action: `transport.${action}`,
     })
   }
+
+  useEffect(() => {
+    if (activeSong) {
+      setBpm(activeSong.tempo)
+    }
+  }, [activeSong])
 
   useEffect(() => {
     if (ws) {

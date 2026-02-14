@@ -3,6 +3,7 @@ type ProjectCommand =
   | 'project.save'
   | 'project.getLoaded'
   | 'project.list'
+  | 'project.loadSong'
 
 type TransportCommand = 'transport.play' | 'transport.stop' | 'transport.pause'
 

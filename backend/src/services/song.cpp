@@ -30,6 +30,7 @@ void Song::render(juce::AudioBuffer<float>& mixBuffer,
 nlohmann::json Song::toJson() const {
   nlohmann::json j;
   j["id"] = id;
+  j["name"] = name;
   j["tempo"] = tempo;
   j["tracks"] = tracksManager->toJson();
   return j;
@@ -43,6 +44,7 @@ std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j) {
     song->id = j["id"].get<std::string>();
   }
 
+  song->name = j["name"].get<std::string>();
   song->tempo = j.value("tempo", 120.0f);
   song->currentPosition = 0.0;  // Always start at beginning when loading
 

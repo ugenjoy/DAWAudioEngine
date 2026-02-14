@@ -36,15 +36,48 @@ void AudioEngineCore::prepareToPlay(int samplesPerBlockExpected,
   juce::Logger::writeToLog("- Ready to play!");
 }
 
+void AudioEngineCore::loadSong(Song* newSong) {
+  activeSong = newSong;
+  juce::Logger::writeToLog("[AudioEngine] song loaded");
+
+  if (wsServer != nullptr) {
+    // Broadcast project loaded event to all clients
+    nlohmann::json broadcast;
+    broadcast["type"] = "broadcast";
+    broadcast["event"] = "song.loaded";
+    broadcast["song"] = activeSong->toJson();
+
+    wsServer->broadcast(broadcast.dump());
+  }
+}
+
 void AudioEngineCore::play() {
   if (activeSong && !playing) {
     playing.store(true);
+
+    if (wsServer != nullptr) {
+      // Broadcast transport play event to all clients
+      nlohmann::json broadcast;
+      broadcast["type"] = "broadcast";
+      broadcast["event"] = "transport.play";
+
+      wsServer->broadcast(broadcast.dump());
+    }
   }
 }
 
 void AudioEngineCore::pause() {
   if (activeSong && playing) {
     playing.store(false);
+
+    if (wsServer != nullptr) {
+      // Broadcast transport pause event to all clients
+      nlohmann::json broadcast;
+      broadcast["type"] = "broadcast";
+      broadcast["event"] = "transport.pause";
+
+      wsServer->broadcast(broadcast.dump());
+    }
   }
 }
 
@@ -54,6 +87,15 @@ void AudioEngineCore::stop() {
       playing.store(false);
     }
     activeSong->setCurrentPosition(0.0);
+
+    if (wsServer != nullptr) {
+      // Broadcast transport stop event to all clients
+      nlohmann::json broadcast;
+      broadcast["type"] = "broadcast";
+      broadcast["event"] = "transport.stop";
+
+      wsServer->broadcast(broadcast.dump());
+    }
   }
 }
 

@@ -42,7 +42,10 @@ export function WebSocketProvider({
         setIsConnected(true)
         console.log('WebSocket connected')
       }
-      ws.onclose = () => console.log('WebSocket disconnected')
+      ws.onclose = () => {
+        setIsConnected(false)
+        console.log('WebSocket disconnected')
+      }
       ws.onmessage = (ev) =>
         console.log('WebSocket message : ', JSON.parse(ev.data))
     }

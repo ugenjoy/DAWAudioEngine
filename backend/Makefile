@@ -13,4 +13,4 @@ run:
 	./build/DAWAudioEngine_artefacts/Release/DAWAudioEngine
 
 watch:
-	watchexec -e cpp,h "mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc) && ./DAWAudioEngine_artefacts/Release/DAWAudioEngine"
+	watchexec -r -e cpp,hpp "cd build && make -j$$(nproc) && ./DAWAudioEngine_artefacts/Release/DAWAudioEngine"

@@ -30,8 +30,10 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
     // Create WebSocket server (needed for AppContext)
     commandQueue = std::make_unique<CommandQueue>();
-    wsServer = std::make_unique<WebSocketServer>(*commandQueue, *commandFactory,
-                                                 8080);
+    wsServer =
+        std::make_unique<WebSocketServer>(*commandQueue, *commandFactory, 8080);
+
+    audioEngine->setWebSocketServer(wsServer.get());
 
     // Create application context (with all services including wsServer)
     appContext = std::make_unique<AppContext>(*audioEngine, *songsManager,
