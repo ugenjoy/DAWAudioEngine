@@ -47,6 +47,7 @@ void AudioClip::loadAudioFile() {
   }
 
   loaded = true;
+  generateWaveformPeaks();
 }
 
 void AudioClip::renderBlock(juce::AudioBuffer<float>& buffer, int startSample,
@@ -88,6 +89,47 @@ void AudioClip::renderBlock(juce::AudioBuffer<float>& buffer, int startSample,
   }
 }
 
+void AudioClip::generateWaveformPeaks(int pointsPerSecond) {
+  if (!loaded || audioData.getNumSamples() == 0 || duration <= 0.0) return;
+
+  auto const& ctx = AudioContext::getInstance();
+  int samplesPerPoint = (int)(ctx.sampleRate / pointsPerSecond);
+  int totalSamples = audioData.getNumSamples();
+
+  // Only generate peaks for the visible portion: [offset, offset + duration]
+  int startSample = std::max(0, (int)std::lround(offset * ctx.sampleRate));
+  int endSample =
+      std::min(totalSamples, (int)std::lround((offset + duration) * ctx.sampleRate));
+
+  int visibleSamples = endSample - startSample;
+  if (visibleSamples <= 0) return;
+
+  int numPoints = (visibleSamples + samplesPerPoint - 1) / samplesPerPoint;
+
+  waveformPeaks.clear();
+  waveformPeaks.reserve(numPoints * 2);
+
+  for (int i = 0; i < numPoints; ++i) {
+    int start = startSample + i * samplesPerPoint;
+    int end = std::min(start + samplesPerPoint, endSample);
+
+    float minVal = 1.0f;
+    float maxVal = -1.0f;
+
+    for (int ch = 0; ch < audioData.getNumChannels(); ++ch) {
+      const float* data = audioData.getReadPointer(ch);
+      for (int s = start; s < end; ++s) {
+        float sample = data[s];
+        if (sample < minVal) minVal = sample;
+        if (sample > maxVal) maxVal = sample;
+      }
+    }
+
+    waveformPeaks.push_back(minVal);
+    waveformPeaks.push_back(maxVal);
+  }
+}
+
 void AudioClip::setGain(float newGain) {
   this->gain = juce::jlimit(0.0f, 1.0f, newGain);
 }
@@ -102,6 +144,7 @@ nlohmann::json AudioClip::toJson() const {
   j["position"] = position;
   j["duration"] = duration;
   j["offset"] = offset;
+  j["waveform"] = waveformPeaks;
   return j;
 }
 

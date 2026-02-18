@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { getCSSVar } from '../utils'
 import { drawClip } from '../canvas/clips'
 
-export function useSequencer(zoom: number) {
+export function useSequencer(zoom: number, scrollX: number) {
   const { activeSong, transportPos } = useProject()
 
   const draw = useCallback(
@@ -27,13 +27,15 @@ export function useSequencer(zoom: number) {
         if (track.type === 'AudioFileTrack') {
           for (const clip of track.clips) {
             const offset = 1.5
-            const x = (clip.position / 60) * activeSong.tempo * pixelsPerBeat
+            const x = (clip.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
             const y = index * 80 + offset
             const width =
               (clip.duration / 60) * activeSong.tempo * pixelsPerBeat
             const height = 80 - offset * 2
 
-            drawClip({ x, y, width, height }, ctx)
+            const waveform =
+              clip.type === 'AudioClip' ? clip.waveform : undefined
+            drawClip({ x, y, width, height }, waveform, ctx)
           }
         }
       }
@@ -106,7 +108,7 @@ export function useSequencer(zoom: number) {
       }
 
       // Cursor
-      const cursorPos = (transportPos / 60) * activeSong.tempo * pixelsPerBeat
+      const cursorPos = (transportPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
 
       ctx.strokeStyle = getCSSVar('--foreground')
       ctx.lineWidth = 1
@@ -115,7 +117,7 @@ export function useSequencer(zoom: number) {
       ctx.lineTo(cursorPos, height)
       ctx.stroke()
     },
-    [transportPos, activeSong, zoom],
+    [transportPos, activeSong, zoom, scrollX],
   )
   return { draw }
 }

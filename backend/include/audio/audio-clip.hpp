@@ -38,4 +38,8 @@ class AudioClip {
   juce::AudioFormatManager formatManager;
   juce::AudioBuffer<float> audioData;
   bool loaded = false;
+
+  // Waveform overview: interleaved [min, max, min, max, ...] at 200 points/sec
+  std::vector<float> waveformPeaks;
+  void generateWaveformPeaks(int pointsPerSecond = 200);
 };

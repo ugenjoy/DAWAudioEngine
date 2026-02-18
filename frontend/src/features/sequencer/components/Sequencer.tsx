@@ -8,17 +8,29 @@ import { useSequencer } from '../hooks/useSequencer'
 function Sequencer() {
   const { project, activeSong } = useProject()
   const [zoom, setZoom] = useState(1)
-  const { draw } = useSequencer(zoom)
+  const [scrollX, setScrollX] = useState(0)
+  const { draw } = useSequencer(zoom, scrollX)
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()
 
-    const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1
+    if (e.shiftKey) {
+      const scrollDelta = e.deltaY > 0 ? 50 : -50
+      setScrollX((prev) => Math.max(0, prev + scrollDelta))
+    } else {
+      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
+      const canvasWidth = (e.target as HTMLElement).getBoundingClientRect().width
 
-    setZoom((prev) => {
-      const newZoom = prev * zoomDelta
-      return Math.max(0.05, Math.min(10, newZoom))
-    })
+      setZoom((prevZoom) => {
+        const newZoom = Math.max(0.05, Math.min(10, prevZoom * zoomFactor))
+        setScrollX((prevScrollX) => {
+          const centerContent = prevScrollX + canvasWidth / 2
+          const newScrollX = (centerContent / prevZoom) * newZoom - canvasWidth / 2
+          return Math.max(0, newScrollX)
+        })
+        return newZoom
+      })
+    }
   }, [])
 
   return (
