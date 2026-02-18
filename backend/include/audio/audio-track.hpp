@@ -96,6 +96,9 @@ class AudioTrack {
   /** @brief Unique identifier for this track */
   std::string id;
 
+  /** @brief Track name */
+  std::string name;
+
   /** @brief Track volume level (0.0 to 1.0) */
   float volume;
 

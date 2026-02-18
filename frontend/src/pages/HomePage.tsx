@@ -19,16 +19,16 @@ function HomePage() {
   }, [isConnected])
 
   useEffect(() => {
-    setProjectsDialogOpen(!project)
-  }, [project])
+    setProjectsDialogOpen(isConnected && project === null)
+  }, [project, isConnected])
 
   return (
     <>
-      <main className="flex flex-col h-screen">
+      <main className="flex flex-col h-screen w-screen">
         <Navbar />
-        {isConnected && (
-          <div className="flex-1 overflow-auto">{project && <Sequencer />}</div>
-        )}
+        <div className="flex-1 overflow-auto">
+          <Sequencer />
+        </div>
       </main>
       <ProjectsDialog
         open={projectsDialogOpen}

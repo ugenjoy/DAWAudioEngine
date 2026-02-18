@@ -6,8 +6,10 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <juce_core/juce_core.h>
 #include <juce_events/juce_events.h>
+
 #include <memory>
 #include <vector>
+
 #include "audio/audio-track.hpp"
 #include "audio/beat-track.hpp"
 #include "model/song.hpp"
@@ -22,7 +24,7 @@
 // - std::function<void(const String& error)> errorCallback;
 // - void setErrorCallback(std::function<void(const String&)> callback);
 
-class AudioEngineCore : public juce::AudioAppComponent {
+class AudioEngineCore : public juce::AudioAppComponent, public juce::Timer {
  public:
   AudioEngineCore();
   ~AudioEngineCore() override;
@@ -43,6 +45,9 @@ class AudioEngineCore : public juce::AudioAppComponent {
   void stop();
   void switchPlaying();
 
+  // Timer override (broadcasts transport position to clients)
+  void timerCallback() override;
+
   // WS
   void setWebSocketServer(WebSocketServer* server) { wsServer = server; }
 
@@ -57,6 +62,7 @@ class AudioEngineCore : public juce::AudioAppComponent {
       trackBuffer;  // Mono buffer for individual track rendering
 
   Song* activeSong;
+  std::atomic<double> currentPosition;
 
   WebSocketServer* wsServer = nullptr;
 

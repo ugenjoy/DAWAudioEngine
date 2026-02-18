@@ -1,10 +1,10 @@
 #include "model/song.hpp"
+
 #include "audio/audio-context.hpp"
 
 Song::Song()
     : id(juce::Uuid().toDashedString().toStdString()),
       tempo(120.0f),
-      currentPosition(0.0),
       tracksManager(std::make_unique<TracksManager>()) {}
 
 Song::~Song() = default;
@@ -18,13 +18,12 @@ void Song::removeTrack() {
 }
 
 void Song::render(juce::AudioBuffer<float>& mixBuffer,
-                  juce::AudioBuffer<float>& trackBuffer,
-                  int numSamples) {
-  tracksManager->renderTracks(mixBuffer, trackBuffer, numSamples,
-                              currentPosition, tempo);
+                  juce::AudioBuffer<float>& trackBuffer, int numSamples,
+                  double pos) {
+  // double pos = currentPosition.load(std::memory_order_relaxed);
+  tracksManager->renderTracks(mixBuffer, trackBuffer, numSamples, pos, tempo);
 
   auto const& ctx = AudioContext::getInstance();
-  currentPosition += (double)numSamples / ctx.sampleRate;
 }
 
 nlohmann::json Song::toJson() const {
@@ -46,7 +45,6 @@ std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j) {
 
   song->name = j["name"].get<std::string>();
   song->tempo = j.value("tempo", 120.0f);
-  song->currentPosition = 0.0;  // Always start at beginning when loading
 
   // Load tracks
   if (j.contains("tracks")) {

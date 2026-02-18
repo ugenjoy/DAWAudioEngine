@@ -72,6 +72,16 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
+
+  /* Timeline colors */
+  --grid-accent: oklch(0.985 0 0 / 15%);
+  --grid: oklch(0.985 0 0 / 5%);
+
+  --track-background-1: oklch(0.985 0 0 / 8%);
+  --track-background-2: oklch(0.985 0 0 / 5%);
+
+  --track-fill: oklch(29.832% 0.09695 262.042);
+  --track-stroke: oklch(46.751% 0.16201 261.97);
 }
 
 @theme inline {

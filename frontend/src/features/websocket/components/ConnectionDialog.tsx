@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from '@/shared/shadcn/components/dialog'
 import { Input } from '@/shared/shadcn/components/input'
+import { IconLoader } from '@tabler/icons-react'
 import { useState } from 'react'
 
 interface ConnectionDialogProps {
@@ -15,7 +16,7 @@ interface ConnectionDialogProps {
 }
 
 function ConnectionDialog({ open, setOpen }: Readonly<ConnectionDialogProps>) {
-  const { connect } = useWebSocket()
+  const { connect, isLoading } = useWebSocket()
 
   const [ip, setIp] = useState('127.0.0.1')
   const [port, setPort] = useState('8080')
@@ -40,7 +41,9 @@ function ConnectionDialog({ open, setOpen }: Readonly<ConnectionDialogProps>) {
           value={port}
           onChange={(e) => setPort(e.target.value)}
         />
-        <Button onClick={handleConnect}>Connect</Button>
+        <Button onClick={handleConnect}>
+          {isLoading ? <IconLoader /> : 'Connect'}
+        </Button>
       </DialogContent>
     </Dialog>
   )

@@ -15,6 +15,7 @@ type WebSocketProviderProps = {
 type WebSocketProviderState = {
   ws: WebSocket | undefined
   isConnected: boolean
+  isLoading: boolean
   connect: (url: string) => void
   send: (command: WebSocketMessage) => void
 }
@@ -22,6 +23,7 @@ type WebSocketProviderState = {
 const initialState: WebSocketProviderState = {
   ws: undefined,
   isConnected: false,
+  isLoading: false,
   connect: () => undefined,
   send: () => undefined,
 }
@@ -35,10 +37,12 @@ export function WebSocketProvider({
 }: Readonly<WebSocketProviderProps>) {
   const [ws, setWs] = useState<WebSocket>()
   const [isConnected, setIsConnected] = useState<boolean>(false)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
 
   useEffect(() => {
     if (ws) {
       ws.onopen = () => {
+        setIsLoading(false)
         setIsConnected(true)
         console.log('WebSocket connected')
       }
@@ -46,14 +50,15 @@ export function WebSocketProvider({
         setIsConnected(false)
         console.log('WebSocket disconnected')
       }
-      ws.onmessage = (ev) =>
-        console.log('WebSocket message : ', JSON.parse(ev.data))
+      // ws.onmessage = (ev) =>
+      //   console.log('WebSocket message : ', JSON.parse(ev.data))
     }
   }, [ws])
 
   const connect = useCallback(
     (url: string) => {
       if (!ws) {
+        setIsLoading(true)
         setWs(new WebSocket(url))
       }
     },
@@ -74,6 +79,7 @@ export function WebSocketProvider({
     return {
       ws,
       isConnected,
+      isLoading,
       connect,
       send,
     }

@@ -10,15 +10,17 @@ type ProjectProviderProps = {
 }
 
 type ProjectProviderState = {
-  project: Project | undefined
+  project: Project | undefined | null
   setProject: (project: Project) => void
   activeSong: Song | undefined
+  transportPos: number
 }
 
 const initialState: ProjectProviderState = {
   project: undefined,
   setProject: () => null,
   activeSong: undefined,
+  transportPos: 0,
 }
 
 const ProjectProviderContext = createContext<ProjectProviderState>(initialState)
@@ -28,8 +30,9 @@ export function ProjectProvider({
   ...props
 }: Readonly<ProjectProviderProps>) {
   const { ws, isConnected, send } = useWebSocket()
-  const [project, setProject] = useState<Project>()
+  const [project, setProject] = useState<Project | null>()
   const [activeSong, setActiveSong] = useState<Song>()
+  const [transportPos, setTransportPos] = useState<number>(0)
 
   useEffect(() => {
     if (ws && isConnected) {
@@ -48,19 +51,33 @@ export function ProjectProvider({
   function onMessage(ev: MessageEvent<unknown>) {
     if (typeof ev.data !== 'string') return
     const data = JSON.parse(ev.data)
-    if (data.event === 'project.currentLoaded') {
-      if (data.hasProject) {
+
+    switch (data.event) {
+      case 'project.currentLoaded': {
         const project = data.project
-        const song = data.activeSong
         setProject(project)
-        setActiveSong(song)
+
+        if (data.activeSong) {
+          const song = data.activeSong
+          setActiveSong(song)
+        }
+        break
       }
-    } else if (data.event === 'project.loaded') {
-      const project = data.project
-      setProject(project)
-    } else if (data.event === 'song.loaded') {
-      const song = data.song
-      setActiveSong(song)
+      case 'project.loaded': {
+        const project = data.project
+        setProject(project)
+        break
+      }
+      case 'song.loaded': {
+        const song = data.song
+        setActiveSong(song)
+        break
+      }
+      case 'transport.position': {
+        const newPosition = Number(data.position.toFixed(2))
+        setTransportPos(newPosition)
+        break
+      }
     }
   }
 
@@ -70,6 +87,7 @@ export function ProjectProvider({
       setProject(project)
     },
     activeSong,
+    transportPos,
   }
 
   return (

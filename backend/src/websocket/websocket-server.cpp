@@ -1,20 +1,17 @@
 #include "websocket/websocket-server.hpp"
+
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
 WebSocketServer::WebSocketServer(CommandQueue& commandQueue,
-                                 const CommandFactory& commandFactory,
-                                 int port)
+                                 const CommandFactory& commandFactory, int port)
     : commandQueue(commandQueue), commandFactory(commandFactory), port(port) {}
 
-WebSocketServer::~WebSocketServer() {
-  stop();
-}
+WebSocketServer::~WebSocketServer() { stop(); }
 
 void WebSocketServer::startAsync() {
-  if (running.load())
-    return;
+  if (running.load()) return;
 
   serverThread = std::thread([this]() { run(); });
 
@@ -103,8 +100,7 @@ void WebSocketServer::run() {
 }
 
 void WebSocketServer::stop() {
-  if (!running.load() && !serverThread.joinable())
-    return;
+  if (!running.load() && !serverThread.joinable()) return;
 
   juce::Logger::writeToLog("[WebSocket] Stopping server");
 
@@ -122,8 +118,8 @@ void WebSocketServer::stop() {
 void WebSocketServer::broadcast(const std::string& message) {
   std::lock_guard<std::mutex> lock(clientsMutex);
 
-  juce::Logger::writeToLog("[WebSocket] Broadcasting to " +
-                           juce::String((int)clients.size()) + " client(s)");
+  // juce::Logger::writeToLog("[WebSocket] Broadcasting to " +
+  //                          juce::String((int)clients.size()) + " client(s)");
 
   for (auto* client : clients) {
     try {
