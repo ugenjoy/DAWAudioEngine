@@ -5,7 +5,11 @@ type ProjectCommand =
   | 'project.list'
   | 'project.loadSong'
 
-type TransportCommand = 'transport.play' | 'transport.stop' | 'transport.pause'
+type TransportCommand =
+  | 'transport.play'
+  | 'transport.stop'
+  | 'transport.pause'
+  | 'transport.setPosition'
 
 type Command = ProjectCommand | TransportCommand
 

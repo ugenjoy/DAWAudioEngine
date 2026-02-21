@@ -1,15 +1,25 @@
 import { Button } from '@/shared/shadcn/components/button'
 import { Slider } from '@/shared/shadcn/components/slider'
 import { cn } from '@/shared/shadcn/lib/utils'
+import { getCSSVar } from '../utils'
 
 type TrackProps = {
   name: string
   mute: boolean
   solo: boolean
   volume: number
+  color: string
+  height: number
 }
 
-function Track({ name, mute, solo, volume }: Readonly<TrackProps>) {
+function Track({
+  name,
+  mute,
+  solo,
+  volume,
+  color,
+  height,
+}: Readonly<TrackProps>) {
   function setMute(v: boolean) {
     console.log(v)
   }
@@ -23,9 +33,22 @@ function Track({ name, mute, solo, volume }: Readonly<TrackProps>) {
   }
 
   return (
-    <div className="p-2 pb-4 h-20 border-b border-border w-full text-xs flex flex-col gap-2">
+    <div
+      className="p-2 pb-4 border-b border-border w-full text-xs flex flex-col gap-2"
+      style={{
+        height: height + 'px',
+      }}
+    >
       <div className="flex flex-row items-center w-full">
-        {name}
+        <div className="flex flex-row gap-2 items-center">
+          <div
+            className="rounded-full size-2"
+            style={{
+              backgroundColor: getCSSVar(color),
+            }}
+          />
+          {name}
+        </div>
         <div className="flex-1" />
         <div>
           <Button

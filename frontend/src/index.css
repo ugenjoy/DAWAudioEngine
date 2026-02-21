@@ -80,8 +80,29 @@
   --track-background-1: oklch(0.985 0 0 / 8%);
   --track-background-2: oklch(0.985 0 0 / 5%);
 
-  --track-fill: oklch(29.832% 0.09695 262.042);
-  --track-stroke: oklch(46.751% 0.16201 261.97);
+  --track-1-fill: oklch(29.832% 0.09695 262.042);
+  --track-1-stroke: oklch(46.751% 0.16201 261.97);
+
+  --track-2-fill: oklch(41.971% 0.11741 146.391);
+  --track-2-stroke: oklch(66.9% 0.20936 143.257);
+
+  --track-3-fill: oklch(45.999% 0.0949 112.681);
+  --track-3-stroke: oklch(73.868% 0.15123 108.748);
+
+  --track-4-fill: oklch(38.201% 0.0739 66.485);
+  --track-4-stroke: oklch(63.534% 0.12115 77.565);
+
+  --track-5-fill: oklch(31.447% 0.10947 26.205);
+  --track-5-stroke: oklch(49.861% 0.18063 26.826);
+
+  --track-6-fill: oklch(32.537% 0.11519 354.121);
+  --track-6-stroke: oklch(52.263% 0.19707 347.566);
+
+  --track-7-fill: oklch(34.548% 0.14115 328.096);
+  --track-7-stroke: oklch(53.467% 0.22716 324.932);
+
+  --track-8-fill: oklch(30.038% 0.1293 309.467);
+  --track-8-stroke: oklch(47.304% 0.21234 308.868);
 }
 
 @theme inline {

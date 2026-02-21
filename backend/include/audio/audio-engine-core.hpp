@@ -44,6 +44,7 @@ class AudioEngineCore : public juce::AudioAppComponent, public juce::Timer {
   void pause();
   void stop();
   void switchPlaying();
+  void setCurrentPosition(double position);
 
   // Timer override (broadcasts transport position to clients)
   void timerCallback() override;
@@ -59,7 +60,7 @@ class AudioEngineCore : public juce::AudioAppComponent, public juce::Timer {
   // thread)
   juce::AudioBuffer<float> mixBuffer;  // Stereo mix buffer
   juce::AudioBuffer<float>
-      trackBuffer;  // Mono buffer for individual track rendering
+      trackBuffer;  // Stereo buffer for individual track rendering
 
   Song* activeSong;
   std::atomic<double> currentPosition;

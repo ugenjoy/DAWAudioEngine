@@ -3,9 +3,16 @@ import { useEffect, useRef } from 'react'
 interface TimelineProps {
   draw: (value: CanvasRenderingContext2D, width: number, height: number) => void
   onWheel?: (e: WheelEvent) => void
+  onClick?: (e: MouseEvent) => void
+  onKeyDown?: (e: KeyboardEvent) => void
 }
 
-function Timeline({ draw, onWheel }: Readonly<TimelineProps>) {
+function Timeline({
+  draw,
+  onWheel,
+  onClick,
+  onKeyDown,
+}: Readonly<TimelineProps>) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -31,10 +38,23 @@ function Timeline({ draw, onWheel }: Readonly<TimelineProps>) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !onWheel) return
-
     canvas.addEventListener('wheel', onWheel, { passive: false })
     return () => canvas.removeEventListener('wheel', onWheel)
   }, [onWheel])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !onClick) return
+    canvas.addEventListener('mousedown', onClick)
+    return () => canvas.removeEventListener('click', onClick)
+  }, [onClick])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !onKeyDown) return
+    globalThis.addEventListener('keydown', onKeyDown)
+    return () => globalThis.removeEventListener('keydown', onKeyDown)
+  }, [onKeyDown])
 
   return (
     <canvas

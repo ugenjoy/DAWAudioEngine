@@ -2,6 +2,14 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { Project } from '../models/project'
 import { useWebSocket } from './websocket-provider'
 import { Song } from '../models/song'
+import { Track } from '../models/track'
+
+export interface TrackView {
+  track: Track
+  height: number
+  fillColor: string
+  strokeColor: string
+}
 
 type ProjectProviderProps = {
   children: React.ReactNode
@@ -12,15 +20,19 @@ type ProjectProviderProps = {
 type ProjectProviderState = {
   project: Project | undefined | null
   setProject: (project: Project) => void
-  activeSong: Song | undefined
   transportPos: number
+  playing: boolean
+  activeSong: Song | undefined
+  trackViews: TrackView[]
 }
 
 const initialState: ProjectProviderState = {
   project: undefined,
   setProject: () => null,
-  activeSong: undefined,
   transportPos: 0,
+  playing: false,
+  activeSong: undefined,
+  trackViews: [],
 }
 
 const ProjectProviderContext = createContext<ProjectProviderState>(initialState)
@@ -33,6 +45,8 @@ export function ProjectProvider({
   const [project, setProject] = useState<Project | null>()
   const [activeSong, setActiveSong] = useState<Song>()
   const [transportPos, setTransportPos] = useState<number>(0)
+  const [playing, setPlaying] = useState<boolean>(false)
+  const [trackViews, setTrackViews] = useState<TrackView[]>([])
 
   useEffect(() => {
     if (ws && isConnected) {
@@ -78,16 +92,45 @@ export function ProjectProvider({
         setTransportPos(newPosition)
         break
       }
+      case 'transport.play': {
+        setPlaying(true)
+        break
+      }
+      case 'transport.pause': {
+        setPlaying(false)
+        break
+      }
+      case 'transport.stop': {
+        setPlaying(false)
+        break
+      }
     }
   }
+
+  useEffect(() => {
+    if (!activeSong) return
+    const trackViews = activeSong.tracks.map((t, i) => {
+      const colorIndex = (i % 8) + 1
+      const tv = {
+        track: t,
+        fillColor: `--track-${colorIndex}-fill`,
+        strokeColor: `--track-${colorIndex}-stroke`,
+        height: 80,
+      } satisfies TrackView
+      return tv
+    })
+    setTrackViews(trackViews)
+  }, [activeSong])
 
   const value = {
     project,
     setProject: (project: Project) => {
       setProject(project)
     },
-    activeSong,
     transportPos,
+    playing,
+    activeSong,
+    trackViews,
   }
 
   return (

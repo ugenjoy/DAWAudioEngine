@@ -14,36 +14,23 @@ import {
 import { useEffect, useState } from 'react'
 
 export function Transport() {
-  const [isPlaying, setIsPlaying] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [isLooping, setIsLooping] = useState(false)
   const [isMetronomeOn, setIsMetronomeOn] = useState(false)
   const [bpm, setBpm] = useState(120)
-
-  const { send, ws } = useWebSocket()
-  const { activeSong, transportPos } = useProject()
-
-  function onMessage(ev: MessageEvent<string>) {
-    const data = JSON.parse(ev.data)
-    switch (data.event) {
-      case 'transport.play': {
-        setIsPlaying(true)
-        break
-      }
-      case 'transport.pause': {
-        setIsPlaying(false)
-        break
-      }
-      case 'transport.stop': {
-        setIsPlaying(false)
-        break
-      }
-    }
-  }
+  const { send } = useWebSocket()
+  const { activeSong, transportPos, playing } = useProject()
 
   function transport(action: 'play' | 'pause' | 'stop') {
     send({
       action: `transport.${action}`,
+    })
+  }
+
+  function resetPosition() {
+    send({
+      action: `transport.setPosition`,
+      position: 0,
     })
   }
 
@@ -65,13 +52,6 @@ export function Transport() {
     }
   }, [activeSong])
 
-  useEffect(() => {
-    if (ws) {
-      ws.addEventListener('message', onMessage)
-      return () => ws.removeEventListener('message', onMessage)
-    }
-  }, [ws])
-
   return (
     activeSong && (
       <div className="flex items-center gap-4 px-3 py-2 bg-card border-b border-border">
@@ -80,7 +60,7 @@ export function Transport() {
           <Button
             variant="ghost"
             size="icon-sm"
-            // onClick={() => setPosition('1.1.1')}
+            onClick={() => resetPosition()}
             title="Go to start"
           >
             <IconPlayerSkipBackFilled className="size-4" />
@@ -98,12 +78,12 @@ export function Transport() {
 
           {/* Play / Pause button */}
           <Button
-            variant={isPlaying ? 'default' : 'ghost'}
+            variant={playing ? 'default' : 'ghost'}
             size="icon-sm"
-            onClick={() => transport(isPlaying ? 'pause' : 'play')}
-            title={isPlaying ? 'Stop' : 'Play'}
+            onClick={() => transport(playing ? 'pause' : 'play')}
+            title={playing ? 'Stop' : 'Play'}
           >
-            {isPlaying ? (
+            {playing ? (
               <IconPlayerPauseFilled className="size-4" />
             ) : (
               <IconPlayerPlayFilled className="size-4" />

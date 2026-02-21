@@ -28,3 +28,17 @@ class StopCommand : public Command {
   void execute(AppContext& ctx) override;
   std::string getName() const override { return "transport.stop"; }
 };
+
+/**
+ * Command to set playback position.
+ */
+class SetPositionCommand : public Command {
+ public:
+  explicit SetPositionCommand(double position);
+
+  void execute(AppContext& ctx) override;
+  std::string getName() const override { return "transport.setPosition"; }
+
+ private:
+  double position;
+};

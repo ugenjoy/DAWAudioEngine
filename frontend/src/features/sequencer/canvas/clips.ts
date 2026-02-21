@@ -9,22 +9,25 @@ type ClipRect = {
 
 export function drawClip(
   rect: ClipRect,
+  fillColor: string,
+  strokeColor: string,
   waveform: number[] | undefined,
   ctx: CanvasRenderingContext2D,
 ) {
-  ctx.fillStyle = getCSSVar('--track-fill')
+  ctx.fillStyle = getCSSVar(fillColor)
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
 
   if (waveform && waveform.length >= 2) {
-    drawWaveform(rect, waveform, ctx)
+    drawWaveform(rect, strokeColor, waveform, ctx)
   }
 
-  ctx.strokeStyle = getCSSVar('--track-stroke')
+  ctx.strokeStyle = getCSSVar(strokeColor)
   ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
 }
 
 function drawWaveform(
   rect: ClipRect,
+  color: string,
   waveform: number[],
   ctx: CanvasRenderingContext2D,
 ) {
@@ -42,7 +45,7 @@ function drawWaveform(
   // How many source points map to one drawn point
   const step = sourcePoints / drawnPoints
 
-  ctx.fillStyle = getCSSVar('--track-stroke')
+  ctx.fillStyle = getCSSVar(color)
   ctx.beginPath()
 
   // Top half (max values) — left to right

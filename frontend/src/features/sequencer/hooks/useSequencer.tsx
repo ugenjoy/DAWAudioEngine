@@ -4,7 +4,7 @@ import { getCSSVar } from '../utils'
 import { drawClip } from '../canvas/clips'
 
 export function useSequencer(zoom: number, scrollX: number) {
-  const { activeSong, transportPos } = useProject()
+  const { activeSong, transportPos, trackViews } = useProject()
 
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -14,30 +14,40 @@ export function useSequencer(zoom: number, scrollX: number) {
       const basePixelsPerBeat = 20
       const pixelsPerBeat = basePixelsPerBeat * zoom
 
+      const headerHeight = 20
+      let totalHeight = 0
+
       // Clips
-      for (const [index, track] of activeSong.tracks.entries()) {
+      for (const [index, trackView] of trackViews.entries()) {
         if (index % 2) {
           ctx.fillStyle = getCSSVar('--track-background-1')
-          ctx.fillRect(0, index * 80, width, 80)
+          ctx.fillRect(0, totalHeight + headerHeight, width, trackView.height)
         } else {
           ctx.fillStyle = getCSSVar('--track-background-2')
-          ctx.fillRect(0, index * 80, width, 80)
+          ctx.fillRect(0, totalHeight + headerHeight, width, trackView.height)
         }
 
-        if (track.type === 'AudioFileTrack') {
-          for (const clip of track.clips) {
+        if (trackView.track.type === 'AudioFileTrack') {
+          for (const clip of trackView.track.clips) {
             const offset = 1.5
-            const x = (clip.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
-            const y = index * 80 + offset
+            const x =
+              (clip.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+            const y = totalHeight + headerHeight + offset
             const width =
               (clip.duration / 60) * activeSong.tempo * pixelsPerBeat
-            const height = 80 - offset * 2
-
+            const height = trackView.height - offset * 2
             const waveform =
               clip.type === 'AudioClip' ? clip.waveform : undefined
-            drawClip({ x, y, width, height }, waveform, ctx)
+            drawClip(
+              { x, y, width, height },
+              trackView.fillColor,
+              trackView.strokeColor,
+              waveform,
+              ctx,
+            )
           }
         }
+        totalHeight += trackView.height
       }
 
       const pixelsPerSub = pixelsPerBeat / 4
@@ -67,8 +77,12 @@ export function useSequencer(zoom: number, scrollX: number) {
           ctx.font = '12px Sans'
         } else {
           ctx.strokeStyle = getCSSVar('--grid')
-          ctx.fillStyle = getCSSVar('--muted-foreground')
-          ctx.font = '10px Sans'
+          if (pixelsPerLine > 40) {
+            ctx.fillStyle = getCSSVar('--muted-foreground')
+            ctx.font = '10px Sans'
+          } else {
+            ctx.fillStyle = 'transparent'
+          }
         }
 
         let text = ''
@@ -76,6 +90,7 @@ export function useSequencer(zoom: number, scrollX: number) {
           const bar = Math.floor(i / 16) + 1
           const beat = Math.floor((i % 16) / 4) + 1
           const sub = (i % 4) + 1
+
           if (sub === 1) {
             text = `${bar}.${beat}`
           } else {
@@ -84,6 +99,7 @@ export function useSequencer(zoom: number, scrollX: number) {
         } else if (pixelsPerLine === pixelsPerBeat) {
           const bar = Math.floor(i / 4) + 1
           const beat = (i % 4) + 1
+
           if (beat === 1) {
             text = `${bar}`
           } else {
@@ -104,11 +120,12 @@ export function useSequencer(zoom: number, scrollX: number) {
 
         // Marker
         ctx.font = '10px Arial'
-        ctx.fillText(text, x + 4, 10)
+        ctx.fillText(text, x + 4, 13)
       }
 
       // Cursor
-      const cursorPos = (transportPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+      const cursorPos =
+        (transportPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
 
       ctx.strokeStyle = getCSSVar('--foreground')
       ctx.lineWidth = 1
@@ -117,7 +134,7 @@ export function useSequencer(zoom: number, scrollX: number) {
       ctx.lineTo(cursorPos, height)
       ctx.stroke()
     },
-    [transportPos, activeSong, zoom, scrollX],
+    [transportPos, activeSong, trackViews, zoom, scrollX],
   )
   return { draw }
 }

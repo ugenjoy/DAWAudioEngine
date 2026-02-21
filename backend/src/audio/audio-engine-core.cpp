@@ -135,6 +135,21 @@ void AudioEngineCore::switchPlaying() {
   }
 }
 
+void AudioEngineCore::setCurrentPosition(double position) {
+  if (activeSong) {
+    currentPosition.store(position, std::memory_order_relaxed);
+
+    if (wsServer != nullptr) {
+      // Broadcast transport position event to all clients
+      nlohmann::json positionMsg;
+      positionMsg["type"] = "broadcast";
+      positionMsg["event"] = "transport.position";
+      positionMsg["position"] = currentPosition.load(std::memory_order_relaxed);
+      wsServer->broadcast(positionMsg.dump());
+    }
+  }
+}
+
 void AudioEngineCore::getNextAudioBlock(
     const juce::AudioSourceChannelInfo& bufferToFill) {
   auto* buffer = bufferToFill.buffer;
