@@ -13,7 +13,7 @@ type WebSocketProviderProps = {
 }
 
 type WebSocketProviderState = {
-  ws: WebSocket | undefined
+  ws: WebSocket | undefined | null
   isConnected: boolean
   isLoading: boolean
   connect: (url: string) => void
@@ -35,7 +35,7 @@ export function WebSocketProvider({
   children,
   ...props
 }: Readonly<WebSocketProviderProps>) {
-  const [ws, setWs] = useState<WebSocket>()
+  const [ws, setWs] = useState<WebSocket | null | undefined>()
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
@@ -48,10 +48,13 @@ export function WebSocketProvider({
       }
       ws.onclose = () => {
         setIsConnected(false)
+        setWs(null)
         console.log('WebSocket disconnected')
       }
-      // ws.onmessage = (ev) =>
-      //   console.log('WebSocket message : ', JSON.parse(ev.data))
+      ws.onerror = () => {
+        if (isLoading) setIsLoading(false)
+        if (ws) setWs(null)
+      }
     }
   }, [ws])
 

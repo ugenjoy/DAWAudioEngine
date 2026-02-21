@@ -42,7 +42,7 @@ function ConnectionDialog({ open, setOpen }: Readonly<ConnectionDialogProps>) {
           onChange={(e) => setPort(e.target.value)}
         />
         <Button onClick={handleConnect}>
-          {isLoading ? <IconLoader /> : 'Connect'}
+          {isLoading ? <IconLoader className="animate-spin" /> : 'Connect'}
         </Button>
       </DialogContent>
     </Dialog>

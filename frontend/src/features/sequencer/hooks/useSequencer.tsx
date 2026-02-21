@@ -4,7 +4,7 @@ import { getCSSVar } from '../utils'
 import { drawClip } from '../canvas/clips'
 
 export function useSequencer(zoom: number, scrollX: number) {
-  const { activeSong, transportPos, trackViews } = useProject()
+  const { activeSong, playheadPos, cursorPos, trackViews } = useProject()
 
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -124,17 +124,36 @@ export function useSequencer(zoom: number, scrollX: number) {
       }
 
       // Cursor
-      const cursorPos =
-        (transportPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+      const cursorPosPx =
+        (cursorPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
 
-      ctx.strokeStyle = getCSSVar('--foreground')
+      ctx.strokeStyle = getCSSVar('--cursor')
+      ctx.lineWidth = 0.5
+      ctx.beginPath()
+      ctx.moveTo(cursorPosPx, 0)
+      ctx.lineTo(cursorPosPx, height)
+      ctx.stroke()
+
+      ctx.fillStyle = getCSSVar('--primary')
+      ctx.lineWidth = 0.5
+      ctx.beginPath()
+      ctx.moveTo(cursorPosPx - 5, 0)
+      ctx.lineTo(cursorPosPx + 5, 0)
+      ctx.lineTo(cursorPosPx, 5)
+      ctx.fill()
+
+      // Playhead
+      const playheadPosPx =
+        (playheadPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+
+      ctx.strokeStyle = getCSSVar('--playhead')
       ctx.lineWidth = 1
       ctx.beginPath()
-      ctx.moveTo(cursorPos, 0)
-      ctx.lineTo(cursorPos, height)
+      ctx.moveTo(playheadPosPx, 0)
+      ctx.lineTo(playheadPosPx, height)
       ctx.stroke()
     },
-    [transportPos, activeSong, trackViews, zoom, scrollX],
+    [playheadPos, cursorPos, activeSong, trackViews, zoom, scrollX],
   )
   return { draw }
 }
