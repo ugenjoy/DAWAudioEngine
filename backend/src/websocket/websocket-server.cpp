@@ -59,6 +59,23 @@ void WebSocketServer::run() {
           CommandPtr cmd = commandFactory.create(action, msg);
 
           if (cmd) {
+            // Attach a reply callback so the command can respond to this
+            // specific client without broadcasting to all connected clients.
+            // Thread-safe: clientsMutex guards both the clients set and sends,
+            // so a disconnect between push() and execute() is handled cleanly.
+            cmd->setReply([this, &conn](const std::string& response) {
+              std::lock_guard<std::mutex> lock(clientsMutex);
+              if (clients.count(&conn) > 0) {
+                try {
+                  conn.send_text(response);
+                } catch (const std::exception& e) {
+                  juce::Logger::writeToLog(
+                      "[WebSocket] Error sending reply: " +
+                      juce::String(e.what()));
+                }
+              }
+            });
+
             if (commandQueue.push(std::move(cmd))) {
               json response = {
                   {"type", "ack"}, {"action", action}, {"status", "queued"}};
@@ -131,17 +148,3 @@ void WebSocketServer::broadcast(const std::string& message) {
   }
 }
 
-void WebSocketServer::send(crow::websocket::connection* client,
-                           const std::string& message) {
-  std::lock_guard<std::mutex> lock(clientsMutex);
-
-  juce::Logger::writeToLog("[WebSocket] Broadcasting to " +
-                           juce::String((int)clients.size()) + " client(s)");
-
-  try {
-    client->send_text(message);
-  } catch (const std::exception& e) {
-    juce::Logger::writeToLog("[WebSocket] Error broadcasting: " +
-                             juce::String(e.what()));
-  }
-}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -13,6 +14,12 @@ class AppContext;
  */
 class Command {
  public:
+  /**
+   * Callback type for sending a response to the requester only.
+   * Set automatically by WebSocketServer before the command is queued.
+   */
+  using ReplyFn = std::function<void(const std::string&)>;
+
   virtual ~Command() = default;
 
   /**
@@ -23,9 +30,27 @@ class Command {
   virtual void execute(AppContext& ctx) = 0;
 
   /**
-   * Get the command name for logging/debugging.
+   * Get the action name used to register and create this command.
+   * Set automatically by CommandFactory — no need to override in subclasses.
    */
-  virtual std::string getName() const = 0;
+  const std::string& getName() const { return actionName; }
+
+  /** @internal Called by WebSocketServer to attach the requester's reply channel. */
+  void setReply(ReplyFn fn) { replyFn = std::move(fn); }
+
+ protected:
+  /**
+   * Send a response to the requester only (not broadcast).
+   * No-op if the client disconnected before the command was executed.
+   */
+  void reply(const std::string& message) const {
+    if (replyFn) replyFn(message);
+  }
+
+ private:
+  std::string actionName;
+  ReplyFn replyFn;
+  friend class CommandFactory;
 };
 
 using CommandPtr = std::unique_ptr<Command>;

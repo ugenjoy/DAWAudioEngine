@@ -11,7 +11,6 @@ class LoadProjectCommand : public Command {
   explicit LoadProjectCommand(std::string projectPath);
 
   void execute(AppContext& ctx) override;
-  std::string getName() const override { return "project.load"; }
 
  private:
   std::string projectPath;
@@ -25,7 +24,6 @@ class SaveProjectCommand : public Command {
   explicit SaveProjectCommand(std::string projectPath);
 
   void execute(AppContext& ctx) override;
-  std::string getName() const override { return "project.save"; }
 
  private:
   std::string projectPath;
@@ -37,10 +35,7 @@ class SaveProjectCommand : public Command {
  */
 class GetLoadedProjectCommand : public Command {
  public:
-  GetLoadedProjectCommand() = default;
-
   void execute(AppContext& ctx) override;
-  std::string getName() const override { return "project.getLoaded"; }
 };
 
 /**
@@ -48,10 +43,7 @@ class GetLoadedProjectCommand : public Command {
  */
 class ListProjectsCommand : public Command {
  public:
-  ListProjectsCommand() = default;
-
   void execute(AppContext& ctx) override;
-  std::string getName() const override { return "project.list"; }
 };
 
 /**
@@ -62,7 +54,6 @@ class LoadSongCommand : public Command {
   explicit LoadSongCommand(std::string uuid);
 
   void execute(AppContext& ctx) override;
-  std::string getName() const override { return "project.loadSong"; }
 
  private:
   std::string uuid;

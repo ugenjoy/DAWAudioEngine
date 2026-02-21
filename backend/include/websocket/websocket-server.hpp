@@ -45,13 +45,6 @@ class WebSocketServer {
    */
   void broadcast(const std::string& message);
 
-  /**
-   * Send a message to a client.
-   * @param client client to send
-   * @param message JSON message to send
-   */
-  void send(crow::websocket::connection* client, const std::string& message);
-
   bool isRunning() const { return running.load(); }
   int getPort() const { return port; }
   bool hasExited() const { return threadExited.load(); }

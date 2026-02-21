@@ -46,7 +46,7 @@ function Timeline({
     const canvas = canvasRef.current
     if (!canvas || !onClick) return
     canvas.addEventListener('mousedown', onClick)
-    return () => canvas.removeEventListener('click', onClick)
+    return () => canvas.removeEventListener('mousedown', onClick)
   }, [onClick])
 
   useEffect(() => {

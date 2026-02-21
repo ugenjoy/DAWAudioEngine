@@ -20,7 +20,6 @@ void CommandProcessor::run() {
       try {
         DBG("[CommandProcessor] Executing: " << cmd->getName());
         cmd->execute(ctx);
-        commandsProcessed++;
       } catch (const std::exception& e) {
         DBG("[CommandProcessor] Error executing " << cmd->getName() << ": "
                                                   << e.what());

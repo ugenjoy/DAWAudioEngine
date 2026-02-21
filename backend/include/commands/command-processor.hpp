@@ -35,17 +35,11 @@ class CommandProcessor : public juce::Thread {
    */
   void stopProcessing();
 
-  /**
-   * Get the number of commands processed since start.
-   */
-  uint64_t getCommandsProcessed() const { return commandsProcessed; }
-
  private:
   void run() override;
 
   CommandQueue& queue;
   AppContext& ctx;
-  std::atomic<uint64_t> commandsProcessed{0};
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CommandProcessor)
 };
