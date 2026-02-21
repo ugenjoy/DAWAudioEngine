@@ -39,12 +39,16 @@ class AudioEngineCore : public juce::AudioAppComponent, public juce::Timer {
   void loadSong(Song* newSong);
   Song* getActiveSong() { return activeSong; }
 
-  // Play control
+  // Transport control
   void play();
   void pause();
   void stop();
   void switchPlaying();
-  void setCurrentPosition(double position);
+  void setPlayheadPosition(double position);
+  void setCursorPosition(double position);
+
+  double getPlayheadPosition() { return playheadPosition; };
+  double getCursorPosition() { return cursorPosition; };
 
   // Timer override (broadcasts transport position to clients)
   void timerCallback() override;
@@ -63,7 +67,8 @@ class AudioEngineCore : public juce::AudioAppComponent, public juce::Timer {
       trackBuffer;  // Stereo buffer for individual track rendering
 
   Song* activeSong;
-  std::atomic<double> currentPosition;
+  std::atomic<double> playheadPosition;
+  std::atomic<double> cursorPosition;
 
   WebSocketServer* wsServer = nullptr;
 

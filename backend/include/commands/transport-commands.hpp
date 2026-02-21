@@ -27,11 +27,24 @@ class StopCommand : public Command {
 };
 
 /**
- * Command to set playback position.
+ * Command to set playhead position.
  */
-class SetPositionCommand : public Command {
+class SetPlayheadPositionCommand : public Command {
  public:
-  explicit SetPositionCommand(double position);
+  explicit SetPlayheadPositionCommand(double position);
+
+  void execute(AppContext& ctx) override;
+
+ private:
+  double position;
+};
+
+/**
+ * Command to set cursor position.
+ */
+class SetCursorPositionCommand : public Command {
+ public:
+  explicit SetCursorPositionCommand(double position);
 
   void execute(AppContext& ctx) override;
 

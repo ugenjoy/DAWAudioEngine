@@ -8,7 +8,8 @@
 
 AudioEngineCore::AudioEngineCore()
     : playing(false),
-      currentPosition(0.0),
+      playheadPosition(0.0),
+      cursorPosition(0.0),
       masterVolume(0.5f),
       activeSong(nullptr) {
   // Audio configuration: 0 inputs, 2 outputs
@@ -43,7 +44,8 @@ void AudioEngineCore::prepareToPlay(int samplesPerBlockExpected,
 
 void AudioEngineCore::loadSong(Song* newSong) {
   activeSong = newSong;
-  currentPosition.store(0, std::memory_order_relaxed);
+  playheadPosition.store(0, std::memory_order_relaxed);
+  cursorPosition.store(0, std::memory_order_relaxed);
   juce::Logger::writeToLog("[AudioEngine] song loaded");
 
   if (wsServer != nullptr) {
@@ -54,12 +56,19 @@ void AudioEngineCore::loadSong(Song* newSong) {
     loadedSongMsg["song"] = activeSong->toJson();
     wsServer->broadcast(loadedSongMsg.dump());
 
-    // Broadcast transport position to all clients
+    // Broadcast playhead position to all clients
     nlohmann::json posMsg;
-    loadedSongMsg["type"] = "broadcast";
-    loadedSongMsg["event"] = "transport.position";
-    loadedSongMsg["position"] = currentPosition.load(std::memory_order_relaxed);
-    wsServer->broadcast(loadedSongMsg.dump());
+    posMsg["type"] = "broadcast";
+    posMsg["event"] = "transport.playheadpPosition";
+    posMsg["position"] = playheadPosition.load(std::memory_order_relaxed);
+    wsServer->broadcast(posMsg.dump());
+
+    // Broadcast cursor position to all clients
+    nlohmann::json startPosMsg;
+    startPosMsg["type"] = "broadcast";
+    startPosMsg["event"] = "transport.cursorPosition";
+    startPosMsg["position"] = cursorPosition.load(std::memory_order_relaxed);
+    wsServer->broadcast(startPosMsg.dump());
   }
 }
 
@@ -102,8 +111,11 @@ void AudioEngineCore::stop() {
     if (playing) {
       playing.store(false);
       stopTimer();
+      playheadPosition.store(cursorPosition, std::memory_order_relaxed);
+    } else {
+      cursorPosition.store(0.0, std::memory_order_relaxed);
+      playheadPosition.store(0.0, std::memory_order_relaxed);
     }
-    currentPosition.store(0.0, std::memory_order_relaxed);
 
     if (wsServer != nullptr) {
       // Broadcast transport stop event to all clients
@@ -112,12 +124,21 @@ void AudioEngineCore::stop() {
       stopMsg["event"] = "transport.stop";
       wsServer->broadcast(stopMsg.dump());
 
-      // Broadcast transport position event to all clients
-      nlohmann::json positionMsg;
-      positionMsg["type"] = "broadcast";
-      positionMsg["event"] = "transport.position";
-      positionMsg["position"] = currentPosition.load(std::memory_order_relaxed);
-      wsServer->broadcast(positionMsg.dump());
+      // Broadcast playhead position event to all clients
+      nlohmann::json playheadPositionMsg;
+      playheadPositionMsg["type"] = "broadcast";
+      playheadPositionMsg["event"] = "transport.playheadPosition";
+      playheadPositionMsg["position"] =
+          playheadPosition.load(std::memory_order_relaxed);
+      wsServer->broadcast(playheadPositionMsg.dump());
+
+      // Broadcast cursor position event to all clients
+      nlohmann::json cursorPositionMsg;
+      cursorPositionMsg["type"] = "broadcast";
+      cursorPositionMsg["event"] = "transport.cursorPosition";
+      cursorPositionMsg["position"] =
+          cursorPosition.load(std::memory_order_relaxed);
+      wsServer->broadcast(cursorPositionMsg.dump());
     }
   }
 }
@@ -135,17 +156,45 @@ void AudioEngineCore::switchPlaying() {
   }
 }
 
-void AudioEngineCore::setCurrentPosition(double position) {
+void AudioEngineCore::setPlayheadPosition(double position) {
   if (activeSong) {
-    currentPosition.store(position, std::memory_order_relaxed);
+    playheadPosition.store(position, std::memory_order_relaxed);
 
     if (wsServer != nullptr) {
-      // Broadcast transport position event to all clients
+      // Broadcast playhead position event to all clients
       nlohmann::json positionMsg;
       positionMsg["type"] = "broadcast";
-      positionMsg["event"] = "transport.position";
-      positionMsg["position"] = currentPosition.load(std::memory_order_relaxed);
+      positionMsg["event"] = "transport.playheadPosition";
+      positionMsg["position"] =
+          playheadPosition.load(std::memory_order_relaxed);
       wsServer->broadcast(positionMsg.dump());
+    }
+  }
+}
+
+void AudioEngineCore::setCursorPosition(double position) {
+  if (activeSong) {
+    if (!playing) {
+      playheadPosition.store(position, std::memory_order_relaxed);
+    }
+    cursorPosition.store(position, std::memory_order_relaxed);
+
+    if (wsServer != nullptr) {
+      // Broadcast cursor position event to all clients
+      nlohmann::json cursorPositionMsg;
+      cursorPositionMsg["type"] = "broadcast";
+      cursorPositionMsg["event"] = "transport.cursorPosition";
+      cursorPositionMsg["position"] =
+          cursorPosition.load(std::memory_order_relaxed);
+      wsServer->broadcast(cursorPositionMsg.dump());
+
+      // Broadcast playhead position event to all clients
+      nlohmann::json playheadPositionMsg;
+      playheadPositionMsg["type"] = "broadcast";
+      playheadPositionMsg["event"] = "transport.playheadPosition";
+      playheadPositionMsg["position"] =
+          playheadPosition.load(std::memory_order_relaxed);
+      wsServer->broadcast(playheadPositionMsg.dump());
     }
   }
 }
@@ -165,12 +214,12 @@ void AudioEngineCore::getNextAudioBlock(
 
   // Render song
   activeSong->render(mixBuffer, trackBuffer, numSamples,
-                     currentPosition.load(std::memory_order_relaxed));
+                     playheadPosition.load(std::memory_order_relaxed));
 
   auto const& ctx = AudioContext::getInstance();
 
-  currentPosition.store(currentPosition + (double)numSamples / ctx.sampleRate,
-                        std::memory_order_relaxed);
+  playheadPosition.store(playheadPosition + (double)numSamples / ctx.sampleRate,
+                         std::memory_order_relaxed);
 
   // Apply master volume to mixed buffer using SIMD-optimized operation
   for (int channel = 0; channel < mixBuffer.getNumChannels(); ++channel) {
@@ -189,8 +238,8 @@ void AudioEngineCore::timerCallback() {
 
   nlohmann::json msg;
   msg["type"] = "broadcast";
-  msg["event"] = "transport.position";
-  msg["position"] = currentPosition.load(std::memory_order_relaxed);
+  msg["event"] = "transport.playheadPosition";
+  msg["position"] = playheadPosition.load(std::memory_order_relaxed);
 
   wsServer->broadcast(msg.dump());
 }

@@ -19,7 +19,7 @@ export function Transport() {
   const [isMetronomeOn, setIsMetronomeOn] = useState(false)
   const [bpm, setBpm] = useState(120)
   const { send } = useWebSocket()
-  const { activeSong, transportPos, playing } = useProject()
+  const { activeSong, playheadPos: transportPos, playing } = useProject()
 
   function transport(action: 'play' | 'pause' | 'stop') {
     send({
@@ -29,7 +29,7 @@ export function Transport() {
 
   function resetPosition() {
     send({
-      action: `transport.setPosition`,
+      action: `transport.setCursorPosition`,
       position: 0,
     })
   }

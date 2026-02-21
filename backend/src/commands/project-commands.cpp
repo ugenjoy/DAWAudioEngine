@@ -1,5 +1,7 @@
 #include "commands/project-commands.hpp"
+
 #include <nlohmann/json.hpp>
+
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
@@ -90,6 +92,8 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
   response["hasProject"] = projectManager.hasLoadedProject();
   response["project"] = project;
   response["activeSong"] = songJson;
+  response["playheadPosition"] = audioEngine.getPlayheadPosition();
+  response["cursorPosition"] = audioEngine.getCursorPosition();
 
   reply(response.dump());
 
@@ -157,26 +161,28 @@ void LoadSongCommand::execute(AppContext& ctx) {
 
 // Auto-registration
 REGISTER_COMMAND_WITH_CREATOR("project.load", LoadProject,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string path = payload.value("path", "");
-      if (path.empty()) return nullptr;
-      return std::make_unique<LoadProjectCommand>(path);
-    });
+                              [](const nlohmann::json& payload) -> CommandPtr {
+                                std::string path = payload.value("path", "");
+                                if (path.empty()) return nullptr;
+                                return std::make_unique<LoadProjectCommand>(
+                                    path);
+                              });
 
 REGISTER_COMMAND_WITH_CREATOR("project.save", SaveProject,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string path = payload.value("path", "");
-      if (path.empty()) return nullptr;
-      return std::make_unique<SaveProjectCommand>(path);
-    });
+                              [](const nlohmann::json& payload) -> CommandPtr {
+                                std::string path = payload.value("path", "");
+                                if (path.empty()) return nullptr;
+                                return std::make_unique<SaveProjectCommand>(
+                                    path);
+                              });
 
 REGISTER_COMMAND("project.getLoaded", GetLoadedProjectCommand);
 
 REGISTER_COMMAND("project.list", ListProjectsCommand);
 
 REGISTER_COMMAND_WITH_CREATOR("project.loadSong", LoadSong,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string uuid = payload.value("uuid", "");
-      if (uuid.empty()) return nullptr;
-      return std::make_unique<LoadSongCommand>(uuid);
-    });
+                              [](const nlohmann::json& payload) -> CommandPtr {
+                                std::string uuid = payload.value("uuid", "");
+                                if (uuid.empty()) return nullptr;
+                                return std::make_unique<LoadSongCommand>(uuid);
+                              });

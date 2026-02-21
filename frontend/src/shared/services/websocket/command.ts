@@ -9,7 +9,8 @@ type TransportCommand =
   | 'transport.play'
   | 'transport.stop'
   | 'transport.pause'
-  | 'transport.setPosition'
+  | 'transport.setPlayheadPosition'
+  | 'transport.setCursorPosition'
 
 type Command = ProjectCommand | TransportCommand
 

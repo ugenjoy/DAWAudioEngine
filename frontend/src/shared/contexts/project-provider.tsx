@@ -20,7 +20,8 @@ type ProjectProviderProps = {
 type ProjectProviderState = {
   project: Project | undefined | null
   setProject: (project: Project) => void
-  transportPos: number
+  playheadPos: number
+  cursorPos: number
   playing: boolean
   activeSong: Song | undefined
   trackViews: TrackView[]
@@ -29,7 +30,8 @@ type ProjectProviderState = {
 const initialState: ProjectProviderState = {
   project: undefined,
   setProject: () => null,
-  transportPos: 0,
+  playheadPos: 0,
+  cursorPos: 0,
   playing: false,
   activeSong: undefined,
   trackViews: [],
@@ -44,7 +46,8 @@ export function ProjectProvider({
   const { ws, isConnected, send } = useWebSocket()
   const [project, setProject] = useState<Project | null>()
   const [activeSong, setActiveSong] = useState<Song>()
-  const [transportPos, setTransportPos] = useState<number>(0)
+  const [playheadPos, setPlayheadPos] = useState<number>(0)
+  const [cursorPos, setCursorPos] = useState<number>(0)
   const [playing, setPlaying] = useState<boolean>(false)
   const [trackViews, setTrackViews] = useState<TrackView[]>([])
 
@@ -65,31 +68,33 @@ export function ProjectProvider({
   function onMessage(ev: MessageEvent<unknown>) {
     if (typeof ev.data !== 'string') return
     const data = JSON.parse(ev.data)
-
     switch (data.event) {
       case 'project.currentLoaded': {
-        const project = data.project
-        setProject(project)
+        if (data.project !== undefined) setProject(data.project)
+        if (data.activeSong !== undefined) setActiveSong(data.activeSong)
+        if (data.playheadPosition !== undefined)
+          setPlayheadPos(data.playheadPosition)
+        if (data.cursorPosition !== undefined) setCursorPos(data.cursorPosition)
 
-        if (data.activeSong) {
-          const song = data.activeSong
-          setActiveSong(song)
-        }
         break
       }
       case 'project.loaded': {
-        const project = data.project
-        setProject(project)
+        if (data.project !== undefined) setProject(data.project)
         break
       }
       case 'song.loaded': {
-        const song = data.song
-        setActiveSong(song)
+        if (data.song !== undefined) setActiveSong(data.song)
         break
       }
-      case 'transport.position': {
-        const newPosition = Number(data.position.toFixed(2))
-        setTransportPos(newPosition)
+      case 'transport.playheadPosition': {
+        if (data.position !== undefined)
+          setPlayheadPos(Number(data.position.toFixed(2)))
+        break
+      }
+      case 'transport.cursorPosition': {
+        if (data.position !== undefined) {
+          setCursorPos(Number(data.position.toFixed(2)))
+        }
         break
       }
       case 'transport.play': {
@@ -127,7 +132,8 @@ export function ProjectProvider({
     setProject: (project: Project) => {
       setProject(project)
     },
-    transportPos,
+    playheadPos,
+    cursorPos,
     playing,
     activeSong,
     trackViews,
