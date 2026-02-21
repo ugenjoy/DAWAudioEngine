@@ -1,7 +1,9 @@
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
+
 #include <nlohmann/json.hpp>
+
 #include "audio/audio-track.hpp"
 
 class TracksManager {
@@ -14,10 +16,8 @@ class TracksManager {
   void getTrackList();
 
   void renderTracks(juce::AudioBuffer<float>& mixBuffer,
-                    juce::AudioBuffer<float>& trackBuffer,
-                    int numSamples,
-                    double currentPosition,
-                    float tempo);
+                    juce::AudioBuffer<float>& trackBuffer, int numSamples,
+                    double currentPosition, float tempo);
 
   // Serialization
   nlohmann::json toJson() const;

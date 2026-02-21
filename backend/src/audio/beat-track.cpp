@@ -77,6 +77,11 @@ void BeatTrack::renderBlock(juce::AudioBuffer<float>& buffer,
       bufferData[i] = 0.0f;
     }
   }
+
+  // Copy mono signal to all remaining channels (stereo output)
+  for (int ch = 1; ch < buffer.getNumChannels(); ++ch) {
+    buffer.copyFrom(ch, startSample, buffer, 0, startSample, numSamples);
+  }
 }
 
 float BeatTrack::computeEnveloppe(float timeSinceLastBeat) const {
@@ -106,6 +111,7 @@ nlohmann::json BeatTrack::toJson() const {
   nlohmann::json j;
   j["type"] = getTrackType();
   j["id"] = id;
+  j["name"] = name;
   j["volume"] = volume;
   j["pan"] = pan;
   j["mute"] = mute;
@@ -122,6 +128,7 @@ std::unique_ptr<BeatTrack> BeatTrack::fromJson(const nlohmann::json& j) {
     track->id = j["id"].get<std::string>();
   }
 
+  track->name = j["name"].get<std::string>();
   track->volume = j.value("volume", 0.4f);
   track->pan = j.value("pan", 0.0f);
   track->mute = j.value("mute", false);

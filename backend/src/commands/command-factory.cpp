@@ -12,11 +12,6 @@ CommandFactory::getRegistry() {
 std::unique_ptr<CommandFactory> CommandFactory::create() {
   auto factory = std::make_unique<CommandFactory>();
 
-  // Copy all auto-registered commands from the global registry
-  for (const auto& [action, creator] : getRegistry()) {
-    factory->registerCommand(action, creator);
-  }
-
   juce::Logger::writeToLog("CommandFactory: " +
                            juce::String(factory->getRegisteredActions().size()) +
                            " commands registered");
@@ -24,28 +19,30 @@ std::unique_ptr<CommandFactory> CommandFactory::create() {
   return factory;
 }
 
-void CommandFactory::registerCommand(const std::string& action,
-                                     Creator creator) {
-  creators[action] = std::move(creator);
-}
-
 CommandPtr CommandFactory::create(const std::string& action,
                                   const nlohmann::json& payload) const {
-  auto it = creators.find(action);
-  if (it == creators.end()) {
+  const auto& registry = getRegistry();
+  auto it = registry.find(action);
+  if (it == registry.end()) {
     return nullptr;
   }
-  return it->second(payload);
+
+  CommandPtr cmd = it->second(payload);
+  if (cmd) {
+    cmd->actionName = action;
+  }
+  return cmd;
 }
 
 bool CommandFactory::hasAction(const std::string& action) const {
-  return creators.find(action) != creators.end();
+  return getRegistry().count(action) > 0;
 }
 
 std::vector<std::string> CommandFactory::getRegisteredActions() const {
+  const auto& registry = getRegistry();
   std::vector<std::string> actions;
-  actions.reserve(creators.size());
-  for (const auto& [action, _] : creators) {
+  actions.reserve(registry.size());
+  for (const auto& [action, _] : registry) {
     actions.push_back(action);
   }
   return actions;

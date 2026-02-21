@@ -1,4 +1,5 @@
 #include "model/tracks-manager.hpp"
+
 #include "audio/audio-file-track.hpp"
 #include "audio/beat-track.hpp"
 
@@ -15,8 +16,7 @@ void TracksManager::removeTrack() {
 
 void TracksManager::renderTracks(juce::AudioBuffer<float>& mixBuffer,
                                  juce::AudioBuffer<float>& trackBuffer,
-                                 int numSamples,
-                                 double currentPosition,
+                                 int numSamples, double currentPosition,
                                  float tempo) {
   for (size_t trackIdx = 0; trackIdx < tracks.size(); ++trackIdx) {
     trackBuffer.clear();
@@ -27,7 +27,8 @@ void TracksManager::renderTracks(juce::AudioBuffer<float>& mixBuffer,
     }
 
     for (int channel = 0; channel < mixBuffer.getNumChannels(); ++channel) {
-      mixBuffer.addFrom(channel, 0, trackBuffer, 0, 0, numSamples);
+      int srcChannel = std::min(channel, trackBuffer.getNumChannels() - 1);
+      mixBuffer.addFrom(channel, 0, trackBuffer, srcChannel, 0, numSamples);
     }
   }
 }

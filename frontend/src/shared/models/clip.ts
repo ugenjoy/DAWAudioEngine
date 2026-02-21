@@ -16,6 +16,7 @@ export interface AudioClip {
   gain: number
   fadeIn: number
   fadeOut: number
+  waveform: number[] // Interleaved [min, max, min, max, ...] at 200 points/sec
 }
 
 export interface MidiClip {

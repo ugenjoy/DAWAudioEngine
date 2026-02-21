@@ -14,6 +14,7 @@ export interface BeatTrack {
   volume: number
   pan: number
   mute: boolean
+  solo: boolean
   frequency: number
 }
 
@@ -24,6 +25,7 @@ export interface AudioFileTrack {
   volume: number
   pan: number
   mute: boolean
+  solo: boolean
   clips: Clip[]
 }
 

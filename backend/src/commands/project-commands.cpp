@@ -73,7 +73,6 @@ void SaveProjectCommand::execute(AppContext& ctx) {
 void GetLoadedProjectCommand::execute(AppContext& ctx) {
   auto& projectManager = ctx.getProjectManager();
   auto& audioEngine = ctx.getAudioEngine();
-  auto& wsServer = ctx.getWebSocketServer();
 
   nlohmann::json project =
       projectManager.getProject(projectManager.getCurrentProjectPath());
@@ -86,13 +85,13 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
   }
 
   nlohmann::json response;
-  response["type"] = "broadcast";
+  response["type"] = "response";
   response["event"] = "project.currentLoaded";
   response["hasProject"] = projectManager.hasLoadedProject();
   response["project"] = project;
   response["activeSong"] = songJson;
 
-  wsServer.broadcast(response.dump());
+  reply(response.dump());
 
   juce::Logger::writeToLog(
       "[GetLoadedProjectCommand] Current project: " +
@@ -103,7 +102,6 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
 
 void ListProjectsCommand::execute(AppContext& ctx) {
   auto& projectManager = ctx.getProjectManager();
-  auto& wsServer = ctx.getWebSocketServer();
 
   std::string directory = ProjectManager::getDefaultProjectsDirectory();
 
@@ -116,12 +114,12 @@ void ListProjectsCommand::execute(AppContext& ctx) {
   nlohmann::json projects = projectManager.listProjects(directory);
 
   nlohmann::json response;
-  response["type"] = "broadcast";
+  response["type"] = "response";
   response["event"] = "project.listed";
   response["directory"] = directory;
   response["projects"] = projects;
 
-  wsServer.broadcast(response.dump());
+  reply(response.dump());
 
   juce::Logger::writeToLog("[ListProjectsCommand] Listed " +
                            juce::String((int)projects.size()) +
@@ -158,44 +156,27 @@ void LoadSongCommand::execute(AppContext& ctx) {
 }
 
 // Auto-registration
-static CommandRegistrar registerLoadProject(
-    "project.load",
+REGISTER_COMMAND_WITH_CREATOR("project.load", LoadProject,
     [](const nlohmann::json& payload) -> CommandPtr {
       std::string path = payload.value("path", "");
-      if (path.empty()) {
-        return nullptr;
-      }
+      if (path.empty()) return nullptr;
       return std::make_unique<LoadProjectCommand>(path);
     });
 
-static CommandRegistrar registerSaveProject(
-    "project.save",
+REGISTER_COMMAND_WITH_CREATOR("project.save", SaveProject,
     [](const nlohmann::json& payload) -> CommandPtr {
       std::string path = payload.value("path", "");
-      if (path.empty()) {
-        return nullptr;
-      }
+      if (path.empty()) return nullptr;
       return std::make_unique<SaveProjectCommand>(path);
     });
 
-static CommandRegistrar registerGetLoadedProject(
-    "project.getLoaded",
-    [](const nlohmann::json& /* payload */) -> CommandPtr {
-      return std::make_unique<GetLoadedProjectCommand>();
-    });
+REGISTER_COMMAND("project.getLoaded", GetLoadedProjectCommand);
 
-static CommandRegistrar registerListProjects(
-    "project.list",
-    [](const nlohmann::json& /* payload */) -> CommandPtr {
-      return std::make_unique<ListProjectsCommand>();
-    });
+REGISTER_COMMAND("project.list", ListProjectsCommand);
 
-static CommandRegistrar registerLoadSongCommand(
-    "project.loadSong",
+REGISTER_COMMAND_WITH_CREATOR("project.loadSong", LoadSong,
     [](const nlohmann::json& payload) -> CommandPtr {
       std::string uuid = payload.value("uuid", "");
-      if (uuid.empty()) {
-        return nullptr;
-      }
+      if (uuid.empty()) return nullptr;
       return std::make_unique<LoadSongCommand>(uuid);
     });

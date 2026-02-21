@@ -33,28 +33,22 @@ class CommandFactory {
   ~CommandFactory() = default;
 
   /**
-   * Create a factory with all auto-registered commands.
+   * Create a factory instance. Logs registered command count.
    */
   static std::unique_ptr<CommandFactory> create();
 
   /**
    * Access the global registry (for auto-registration).
-   * @internal Used by REGISTER_COMMAND macro
+   * @internal Used by REGISTER_COMMAND macros
    */
   static std::unordered_map<std::string, Creator>& getRegistry();
 
   /**
-   * Register a command creator for an action.
-   * @param action The action string (e.g., "transport.play")
-   * @param creator Function that creates the command from JSON payload
-   */
-  void registerCommand(const std::string& action, Creator creator);
-
-  /**
    * Create a command from action string and payload.
-   * @param action The action string
+   * Automatically sets the command's name to the action string.
+   * @param action The action string (e.g., "transport.play")
    * @param payload JSON payload with command parameters
-   * @return Command pointer, or nullptr if action not registered
+   * @return Command pointer, or nullptr if action not registered or payload invalid
    */
   CommandPtr create(const std::string& action,
                     const nlohmann::json& payload) const;
@@ -68,9 +62,6 @@ class CommandFactory {
    * Get list of registered actions.
    */
   std::vector<std::string> getRegisteredActions() const;
-
- private:
-  std::unordered_map<std::string, Creator> creators;
 };
 
 /**
@@ -85,25 +76,27 @@ class CommandRegistrar {
 };
 
 /**
- * Macro to auto-register a command.
+ * Macro to auto-register a command with a default constructor (no payload).
  *
- * For simple commands (no parameters):
+ * Usage:
  *   REGISTER_COMMAND("transport.play", PlayCommand)
- *
- * The command class must have a default constructor.
  */
-#define REGISTER_COMMAND(action, CommandClass)                    \
-  static CommandRegistrar registrar_##CommandClass(               \
-      action,                                                     \
+#define REGISTER_COMMAND(action, CommandClass)       \
+  static CommandRegistrar registrar_##CommandClass(  \
+      action,                                        \
       [](const nlohmann::json&) { return std::make_unique<CommandClass>(); })
 
 /**
- * Macro to auto-register a command with custom creator.
+ * Macro to auto-register a command with a custom creator (parses JSON payload).
+ * The `name` parameter is used as a unique C++ identifier suffix — use the
+ * command class name without the "Command" suffix (e.g., SetPosition).
  *
- * For commands that need to parse JSON payload:
- *   REGISTER_COMMAND_WITH_CREATOR("project.load", [](const json& payload) {
- *     return std::make_unique<LoadProjectCommand>(payload.value("path", ""));
- *   })
+ * Usage:
+ *   REGISTER_COMMAND_WITH_CREATOR("transport.setPosition", SetPosition,
+ *       [](const nlohmann::json& payload) {
+ *         return std::make_unique<SetPositionCommand>(
+ *             payload.value("position", 0.0));
+ *       })
  */
-#define REGISTER_COMMAND_WITH_CREATOR(action, creatorLambda) \
-  static CommandRegistrar registrar_##__LINE__(action, creatorLambda)
+#define REGISTER_COMMAND_WITH_CREATOR(action, name, creatorLambda) \
+  static CommandRegistrar registrar_##name(action, creatorLambda)

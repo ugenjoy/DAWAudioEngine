@@ -66,10 +66,12 @@ target_sources(DAWAudioEngine PRIVATE
     src/audio/audio-track.cpp
     src/audio/beat-track.cpp
     src/audio/audio-file-track.cpp
+    src/audio/audio-clip.cpp                                                                                           
     src/services/song.cpp
     src/services/tracks-manager.cpp
     src/services/songs-manager.cpp
     src/services/project-manager.cpp
+    src/services/clips-manager.cpp
     src/websocket/websocket-server.cpp
     src/commands/command-factory.cpp
     src/commands/command-queue.cpp

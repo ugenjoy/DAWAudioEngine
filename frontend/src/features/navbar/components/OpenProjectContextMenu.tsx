@@ -9,7 +9,7 @@ import {
 } from '@/shared/shadcn/components/dropdown-menu'
 
 function OpenProjectContextMenu() {
-  const { isConnected } = useWebSocket()
+  const { isConnected, send } = useWebSocket()
   const { projects } = useProjects()
 
   return (
@@ -20,7 +20,14 @@ function OpenProjectContextMenu() {
       <DropdownMenuPortal>
         <DropdownMenuSubContent>
           {projects.map((p) => {
-            return <DropdownMenuItem key={p.name}>{p.name}</DropdownMenuItem>
+            return (
+              <DropdownMenuItem
+                key={p.name}
+                onClick={() => send({ action: 'project.load', path: p.path })}
+              >
+                {p.name}
+              </DropdownMenuItem>
+            )
           })}
         </DropdownMenuSubContent>
       </DropdownMenuPortal>

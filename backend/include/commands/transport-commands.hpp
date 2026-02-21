@@ -8,7 +8,6 @@
 class PlayCommand : public Command {
  public:
   void execute(AppContext& ctx) override;
-  std::string getName() const override { return "transport.play"; }
 };
 
 /**
@@ -17,7 +16,6 @@ class PlayCommand : public Command {
 class PauseCommand : public Command {
  public:
   void execute(AppContext& ctx) override;
-  std::string getName() const override { return "transport.pause"; }
 };
 
 /**
@@ -26,5 +24,17 @@ class PauseCommand : public Command {
 class StopCommand : public Command {
  public:
   void execute(AppContext& ctx) override;
-  std::string getName() const override { return "transport.stop"; }
+};
+
+/**
+ * Command to set playback position.
+ */
+class SetPositionCommand : public Command {
+ public:
+  explicit SetPositionCommand(double position);
+
+  void execute(AppContext& ctx) override;
+
+ private:
+  double position;
 };

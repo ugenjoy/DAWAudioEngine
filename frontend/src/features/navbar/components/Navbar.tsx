@@ -1,10 +1,10 @@
 import { Button } from '@/shared/shadcn/components/button'
-import FileDropdownMenu from './FileContextMenu'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { cn } from '@/shared/shadcn/lib/utils'
 import { useProject } from '@/shared/contexts/project-provider'
 import { useEffect, useState } from 'react'
 import { Song } from '@/shared/models/song'
+import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 
 function Navbar() {
   const { isConnected, send } = useWebSocket()
@@ -34,27 +34,38 @@ function Navbar() {
   }, [project, activeSong])
 
   return (
-    <div className="w-full p-2 items-center flex border-border border-b">
-      <FileDropdownMenu />
-      <Button variant="ghost">Edit</Button>
-      <div className="flex-1" />
-
-      <div>
+    <div className="w-full p-2 items-center grid-cols-[1fr_auto_1fr] grid border-border border-b">
+      <div className="justify-self-end">
         {prevSong && (
-          <Button variant="ghost" onClick={() => loadSong(prevSong.id)}>
+          <Button
+            variant="ghost"
+            onClick={() => loadSong(prevSong.id)}
+            disabled={!prevSong}
+          >
             {prevSong.name}
+            <IconChevronLeft />
           </Button>
         )}
-        <span className="font-bold">{activeSong?.name}</span>
+      </div>
+
+      <span className="font-bold mx-4 text-center justify-self-center text-primary">
+        {activeSong?.name}
+      </span>
+
+      <div className="justify-self-start">
         {nextSong && (
-          <Button variant="ghost" onClick={() => loadSong(nextSong.id)}>
+          <Button
+            variant="ghost"
+            onClick={() => loadSong(nextSong.id)}
+            disabled={!nextSong}
+          >
+            <IconChevronRight />
             {nextSong.name}
           </Button>
         )}
       </div>
 
-      <div className="flex-1" />
-      <div className="text-sm flex items-baseline gap-2">
+      <div className="absolute right-4 text-xs flex items-center gap-2 w-min">
         <div
           className={cn(
             'rounded-full size-2.5',

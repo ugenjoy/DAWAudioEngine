@@ -1,7 +1,10 @@
 #pragma once
 
 #include <juce_core/juce_core.h>
+
+#include <atomic>
 #include <nlohmann/json.hpp>
+
 #include "tracks-manager.hpp"
 
 class Song {
@@ -13,8 +16,8 @@ class Song {
   void removeTrack();
 
   void render(juce::AudioBuffer<float>& mixBuffer,
-              juce::AudioBuffer<float>& trackBuffer,
-              int numSamples);
+              juce::AudioBuffer<float>& trackBuffer, int numSamples,
+              double position);
 
   // Serialization
   nlohmann::json toJson() const;
@@ -26,16 +29,12 @@ class Song {
   float getTempo() const { return tempo; }
   void setTempo(float newTempo) { tempo = newTempo; }
 
-  double getCurrentPosition() const { return currentPosition; }
-  void setCurrentPosition(double pos) { currentPosition = pos; }
-
   TracksManager* getTracksManager() const { return tracksManager.get(); }
 
  private:
   std::string id;
   std::string name;
   float tempo;
-  double currentPosition;
 
   std::unique_ptr<TracksManager> tracksManager;
 };

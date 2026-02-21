@@ -1,8 +1,11 @@
 #include "audio/audio-file-track.hpp"
+
 #include <juce_audio_utils/juce_audio_utils.h>
+
 #include "audio/audio-context.hpp"
 
-AudioFileTrack::AudioFileTrack() : AudioTrack() {}
+AudioFileTrack::AudioFileTrack()
+    : AudioTrack(), clipsManager(std::make_unique<ClipsManager>()) {}
 
 AudioFileTrack::~AudioFileTrack() = default;
 
@@ -15,14 +18,19 @@ float AudioFileTrack::getSampleValue(double sampleTime, float tempo) {
 }
 
 void AudioFileTrack::renderBlock(juce::AudioBuffer<float>& buffer,
-                                 int startSample,
-                                 int numSamples,
-                                 double startTime,
-                                 float tempo) {
+                                 int startSample, int numSamples,
+                                 double startTime, float tempo) {
   // Early exit if muted
   if (mute) {
     buffer.clear(0, startSample, numSamples);
     return;
+  }
+
+  clipsManager->renderClips(buffer, numSamples, startTime);
+
+  // Apply track volume
+  for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
+    buffer.applyGain(ch, startSample, numSamples, volume);
   }
 }
 
@@ -30,9 +38,11 @@ nlohmann::json AudioFileTrack::toJson() const {
   nlohmann::json j;
   j["type"] = getTrackType();
   j["id"] = id;
+  j["name"] = name;
   j["volume"] = volume;
   j["pan"] = pan;
   j["mute"] = mute;
+  j["clips"] = clipsManager->toJson();
   return j;
 }
 
@@ -45,9 +55,15 @@ std::unique_ptr<AudioFileTrack> AudioFileTrack::fromJson(
     track->id = j["id"].get<std::string>();
   }
 
+  track->name = j["name"].get<std::string>();
   track->volume = j.value("volume", 0.4f);
   track->pan = j.value("pan", 0.0f);
   track->mute = j.value("mute", false);
+
+  // Load clips
+  if (j.contains("clips")) {
+    track->clipsManager->loadFromJson(j["clips"]);
+  }
 
   return track;
 }
