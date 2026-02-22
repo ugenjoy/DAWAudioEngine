@@ -78,6 +78,8 @@ void SetTrackInputCommand::execute(AppContext& ctx) {
   track->setInputChannel(inputChannel);
   track->setInputStereo(stereo);
 
+  ctx.getAudioEngine().rebuildMonitoredChannelMask();
+
   nlohmann::json broadcast;
   broadcast["type"] = "broadcast";
   broadcast["event"] = "track.inputChanged";
@@ -109,11 +111,73 @@ void SetTrackMonitoringCommand::execute(AppContext& ctx) {
     ctx.getAudioEngine().decrementMonitoringCount();
   }
 
+  ctx.getAudioEngine().rebuildMonitoredChannelMask();
+
   nlohmann::json broadcast;
   broadcast["type"] = "broadcast";
   broadcast["event"] = "track.monitoringChanged";
   broadcast["trackId"] = trackId;
   broadcast["monitoring"] = monitoring;
+  ctx.getWebSocketServer().broadcast(broadcast.dump());
+}
+
+SetTrackMuteCommand::SetTrackMuteCommand(std::string trackId, bool mute)
+    : trackId(std::move(trackId)), mute(mute) {}
+
+void SetTrackMuteCommand::execute(AppContext& ctx) {
+  auto* song = ctx.getAudioEngine().getActiveSong();
+  if (!song) return;
+
+  auto* track = song->getTracksManager()->findTrackById(trackId);
+  if (!track) return;
+
+  track->setMute(mute);
+
+  nlohmann::json broadcast;
+  broadcast["type"] = "broadcast";
+  broadcast["event"] = "track.muteChanged";
+  broadcast["trackId"] = trackId;
+  broadcast["mute"] = mute;
+  ctx.getWebSocketServer().broadcast(broadcast.dump());
+}
+
+SetTrackSoloCommand::SetTrackSoloCommand(std::string trackId, bool solo)
+    : trackId(std::move(trackId)), solo(solo) {}
+
+void SetTrackSoloCommand::execute(AppContext& ctx) {
+  auto* song = ctx.getAudioEngine().getActiveSong();
+  if (!song) return;
+
+  auto* track = song->getTracksManager()->findTrackById(trackId);
+  if (!track) return;
+
+  track->setSolo(solo);
+
+  nlohmann::json broadcast;
+  broadcast["type"] = "broadcast";
+  broadcast["event"] = "track.soloChanged";
+  broadcast["trackId"] = trackId;
+  broadcast["solo"] = solo;
+  ctx.getWebSocketServer().broadcast(broadcast.dump());
+}
+
+SetTrackVolumeCommand::SetTrackVolumeCommand(std::string trackId, float volume)
+    : trackId(std::move(trackId)), volume(volume) {}
+
+void SetTrackVolumeCommand::execute(AppContext& ctx) {
+  auto* song = ctx.getAudioEngine().getActiveSong();
+  if (!song) return;
+
+  auto* track = song->getTracksManager()->findTrackById(trackId);
+  if (!track) return;
+
+  track->setVolume(volume);
+
+  nlohmann::json broadcast;
+  broadcast["type"] = "broadcast";
+  broadcast["event"] = "track.volumeChanged";
+  broadcast["trackId"] = trackId;
+  broadcast["volume"] = track->volume;
   ctx.getWebSocketServer().broadcast(broadcast.dump());
 }
 
@@ -133,7 +197,7 @@ REGISTER_COMMAND_WITH_CREATOR(
 
 REGISTER_COMMAND("audio.listInputs", ListInputsCommand);
 
-REGISTER_COMMAND_WITH_CREATOR(
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
     "track.setInput", SetTrackInput,
     [](const nlohmann::json& payload) -> CommandPtr {
       std::string trackId = payload.value("trackId", "");
@@ -144,11 +208,38 @@ REGISTER_COMMAND_WITH_CREATOR(
                                                     stereo);
     });
 
-REGISTER_COMMAND_WITH_CREATOR(
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
     "track.setMonitoring", SetTrackMonitoring,
     [](const nlohmann::json& payload) -> CommandPtr {
       std::string trackId = payload.value("trackId", "");
       if (trackId.empty()) return nullptr;
       bool monitoring = payload.value("monitoring", false);
       return std::make_unique<SetTrackMonitoringCommand>(trackId, monitoring);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.setMute", SetTrackMute,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      bool mute = payload.value("mute", false);
+      return std::make_unique<SetTrackMuteCommand>(trackId, mute);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.setSolo", SetTrackSolo,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      bool solo = payload.value("solo", false);
+      return std::make_unique<SetTrackSoloCommand>(trackId, solo);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.setVolume", SetTrackVolume,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      float volume = payload.value("volume", 0.4f);
+      return std::make_unique<SetTrackVolumeCommand>(trackId, volume);
     });

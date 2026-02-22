@@ -64,3 +64,42 @@ class SetTrackMonitoringCommand : public Command {
   std::string trackId;
   bool monitoring;
 };
+
+/**
+ * Command to set the mute state of a track.
+ */
+class SetTrackMuteCommand : public Command {
+ public:
+  SetTrackMuteCommand(std::string trackId, bool mute);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string trackId;
+  bool mute;
+};
+
+/**
+ * Command to set the solo state of a track.
+ */
+class SetTrackSoloCommand : public Command {
+ public:
+  SetTrackSoloCommand(std::string trackId, bool solo);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string trackId;
+  bool solo;
+};
+
+/**
+ * Command to set the volume of a track.
+ */
+class SetTrackVolumeCommand : public Command {
+ public:
+  SetTrackVolumeCommand(std::string trackId, float volume);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string trackId;
+  float volume;
+};

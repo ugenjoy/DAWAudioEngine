@@ -114,4 +114,5 @@ class ProjectManager {
   std::string lastError;
   std::string currentProjectPath;
   std::string currentProjectId;
+  std::string currentProjectName;
 };

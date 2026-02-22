@@ -14,14 +14,10 @@
 #include <nlohmann/json.hpp>
 
 #include "audio/audio-track.hpp"
-#include "audio/beat-track.hpp"
+#include "audio/metronome-track.hpp"
 #include "model/song.hpp"
 #include "websocket/websocket-server.hpp"
 
-// TODO: [MEDIUM] Add mixer functionality:
-// - struct MixerBus { float volume, pan; std::vector<Effect*> effects; };
-// - void setMasterVolume(float volume);
-// - void setTrackPan(size_t trackIndex, float pan);
 
 // TODO: [MEDIUM] Add error callback system:
 // - std::function<void(const String& error)> errorCallback;
@@ -43,6 +39,7 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
 
   // Song management
   void loadSong(Song* newSong);
+  void unloadSong();
   Song* getActiveSong() { return activeSong; }
 
   // Transport control
@@ -50,11 +47,33 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   void pause();
   void stop();
   void switchPlaying();
+  bool isPlaying() const { return playing.load(); }
   void setPlayheadPosition(double position);
   void setCursorPosition(double position);
 
   double getPlayheadPosition() { return playheadPosition; };
   double getCursorPosition() { return cursorPosition; };
+
+  // Master volume
+  void setMasterVolume(float volume);
+  float getMasterVolume() const { return masterVolume.load(); }
+
+  // Mode-driven optimizations
+  void setTimerRate(int intervalMs);
+  void setMonitoringEnabled(bool enabled);
+
+  /**
+   * Rebuild the bitmask of input channels needed by monitoring tracks.
+   * Call after any monitoring or input channel change.
+   * Thread-safe: result is stored in an atomic.
+   */
+  void rebuildMonitoredChannelMask();
+
+  /** Pre-render all freezable tracks into static buffers (Live mode). */
+  void freezeTracks();
+
+  /** Release all frozen buffers (Edit mode). */
+  void unfreezeTracks();
 
   // Timer override (broadcasts transport position to clients)
   void timerCallback() override;
@@ -81,7 +100,9 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   juce::AudioDeviceManager deviceManager;
 
   std::atomic<bool> playing;
-  float masterVolume;
+  std::atomic<float> masterVolume{1.0f};
+  std::atomic<bool> monitoringEnabled{true};
+  std::atomic<uint64_t> monitoredChannelMask{0};
 
   // Pre-allocated buffers for audio processing (avoid allocations in audio
   // thread)

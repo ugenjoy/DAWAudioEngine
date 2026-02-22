@@ -5,10 +5,15 @@ AudioTrack::AudioTrack()
     : id(juce::Uuid().toDashedString().toStdString()),
       volume(0.4f),
       pan(0.0f),
-      mute(false) {}
+      mute(false),
+      solo(false) {}
 
 void AudioTrack::setMute(bool shouldMute) {
   this->mute = shouldMute;
+}
+
+void AudioTrack::setSolo(bool shouldSolo) {
+  this->solo = shouldSolo;
 }
 
 void AudioTrack::setVolume(float newVolume) {
@@ -37,4 +42,10 @@ void AudioTrack::setMonitoring(bool enabled) {
 
 bool AudioTrack::isMonitoring() const {
   return monitoring.load(std::memory_order_relaxed);
+}
+
+void AudioTrack::unfreeze() {
+  frozen.store(false, std::memory_order_release);
+  frozenPeriodSamples = 0;
+  frozenBuffer.setSize(0, 0);
 }

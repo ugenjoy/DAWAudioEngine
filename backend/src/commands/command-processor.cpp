@@ -8,6 +8,10 @@ CommandProcessor::~CommandProcessor() { stopProcessing(); }
 
 void CommandProcessor::startProcessing() { startThread(); }
 
+void CommandProcessor::setPollInterval(int ms) {
+  pollIntervalMs.store(ms);
+}
+
 void CommandProcessor::stopProcessing() {
   signalThreadShouldExit();
   notify();  // Wake up the thread if it's waiting
@@ -25,8 +29,9 @@ void CommandProcessor::run() {
                                                   << e.what());
       }
     } else {
-      // Queue empty, wait a bit before checking again
-      wait(1);  // 1ms sleep to avoid busy-waiting
+      // Queue empty, wait before checking again
+      // Live mode: 10ms (fewer commands), Edit mode: 1ms (lower latency)
+      wait(pollIntervalMs.load());
     }
   }
 }

@@ -1,7 +1,9 @@
 import { useProject } from '@/shared/contexts/project-provider'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
+import { useMode } from '@/shared/contexts/mode-provider'
 import { Button } from '@/shared/shadcn/components/button'
 import { Input } from '@/shared/shadcn/components/input'
+import { Slider } from '@/shared/shadcn/components/slider'
 import {
   IconPlayerPlayFilled,
   IconPlayerStopFilled,
@@ -10,16 +12,24 @@ import {
   IconRepeat,
   IconMetronome,
   IconPlayerPauseFilled,
+  IconVolume,
 } from '@tabler/icons-react'
 import { useEffect, useState } from 'react'
 
 export function Transport() {
   const [isRecording, setIsRecording] = useState(false)
   const [isLooping, setIsLooping] = useState(false)
-  const [isMetronomeOn, setIsMetronomeOn] = useState(false)
-  const [bpm, setBpm] = useState(120)
+  const [bpm, setBpm] = useState<number | string>(120)
+  const [masterVolume, setMasterVolume] = useState(1.0)
   const { send } = useWebSocket()
-  const { activeSong, playheadPos: transportPos, playing } = useProject()
+  const {
+    activeSong,
+    playheadPos: transportPos,
+    playing,
+    setTempo,
+    setMetronomeMute,
+  } = useProject()
+  const { isLiveMode } = useMode()
 
   function transport(action: 'play' | 'pause' | 'stop') {
     send({
@@ -34,16 +44,32 @@ export function Transport() {
     })
   }
 
+  function handleMasterVolume(value: number[]) {
+    const vol = value[0]
+    setMasterVolume(vol)
+    send({ action: 'transport.setMasterVolume', volume: vol })
+  }
+
+  function commitBpm() {
+    const value = Number(bpm) || 120
+    const clamped = Math.min(999, Math.max(20, value))
+    setBpm(clamped)
+    setTempo(clamped)
+  }
+
   function getBarPosition() {
-    return Math.floor(((transportPos / 60) * bpm) / 4) + 1
+    const b = Number(bpm) || 120
+    return Math.floor(((transportPos / 60) * b) / 4) + 1
   }
 
   function getBeatPosition() {
-    return Math.floor(((transportPos / 60) * bpm) % 4) + 1
+    const b = Number(bpm) || 120
+    return Math.floor(((transportPos / 60) * b) % 4) + 1
   }
 
   function getSubPosition() {
-    return Math.floor((((transportPos / 60) * bpm) % 1) * 4) + 1
+    const b = Number(bpm) || 120
+    return Math.floor((((transportPos / 60) * b) % 1) * 4) + 1
   }
 
   useEffect(() => {
@@ -120,38 +146,65 @@ export function Transport() {
           </span>
         </div>
 
-        {/* BPM control */}
+        {/* BPM control — disabled in Live mode */}
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-xs">BPM</span>
           <Input
             type="number"
             value={bpm}
-            onChange={(e) => setBpm(Number(e.target.value))}
+            onChange={(e) => setBpm(e.target.value === '' ? '' : Number(e.target.value))}
+            onBlur={() => commitBpm()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                commitBpm()
+                e.currentTarget.blur()
+              }
+            }}
             className="w-18 h-7 font-mono tabular-nums"
             min={20}
             max={999}
+            disabled={isLiveMode}
           />
         </div>
 
-        {/* Time signature */}
+        {/* Time signature — disabled in Live mode */}
         <div className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground text-xs">SIG</span>
-          <span className="font-mono">4/4</span>
+          <span
+            className={
+              isLiveMode ? 'font-mono text-muted-foreground' : 'font-mono'
+            }
+          >
+            4/4
+          </span>
         </div>
 
-        {/* Metronome */}
+        {/* Metronome toggle — disabled in Live mode */}
         <Button
-          variant={isMetronomeOn ? 'secondary' : 'ghost'}
+          variant={!activeSong.metronomeMute ? 'secondary' : 'ghost'}
           size="icon-sm"
-          onClick={() => setIsMetronomeOn(!isMetronomeOn)}
+          onClick={() => setMetronomeMute(!activeSong.metronomeMute)}
           title="Metronome"
-          className={isMetronomeOn ? 'text-primary' : ''}
+          className={!activeSong.metronomeMute ? 'text-primary' : ''}
+          disabled={isLiveMode}
         >
           <IconMetronome className="size-4" />
         </Button>
-        <div className="flex-1" />
 
         <div className="flex-1" />
+
+        {/* Master volume — always available */}
+        <div className="flex items-center gap-2">
+          <IconVolume size={14} className="text-muted-foreground shrink-0" />
+          <Slider
+            value={[masterVolume]}
+            onValueChange={handleMasterVolume}
+            min={0}
+            max={1}
+            step={0.01}
+            className="w-24"
+          />
+        </div>
       </div>
     )
   )

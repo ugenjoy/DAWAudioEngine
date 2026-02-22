@@ -3,6 +3,7 @@
 #include "commands/command-factory.hpp"
 #include "commands/command-processor.hpp"
 #include "commands/command-queue.hpp"
+#include "services/mode-manager.hpp"
 #include "services/project-manager.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/websocket-server.hpp"
@@ -24,24 +25,33 @@ class AudioEngineApplication : public juce::JUCEApplication,
     audioEngine = std::make_unique<AudioEngineCore>();
     songsManager = std::make_unique<SongsManager>();
     projectManager = std::make_unique<ProjectManager>();
+    modeManager = std::make_unique<ModeManager>();
+
+    // Connect ModeManager to AudioEngineCore playback state
+    modeManager->setPlayingStateProvider(
+        [this]() { return audioEngine->isPlaying(); });
 
     // Create command factory (auto-registered commands)
     commandFactory = CommandFactory::create();
 
-    // Create WebSocket server (needed for AppContext)
+    // Create command queue
     commandQueue = std::make_unique<CommandQueue>();
-    wsServer =
-        std::make_unique<WebSocketServer>(*commandQueue, *commandFactory, 8080);
+
+    // Create WebSocket server with mode filtering support
+    wsServer = std::make_unique<WebSocketServer>(*commandQueue, *commandFactory,
+                                                 *modeManager, 8080);
 
     audioEngine->setWebSocketServer(wsServer.get());
 
-    // Create application context (with all services including wsServer)
-    appContext = std::make_unique<AppContext>(*audioEngine, *songsManager,
-                                              *projectManager, *wsServer);
+    // Create application context
+    appContext =
+        std::make_unique<AppContext>(*audioEngine, *songsManager,
+                                     *projectManager, *wsServer, *modeManager);
 
-    // Create command processor
+    // Create command processor and inject into context (avoids circular dep)
     commandProcessor =
         std::make_unique<CommandProcessor>(*commandQueue, *appContext);
+    appContext->setCommandProcessor(commandProcessor.get());
     commandProcessor->startProcessing();
     juce::Logger::writeToLog("Command processor started");
 
@@ -71,6 +81,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     audioEngine.reset();
     songsManager.reset();
     projectManager.reset();
+    modeManager.reset();
     commandFactory.reset();
   }
 
@@ -87,6 +98,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
   std::unique_ptr<AudioEngineCore> audioEngine;
   std::unique_ptr<SongsManager> songsManager;
   std::unique_ptr<ProjectManager> projectManager;
+  std::unique_ptr<ModeManager> modeManager;
   std::unique_ptr<AppContext> appContext;
   std::unique_ptr<CommandFactory> commandFactory;
   std::unique_ptr<CommandQueue> commandQueue;

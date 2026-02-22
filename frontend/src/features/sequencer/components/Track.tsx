@@ -3,6 +3,7 @@ import { Slider } from '@/shared/shadcn/components/slider'
 import { cn } from '@/shared/shadcn/lib/utils'
 import { getCSSVar } from '../utils'
 import { AudioInput } from '@/shared/models/audio-input'
+import { useMode } from '@/shared/contexts/mode-provider'
 import {
   Select,
   SelectContent,
@@ -25,6 +26,9 @@ type TrackProps = {
   availableInputs: AudioInput[]
   onSetInput: (trackId: string, inputChannel: number, stereo: boolean) => void
   onSetMonitoring: (trackId: string, monitoring: boolean) => void
+  onSetMute: (trackId: string, mute: boolean) => void
+  onSetSolo: (trackId: string, solo: boolean) => void
+  onSetVolume: (trackId: string, volume: number) => void
 }
 
 function Track({
@@ -41,18 +45,11 @@ function Track({
   availableInputs,
   onSetInput,
   onSetMonitoring,
+  onSetMute,
+  onSetSolo,
+  onSetVolume,
 }: Readonly<TrackProps>) {
-  function setMute(v: boolean) {
-    console.log(v)
-  }
-
-  function setSolo(v: boolean) {
-    console.log(v)
-  }
-
-  function setVolume(v: number) {
-    console.log(v)
-  }
+  const { isLiveMode } = useMode()
 
   return (
     <div
@@ -81,8 +78,8 @@ function Track({
             variant="ghost"
             size="icon-xs"
             onClick={() => onSetMonitoring(id, !monitoring)}
-            disabled={inputChannel === -1}
-            title="Input monitoring"
+            disabled={isLiveMode || inputChannel === -1}
+            title={isLiveMode ? 'Not available in Live mode' : 'Input monitoring'}
           >
             I
           </Button>
@@ -93,7 +90,8 @@ function Track({
             )}
             variant="ghost"
             size="icon-xs"
-            onClick={() => setMute(!mute)}
+            onClick={() => onSetMute(id, !mute)}
+            disabled={isLiveMode}
           >
             M
           </Button>
@@ -101,7 +99,8 @@ function Track({
             className={cn('font-bold', solo && 'bg-blue-500/20 text-blue-500')}
             variant="ghost"
             size="icon-xs"
-            onClick={() => setSolo(!solo)}
+            onClick={() => onSetSolo(id, !solo)}
+            disabled={isLiveMode}
           >
             S
           </Button>
@@ -113,6 +112,7 @@ function Track({
           onValueChange={(val) => {
             onSetInput(id, Number.parseInt(val, 10), inputStereo)
           }}
+          disabled={isLiveMode}
         >
           <SelectTrigger size="sm" className="flex-1 min-w-0">
             <SelectValue className="text-xs" />
@@ -138,6 +138,7 @@ function Track({
             size="icon-xs"
             onClick={() => onSetInput(id, inputChannel, !inputStereo)}
             title={inputStereo ? 'Stereo input' : 'Mono input'}
+            disabled={isLiveMode}
           >
             {inputStereo ? 'ST' : 'M'}
           </Button>
@@ -149,8 +150,9 @@ function Track({
           max={1}
           step={0.01}
           defaultValue={[volume]}
-          onValueChange={(value) => setVolume(value[0])}
+          onValueChange={(value) => onSetVolume(id, value[0])}
           className="flex-1 h-1 bg-muted rounded-full cursor-pointer"
+          disabled={isLiveMode}
         />
       </div>
     </div>

@@ -2,14 +2,26 @@ import { Button } from '@/shared/shadcn/components/button'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { cn } from '@/shared/shadcn/lib/utils'
 import { useProject } from '@/shared/contexts/project-provider'
+import { useMode } from '@/shared/contexts/mode-provider'
 import { useEffect, useState } from 'react'
 import { Song } from '@/shared/models/song'
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconDeviceFloppy,
+  IconPencil,
+  IconMusic,
+} from '@tabler/icons-react'
 import { AudioSettingsDialog } from '@/features/audio-settings/components/AudioSettingsDialog'
 
-function Navbar() {
+interface NavbarProps {
+  onOpenProjectDialog?: () => void
+}
+
+function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
   const { isConnected, send } = useWebSocket()
-  const { activeSong, project } = useProject()
+  const { activeSong, project, playing, isDirty, saveProject } = useProject()
+  const { isLiveMode, setEditMode, setLiveMode } = useMode()
   const [prevSong, setPrevSong] = useState<Song>()
   const [nextSong, setNextSong] = useState<Song>()
 
@@ -35,7 +47,41 @@ function Navbar() {
   }, [project, activeSong])
 
   return (
-    <div className="w-full p-2 items-center grid-cols-[1fr_auto_1fr] grid border-border border-b">
+    <div
+      className={cn(
+        'w-full p-2 items-center grid-cols-[1fr_auto_1fr] grid border-b',
+        isLiveMode ? 'border-primary' : 'border-orange-500/50',
+      )}
+    >
+      {/* Mode indicator bar */}
+      <div
+        className={cn(
+          'absolute top-0 left-0 right-0 h-0.5',
+          isLiveMode ? 'bg-primary' : 'bg-orange-500',
+        )}
+      />
+
+      {/* Project name + save */}
+      <div className="absolute left-2 flex items-center gap-1">
+        <Button
+          variant="ghost"
+          className="text-md text-foreground hover:text-foreground"
+          onClick={onOpenProjectDialog}
+        >
+          {project?.name}
+        </Button>
+        {!isLiveMode && isDirty && (
+          <Button
+            variant="ghost"
+            // size="icon-xs"
+            onClick={saveProject}
+            title="Save project"
+          >
+            <IconDeviceFloppy size={16} />
+          </Button>
+        )}
+      </div>
+
       <div className="justify-self-end">
         {prevSong && (
           <Button
@@ -67,6 +113,35 @@ function Navbar() {
       </div>
 
       <div className="absolute right-4 text-xs flex items-center gap-3">
+        {/* Mode toggle button */}
+        {isLiveMode ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={setEditMode}
+            disabled={playing}
+            className="gap-1.5 text-xs border-primary/50 text-primary hover:bg-primary/10"
+            title={
+              playing
+                ? 'Stop playback to enter Edit mode'
+                : 'Switch to Edit mode'
+            }
+          >
+            <IconMusic size={14} />
+            <span className="font-semibold tracking-wider">LIVE</span>
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={setLiveMode}
+            className="gap-1.5 text-xs border-orange-500/60 text-orange-400 hover:bg-orange-500/10"
+          >
+            <IconPencil size={14} />
+            <span className="font-semibold tracking-wider">EDIT</span>
+          </Button>
+        )}
+
         <AudioSettingsDialog />
         <div className="flex items-center gap-2">
           <div

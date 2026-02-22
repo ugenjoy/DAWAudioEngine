@@ -5,6 +5,7 @@ import { WebSocketProvider } from './shared/contexts/websocket-provider'
 import { ProjectsProvider } from './shared/contexts/projects-provider'
 import { ProjectProvider } from './shared/contexts/project-provider'
 import { AudioDevicesProvider } from './shared/contexts/audio-devices-provider'
+import { ModeProvider } from './shared/contexts/mode-provider'
 
 function App() {
   return (
@@ -12,9 +13,11 @@ function App() {
       <AudioDevicesProvider>
         <ProjectsProvider>
           <ProjectProvider>
-            <Routes>
-              <Route index element={<HomePage />} />
-            </Routes>
+            <ModeProvider>
+              <Routes>
+                <Route index element={<HomePage />} />
+              </Routes>
+            </ModeProvider>
           </ProjectProvider>
         </ProjectsProvider>
       </AudioDevicesProvider>

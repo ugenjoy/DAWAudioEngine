@@ -5,6 +5,7 @@
 #include <atomic>
 #include <nlohmann/json.hpp>
 
+#include "audio/metronome-track.hpp"
 #include "tracks-manager.hpp"
 
 class Song {
@@ -29,10 +30,14 @@ class Song {
 
   void sampleRateChanged();
 
+  void freezeAllTracks(float tempo, double sampleRate);
+  void unfreezeAllTracks();
+
   float getTempo() const { return tempo; }
   void setTempo(float newTempo) { tempo = newTempo; }
 
   TracksManager* getTracksManager() const { return tracksManager.get(); }
+  MetronomeTrack* getMetronomeTrack() const { return metronomeTrack.get(); }
 
  private:
   std::string id;
@@ -40,4 +45,5 @@ class Song {
   float tempo;
 
   std::unique_ptr<TracksManager> tracksManager;
+  std::unique_ptr<MetronomeTrack> metronomeTrack;
 };

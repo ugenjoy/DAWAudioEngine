@@ -11,12 +11,28 @@ type TransportCommand =
   | 'transport.pause'
   | 'transport.setPlayheadPosition'
   | 'transport.setCursorPosition'
+  | 'transport.setMasterVolume'
 
 type AudioCommand = 'audio.listInputs' | 'audio.listDevices' | 'audio.setDevice'
 
-type TrackCommand = 'track.setInput' | 'track.setMonitoring'
+type TrackCommand =
+  | 'track.setInput'
+  | 'track.setMonitoring'
+  | 'track.setMute'
+  | 'track.setSolo'
+  | 'track.setVolume'
 
-type Command = ProjectCommand | TransportCommand | AudioCommand | TrackCommand
+type SongCommand = 'song.setTempo' | 'song.setMetronomeMute'
+
+type ModeCommand = 'mode.setEdit' | 'mode.setLive' | 'mode.getMode'
+
+type Command =
+  | ProjectCommand
+  | TransportCommand
+  | AudioCommand
+  | TrackCommand
+  | SongCommand
+  | ModeCommand
 
 export interface WebSocketMessage {
   action: Command

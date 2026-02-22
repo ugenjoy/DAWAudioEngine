@@ -15,11 +15,13 @@
  * at static initialization time.
  *
  * Usage in command files:
- *   REGISTER_COMMAND("transport.play", PlayCommand)
+ *   REGISTER_COMMAND("transport.play", PlayCommand)        // Live + Edit
+ *   REGISTER_EDIT_COMMAND("project.save", SaveCommand)    // Edit only
  *
  * Usage in application:
  *   auto factory = CommandFactory::create();  // Gets all registered commands
  *   auto cmd = factory->create("transport.play", {});
+ *   factory->isEditOnly("project.save");  // true
  */
 class CommandFactory {
  public:
@@ -28,6 +30,14 @@ class CommandFactory {
    * Takes JSON payload, returns a Command unique_ptr.
    */
   using Creator = std::function<CommandPtr(const nlohmann::json&)>;
+
+  /**
+   * Registration entry bundling creator and access level.
+   */
+  struct CommandRegistration {
+    Creator creator;
+    bool editOnly = false;
+  };
 
   CommandFactory() = default;
   ~CommandFactory() = default;
@@ -41,7 +51,7 @@ class CommandFactory {
    * Access the global registry (for auto-registration).
    * @internal Used by REGISTER_COMMAND macros
    */
-  static std::unordered_map<std::string, Creator>& getRegistry();
+  static std::unordered_map<std::string, CommandRegistration>& getRegistry();
 
   /**
    * Create a command from action string and payload.
@@ -62,21 +72,29 @@ class CommandFactory {
    * Get list of registered actions.
    */
   std::vector<std::string> getRegisteredActions() const;
+
+  /**
+   * Check if an action is restricted to Edit mode only.
+   */
+  bool isEditOnly(const std::string& action) const;
 };
 
 /**
  * Helper class for auto-registration at static initialization.
- * @internal Used by REGISTER_COMMAND macro
+ * @internal Used by REGISTER_COMMAND macros
  */
 class CommandRegistrar {
  public:
-  CommandRegistrar(const std::string& action, CommandFactory::Creator creator) {
-    CommandFactory::getRegistry()[action] = std::move(creator);
+  CommandRegistrar(const std::string& action,
+                   CommandFactory::Creator creator,
+                   bool editOnly = false) {
+    CommandFactory::getRegistry()[action] = {std::move(creator), editOnly};
   }
 };
 
 /**
- * Macro to auto-register a command with a default constructor (no payload).
+ * Register a command accessible in both Live and Edit modes.
+ * Uses a default constructor (no payload).
  *
  * Usage:
  *   REGISTER_COMMAND("transport.play", PlayCommand)
@@ -84,12 +102,25 @@ class CommandRegistrar {
 #define REGISTER_COMMAND(action, CommandClass)       \
   static CommandRegistrar registrar_##CommandClass(  \
       action,                                        \
-      [](const nlohmann::json&) { return std::make_unique<CommandClass>(); })
+      [](const nlohmann::json&) { return std::make_unique<CommandClass>(); }, \
+      false)
 
 /**
- * Macro to auto-register a command with a custom creator (parses JSON payload).
- * The `name` parameter is used as a unique C++ identifier suffix — use the
- * command class name without the "Command" suffix (e.g., SetPosition).
+ * Register a command restricted to Edit mode only.
+ * Uses a default constructor (no payload).
+ *
+ * Usage:
+ *   REGISTER_EDIT_COMMAND("project.save", SaveCommand)
+ */
+#define REGISTER_EDIT_COMMAND(action, CommandClass)       \
+  static CommandRegistrar registrar_##CommandClass(        \
+      action,                                              \
+      [](const nlohmann::json&) { return std::make_unique<CommandClass>(); }, \
+      true)
+
+/**
+ * Register a command (Live + Edit) with a custom creator (parses JSON payload).
+ * The `name` parameter is used as a unique C++ identifier suffix.
  *
  * Usage:
  *   REGISTER_COMMAND_WITH_CREATOR("transport.setPosition", SetPosition,
@@ -99,4 +130,13 @@ class CommandRegistrar {
  *       })
  */
 #define REGISTER_COMMAND_WITH_CREATOR(action, name, creatorLambda) \
-  static CommandRegistrar registrar_##name(action, creatorLambda)
+  static CommandRegistrar registrar_##name(action, creatorLambda, false)
+
+/**
+ * Register a command restricted to Edit mode only, with a custom creator.
+ *
+ * Usage:
+ *   REGISTER_EDIT_COMMAND_WITH_CREATOR("track.setInput", SetInput, [...])
+ */
+#define REGISTER_EDIT_COMMAND_WITH_CREATOR(action, name, creatorLambda) \
+  static CommandRegistrar registrar_##name(action, creatorLambda, true)

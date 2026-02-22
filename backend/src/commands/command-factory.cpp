@@ -2,10 +2,10 @@
 #include <juce_core/juce_core.h>
 #include <nlohmann/json.hpp>
 
-std::unordered_map<std::string, CommandFactory::Creator>&
+std::unordered_map<std::string, CommandFactory::CommandRegistration>&
 CommandFactory::getRegistry() {
   // Meyer's singleton - thread-safe in C++11+
-  static std::unordered_map<std::string, Creator> registry;
+  static std::unordered_map<std::string, CommandRegistration> registry;
   return registry;
 }
 
@@ -27,7 +27,7 @@ CommandPtr CommandFactory::create(const std::string& action,
     return nullptr;
   }
 
-  CommandPtr cmd = it->second(payload);
+  CommandPtr cmd = it->second.creator(payload);
   if (cmd) {
     cmd->actionName = action;
   }
@@ -46,4 +46,11 @@ std::vector<std::string> CommandFactory::getRegisteredActions() const {
     actions.push_back(action);
   }
   return actions;
+}
+
+bool CommandFactory::isEditOnly(const std::string& action) const {
+  const auto& registry = getRegistry();
+  auto it = registry.find(action);
+  if (it == registry.end()) return false;
+  return it->second.editOnly;
 }

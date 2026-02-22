@@ -51,3 +51,17 @@ class SetCursorPositionCommand : public Command {
  private:
   double position;
 };
+
+/**
+ * Command to set master volume. Accessible in Live and Edit modes.
+ * Volume must be in [0.0, 1.0].
+ */
+class SetMasterVolumeCommand : public Command {
+ public:
+  explicit SetMasterVolumeCommand(float volume);
+
+  void execute(AppContext& ctx) override;
+
+ private:
+  float volume;
+};

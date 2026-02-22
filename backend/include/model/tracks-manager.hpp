@@ -24,6 +24,12 @@ class TracksManager {
   AudioTrack* findTrackById(const std::string& id) const;
   void sampleRateChanged();
 
+  /** Pre-render all freezable tracks (e.g., BeatTrack) into frozen buffers. */
+  void freezeAll(float tempo, double sampleRate);
+
+  /** Release all frozen buffers and resume live rendering. */
+  void unfreezeAll();
+
   // Serialization
   nlohmann::json toJson() const;
   void loadFromJson(const nlohmann::json& j);
