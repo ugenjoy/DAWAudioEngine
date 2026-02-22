@@ -18,12 +18,15 @@ void Song::removeTrack() {
 }
 
 void Song::render(juce::AudioBuffer<float>& mixBuffer,
-                  juce::AudioBuffer<float>& trackBuffer, int numSamples,
-                  double pos) {
-  // double pos = currentPosition.load(std::memory_order_relaxed);
-  tracksManager->renderTracks(mixBuffer, trackBuffer, numSamples, pos, tempo);
+                  juce::AudioBuffer<float>& trackBuffer,
+                  const juce::AudioBuffer<float>& inputBuffer, int numSamples,
+                  double pos, bool isPlaying) {
+  tracksManager->renderTracks(mixBuffer, trackBuffer, inputBuffer, numSamples,
+                              pos, tempo, isPlaying);
+}
 
-  auto const& ctx = AudioContext::getInstance();
+void Song::sampleRateChanged() {
+  tracksManager->sampleRateChanged();
 }
 
 nlohmann::json Song::toJson() const {

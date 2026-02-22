@@ -12,40 +12,76 @@ AudioEngineCore::AudioEngineCore()
       cursorPosition(0.0),
       masterVolume(0.5f),
       activeSong(nullptr) {
-  // Audio configuration: 0 inputs, 2 outputs
-  // TODO: [MEDIUM] Add error handling for audio device initialization
-  setAudioChannels(0, 2);
+  auto savedState = loadSettings();
+
+  auto result = deviceManager.initialise(
+      64,                // numInputChannelsNeeded
+      2,                 // numOutputChannelsNeeded
+      savedState.get(),  // savedState (XML) — nullptr if no saved settings
+      true               // selectDefaultDeviceOnFailure
+  );
+
+  if (result.isNotEmpty()) {
+    juce::Logger::writeToLog("Audio device error: " + result);
+  }
+
+  deviceManager.addAudioCallback(this);
 }
 
 AudioEngineCore::~AudioEngineCore() {
   stopTimer();
-  shutdownAudio();
+  deviceManager.removeAudioCallback(this);
+  deviceManager.closeAudioDevice();
 }
 
-void AudioEngineCore::prepareToPlay(int samplesPerBlockExpected,
-                                    double sampleRate) {
+void AudioEngineCore::audioDeviceAboutToStart(juce::AudioIODevice* device) {
+  auto sampleRate = device->getCurrentSampleRate();
+  auto bufferSize = device->getCurrentBufferSizeSamples();
+
   auto& ctx = AudioContext::getInstance();
   ctx.sampleRate = sampleRate;
 
   // Pre-allocate buffers to avoid allocations in audio thread
-  // Allocate for 2 channels (stereo output)
-  mixBuffer.setSize(2, samplesPerBlockExpected, false, true, false);
+  int numActiveInputs = device->getActiveInputChannels().countNumberOfSetBits();
+  mixBuffer.setSize(2, bufferSize, false, true, false);
+  trackBuffer.setSize(2, bufferSize, false, true, false);
+  inputBuffer.setSize(numActiveInputs, bufferSize, false, true, false);
 
-  // Allocate stereo track buffer for individual track rendering
-  trackBuffer.setSize(2, samplesPerBlockExpected, false, true, false);
+  // Reload audio clips if sample rate changed (resampling needed)
+  if (activeSong != nullptr) {
+    activeSong->sampleRateChanged();
+  }
 
   juce::Logger::writeToLog("Audio initialized:");
   juce::Logger::writeToLog(
-      "- Buffer size: " + juce::String(samplesPerBlockExpected) + " samples");
+      "- Buffer size: " + juce::String(bufferSize) + " samples");
   juce::Logger::writeToLog("- Sample rate: " + juce::String(sampleRate) +
                            " Hz");
+  juce::Logger::writeToLog(
+      "- Input channels: " +
+      juce::String(device->getActiveInputChannels().countNumberOfSetBits()));
+  juce::Logger::writeToLog(
+      "- Output channels: " +
+      juce::String(device->getActiveOutputChannels().countNumberOfSetBits()));
   juce::Logger::writeToLog("- Ready to play!");
+}
+
+void AudioEngineCore::audioDeviceStopped() {
+  juce::Logger::writeToLog("Audio device stopped");
 }
 
 void AudioEngineCore::loadSong(Song* newSong) {
   activeSong = newSong;
   playheadPosition.store(0, std::memory_order_relaxed);
   cursorPosition.store(0, std::memory_order_relaxed);
+
+  // Sync monitoring counter with tracks loaded from JSON
+  int count = 0;
+  for (const auto& track : activeSong->getTracksManager()->getTracks()) {
+    if (track->isMonitoring()) ++count;
+  }
+  monitoringTrackCount.store(count, std::memory_order_relaxed);
+
   juce::Logger::writeToLog("[AudioEngine] song loaded");
 
   if (wsServer != nullptr) {
@@ -199,37 +235,57 @@ void AudioEngineCore::setCursorPosition(double position) {
   }
 }
 
-void AudioEngineCore::getNextAudioBlock(
-    const juce::AudioSourceChannelInfo& bufferToFill) {
-  auto* buffer = bufferToFill.buffer;
-  auto numSamples = bufferToFill.numSamples;
+void AudioEngineCore::audioDeviceIOCallbackWithContext(
+    const float* const* inputChannelData, int numInputChannels,
+    float* const* outputChannelData, int numOutputChannels, int numSamples,
+    const juce::AudioIODeviceCallbackContext& /*context*/) {
+  // Copy real input channels to pre-allocated inputBuffer
+  int channelsToCopy = std::min(numInputChannels, inputBuffer.getNumChannels());
+  for (int ch = 0; ch < channelsToCopy; ++ch) {
+    if (inputChannelData[ch] != nullptr) {
+      inputBuffer.copyFrom(ch, 0, inputChannelData[ch], numSamples);
+    }
+  }
 
-  if (!playing || !activeSong) {
-    buffer->clear();
+  bool hasMonitoring =
+      monitoringTrackCount.load(std::memory_order_relaxed) > 0;
+
+  if ((!playing && !hasMonitoring) || !activeSong) {
+    // Clear output
+    for (int ch = 0; ch < numOutputChannels; ++ch) {
+      juce::FloatVectorOperations::clear(outputChannelData[ch], numSamples);
+    }
     return;
   }
 
   // Clear the pre-allocated mix buffer
   mixBuffer.clear();
 
-  // Render song
-  activeSong->render(mixBuffer, trackBuffer, numSamples,
-                     playheadPosition.load(std::memory_order_relaxed));
+  bool isPlaying = playing.load(std::memory_order_relaxed);
 
-  auto const& ctx = AudioContext::getInstance();
+  // Render song with input buffer for monitoring
+  activeSong->render(mixBuffer, trackBuffer, inputBuffer, numSamples,
+                     playheadPosition.load(std::memory_order_relaxed),
+                     isPlaying);
 
-  playheadPosition.store(playheadPosition + (double)numSamples / ctx.sampleRate,
-                         std::memory_order_relaxed);
+  if (isPlaying) {
+    auto const& ctx = AudioContext::getInstance();
+    playheadPosition.store(
+        playheadPosition + (double)numSamples / ctx.sampleRate,
+        std::memory_order_relaxed);
+  }
 
-  // Apply master volume to mixed buffer using SIMD-optimized operation
+  // Apply master volume to mixed buffer
   for (int channel = 0; channel < mixBuffer.getNumChannels(); ++channel) {
     mixBuffer.applyGain(channel, 0, numSamples, masterVolume);
   }
 
-  // Copy from mix buffer to output buffer
-  for (int channel = 0; channel < buffer->getNumChannels(); ++channel) {
-    buffer->copyFrom(channel, bufferToFill.startSample, mixBuffer, channel, 0,
-                     numSamples);
+  // Copy from mix buffer to output channel pointers
+  for (int ch = 0; ch < numOutputChannels; ++ch) {
+    int srcCh = std::min(ch, mixBuffer.getNumChannels() - 1);
+    juce::FloatVectorOperations::copy(outputChannelData[ch],
+                                      mixBuffer.getReadPointer(srcCh),
+                                      numSamples);
   }
 }
 
@@ -244,6 +300,182 @@ void AudioEngineCore::timerCallback() {
   wsServer->broadcast(msg.dump());
 }
 
-void AudioEngineCore::releaseResources() {
-  juce::Logger::writeToLog("Releasing audio resources");
+nlohmann::json AudioEngineCore::getAvailableDevices() {
+  nlohmann::json result;
+  result["deviceTypes"] = nlohmann::json::array();
+
+  for (auto* type : deviceManager.getAvailableDeviceTypes()) {
+    nlohmann::json deviceType;
+    deviceType["name"] = type->getTypeName().toStdString();
+    deviceType["outputDevices"] = nlohmann::json::array();
+    deviceType["inputDevices"] = nlohmann::json::array();
+
+    auto outputNames = type->getDeviceNames(false);
+    for (auto& name : outputNames) {
+      deviceType["outputDevices"].push_back(name.toStdString());
+    }
+
+    auto inputNames = type->getDeviceNames(true);
+    for (auto& name : inputNames) {
+      deviceType["inputDevices"].push_back(name.toStdString());
+    }
+
+    result["deviceTypes"].push_back(deviceType);
+  }
+
+  // Current device info
+  auto* currentDevice = deviceManager.getCurrentAudioDevice();
+  if (currentDevice != nullptr) {
+    auto setup = deviceManager.getAudioDeviceSetup();
+
+    nlohmann::json availableSampleRates = nlohmann::json::array();
+    for (auto rate : currentDevice->getAvailableSampleRates()) {
+      availableSampleRates.push_back(rate);
+    }
+
+    nlohmann::json availableBufferSizes = nlohmann::json::array();
+    for (auto size : currentDevice->getAvailableBufferSizes()) {
+      availableBufferSizes.push_back(size);
+    }
+
+    result["current"] = {
+        {"deviceType", currentDevice->getTypeName().toStdString()},
+        {"outputDevice", setup.outputDeviceName.toStdString()},
+        {"inputDevice", setup.inputDeviceName.toStdString()},
+        {"sampleRate", currentDevice->getCurrentSampleRate()},
+        {"bufferSize", currentDevice->getCurrentBufferSizeSamples()},
+        {"availableSampleRates", availableSampleRates},
+        {"availableBufferSizes", availableBufferSizes}};
+  }
+
+  return result;
+}
+
+nlohmann::json AudioEngineCore::getCurrentDeviceInfo() const {
+  nlohmann::json result;
+  auto* device = deviceManager.getCurrentAudioDevice();
+  if (device != nullptr) {
+    auto setup = deviceManager.getAudioDeviceSetup();
+    result["deviceType"] = device->getTypeName().toStdString();
+    result["outputDevice"] = setup.outputDeviceName.toStdString();
+    result["inputDevice"] = setup.inputDeviceName.toStdString();
+    result["sampleRate"] = device->getCurrentSampleRate();
+    result["bufferSize"] = device->getCurrentBufferSizeSamples();
+
+    nlohmann::json availableSampleRates = nlohmann::json::array();
+    for (auto rate : device->getAvailableSampleRates()) {
+      availableSampleRates.push_back(rate);
+    }
+    result["availableSampleRates"] = availableSampleRates;
+
+    nlohmann::json availableBufferSizes = nlohmann::json::array();
+    for (auto size : device->getAvailableBufferSizes()) {
+      availableBufferSizes.push_back(size);
+    }
+    result["availableBufferSizes"] = availableBufferSizes;
+  }
+  return result;
+}
+
+juce::String AudioEngineCore::setAudioDevice(
+    const juce::String& deviceTypeName, const juce::String& outputDeviceName,
+    const juce::String& inputDeviceName, double sampleRate, int bufferSize) {
+  // Set the device type first so the setup applies to the correct driver
+  if (deviceTypeName.isNotEmpty()) {
+    deviceManager.setCurrentAudioDeviceType(deviceTypeName, true);
+  }
+
+  auto setup = deviceManager.getAudioDeviceSetup();
+  setup.outputDeviceName = outputDeviceName;
+  setup.inputDeviceName = inputDeviceName;
+
+  // Set sample rate if specified, otherwise keep current
+  if (sampleRate > 0) {
+    setup.sampleRate = sampleRate;
+  }
+
+  // Set buffer size if specified, otherwise keep current
+  if (bufferSize > 0) {
+    setup.bufferSize = bufferSize;
+  }
+
+  // Enable all input channels — JUCE will cap at the device's actual maximum
+  setup.inputChannels.setRange(0, 64, true);
+  setup.useDefaultInputChannels = false;
+
+  auto error = deviceManager.setAudioDeviceSetup(setup, true);
+
+  if (error.isEmpty()) {
+    saveSettings();
+  }
+
+  return error;
+}
+
+nlohmann::json AudioEngineCore::getAvailableInputs() const {
+  nlohmann::json inputs = nlohmann::json::array();
+
+  auto* device = deviceManager.getCurrentAudioDevice();
+  if (device != nullptr) {
+    auto channelNames = device->getInputChannelNames();
+    auto activeChannels = device->getActiveInputChannels();
+
+    for (int i = 0; i < channelNames.size(); ++i) {
+      if (activeChannels[i]) {
+        nlohmann::json input;
+        input["index"] = i;
+        input["name"] = channelNames[i].toStdString();
+        inputs.push_back(input);
+      }
+    }
+  }
+
+  return inputs;
+}
+
+int AudioEngineCore::getNumInputChannels() const {
+  auto* device = deviceManager.getCurrentAudioDevice();
+  if (device != nullptr) {
+    return device->getActiveInputChannels().countNumberOfSetBits();
+  }
+  return 0;
+}
+
+void AudioEngineCore::incrementMonitoringCount() {
+  monitoringTrackCount.fetch_add(1, std::memory_order_relaxed);
+}
+
+void AudioEngineCore::decrementMonitoringCount() {
+  monitoringTrackCount.fetch_sub(1, std::memory_order_relaxed);
+}
+
+juce::File AudioEngineCore::getSettingsFile() const {
+  return juce::File::getSpecialLocation(
+             juce::File::userApplicationDataDirectory)
+      .getChildFile("DAWAudioEngine")
+      .getChildFile("audio-settings.xml");
+}
+
+void AudioEngineCore::saveSettings() {
+  auto xml = deviceManager.createStateXml();
+  if (xml == nullptr) return;
+
+  auto file = getSettingsFile();
+  file.getParentDirectory().createDirectory();
+  xml->writeTo(file);
+
+  juce::Logger::writeToLog("[AudioEngine] Settings saved to " +
+                           file.getFullPathName());
+}
+
+std::unique_ptr<juce::XmlElement> AudioEngineCore::loadSettings() {
+  auto file = getSettingsFile();
+  if (!file.existsAsFile()) return nullptr;
+
+  auto xml = juce::XmlDocument::parse(file);
+  if (xml != nullptr) {
+    juce::Logger::writeToLog("[AudioEngine] Settings loaded from " +
+                             file.getFullPathName());
+  }
+  return xml;
 }

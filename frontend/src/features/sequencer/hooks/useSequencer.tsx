@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { getCSSVar } from '../utils'
 import { drawClip } from '../canvas/clips'
 
-export function useSequencer(zoom: number, scrollX: number) {
+export function useSequencer(zoom: number, scrollX: number, scrollY: number) {
   const { activeSong, playheadPos, cursorPos, trackViews } = useProject()
 
   const draw = useCallback(
@@ -21,10 +21,20 @@ export function useSequencer(zoom: number, scrollX: number) {
       for (const [index, trackView] of trackViews.entries()) {
         if (index % 2) {
           ctx.fillStyle = getCSSVar('--track-background-1')
-          ctx.fillRect(0, totalHeight + headerHeight, width, trackView.height)
+          ctx.fillRect(
+            0,
+            totalHeight + headerHeight - scrollY,
+            width,
+            trackView.height,
+          )
         } else {
           ctx.fillStyle = getCSSVar('--track-background-2')
-          ctx.fillRect(0, totalHeight + headerHeight, width, trackView.height)
+          ctx.fillRect(
+            0,
+            totalHeight + headerHeight - scrollY,
+            width,
+            trackView.height,
+          )
         }
 
         if (trackView.track.type === 'AudioFileTrack') {
@@ -32,7 +42,7 @@ export function useSequencer(zoom: number, scrollX: number) {
             const offset = 1.5
             const x =
               (clip.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
-            const y = totalHeight + headerHeight + offset
+            const y = totalHeight + headerHeight + offset - scrollY
             const width =
               (clip.duration / 60) * activeSong.tempo * pixelsPerBeat
             const height = trackView.height - offset * 2
@@ -64,10 +74,14 @@ export function useSequencer(zoom: number, scrollX: number) {
         pixelsPerLine = pixelsPerSub
       }
 
+      // Header Rect
+      ctx.fillStyle = getCSSVar('--background')
+      ctx.fillRect(0, 0, width, headerHeight)
+
+      // Grid
       const firstVisibleLine = Math.floor(scrollX / pixelsPerLine)
       const lastVisibleLine = Math.ceil((scrollX + width) / pixelsPerLine)
 
-      // Grid
       for (let i = firstVisibleLine; i <= lastVisibleLine; i++) {
         const x = i * pixelsPerLine - scrollX
 
@@ -153,7 +167,7 @@ export function useSequencer(zoom: number, scrollX: number) {
       ctx.lineTo(playheadPosPx, height)
       ctx.stroke()
     },
-    [playheadPos, cursorPos, activeSong, trackViews, zoom, scrollX],
+    [playheadPos, cursorPos, activeSong, trackViews, zoom, scrollX, scrollY],
   )
   return { draw }
 }

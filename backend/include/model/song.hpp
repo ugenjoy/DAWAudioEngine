@@ -16,8 +16,9 @@ class Song {
   void removeTrack();
 
   void render(juce::AudioBuffer<float>& mixBuffer,
-              juce::AudioBuffer<float>& trackBuffer, int numSamples,
-              double position);
+              juce::AudioBuffer<float>& trackBuffer,
+              const juce::AudioBuffer<float>& inputBuffer, int numSamples,
+              double position, bool isPlaying);
 
   // Serialization
   nlohmann::json toJson() const;
@@ -25,6 +26,8 @@ class Song {
 
   // Setters / Getters
   std::string getId() const { return id; }
+
+  void sampleRateChanged();
 
   float getTempo() const { return tempo; }
   void setTempo(float newTempo) { tempo = newTempo; }

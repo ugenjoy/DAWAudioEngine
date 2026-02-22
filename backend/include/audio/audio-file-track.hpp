@@ -21,6 +21,7 @@ class AudioFileTrack : public AudioTrack {
   static std::unique_ptr<AudioFileTrack> fromJson(const nlohmann::json& j);
 
   std::string getTrackType() const override { return "AudioFileTrack"; }
+  void sampleRateChanged() override;
 
  private:
   std::unique_ptr<ClipsManager> clipsManager;

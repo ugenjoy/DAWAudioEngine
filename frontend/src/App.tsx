@@ -4,17 +4,20 @@ import HomePage from './pages/HomePage'
 import { WebSocketProvider } from './shared/contexts/websocket-provider'
 import { ProjectsProvider } from './shared/contexts/projects-provider'
 import { ProjectProvider } from './shared/contexts/project-provider'
+import { AudioDevicesProvider } from './shared/contexts/audio-devices-provider'
 
 function App() {
   return (
     <WebSocketProvider>
-      <ProjectsProvider>
-        <ProjectProvider>
-          <Routes>
-            <Route index element={<HomePage />} />
-          </Routes>
-        </ProjectProvider>
-      </ProjectsProvider>
+      <AudioDevicesProvider>
+        <ProjectsProvider>
+          <ProjectProvider>
+            <Routes>
+              <Route index element={<HomePage />} />
+            </Routes>
+          </ProjectProvider>
+        </ProjectsProvider>
+      </AudioDevicesProvider>
     </WebSocketProvider>
   )
 }

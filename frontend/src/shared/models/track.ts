@@ -16,6 +16,9 @@ export interface BeatTrack {
   mute: boolean
   solo: boolean
   frequency: number
+  inputChannel: number
+  inputStereo: boolean
+  monitoring: boolean
 }
 
 export interface AudioFileTrack {
@@ -27,6 +30,9 @@ export interface AudioFileTrack {
   mute: boolean
   solo: boolean
   clips: Clip[]
+  inputChannel: number
+  inputStereo: boolean
+  monitoring: boolean
 }
 
 export type Track = BeatTrack | AudioFileTrack

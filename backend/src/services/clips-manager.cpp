@@ -20,6 +20,12 @@ void ClipsManager::renderClips(juce::AudioBuffer<float>& clipBuffer,
   }
 }
 
+void ClipsManager::sampleRateChanged() {
+  for (auto& clip : clips) {
+    clip->loadAudioFile();
+  }
+}
+
 nlohmann::json ClipsManager::toJson() const {
   nlohmann::json j = nlohmann::json::array();
 
