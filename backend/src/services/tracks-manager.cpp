@@ -1,7 +1,8 @@
 #include "model/tracks-manager.hpp"
 
+#include "audio/audio-context.hpp"
 #include "audio/audio-file-track.hpp"
-#include "audio/beat-track.hpp"
+#include "audio/metronome-track.hpp"
 
 #include <cmath>
 
@@ -30,10 +31,23 @@ void TracksManager::renderTracks(juce::AudioBuffer<float>& mixBuffer,
                                  const juce::AudioBuffer<float>& inputBuffer,
                                  int numSamples, double currentPosition,
                                  float tempo, bool isPlaying) {
+  // Check if any track is soloed
+  bool hasSolo = false;
+  for (const auto& track : tracks) {
+    if (track->solo) {
+      hasSolo = true;
+      break;
+    }
+  }
+
   for (size_t trackIdx = 0; trackIdx < tracks.size(); ++trackIdx) {
     trackBuffer.clear();
 
-    if (!tracks[trackIdx]->mute) {
+    // Skip muted tracks, and when solo is active skip non-soloed tracks
+    bool shouldPlay = !tracks[trackIdx]->mute &&
+                      (!hasSolo || tracks[trackIdx]->solo);
+
+    if (shouldPlay) {
       int inCh = tracks[trackIdx]->getInputChannel();
       bool shouldMonitor = tracks[trackIdx]->isMonitoring() && inCh >= 0 &&
                            inCh < inputBuffer.getNumChannels();
@@ -55,9 +69,33 @@ void TracksManager::renderTracks(juce::AudioBuffer<float>& mixBuffer,
           trackBuffer.applyGain(ch, 0, numSamples, tracks[trackIdx]->volume);
         }
       } else if (isPlaying) {
-        // Only render clips/synth when transport is running
-        tracks[trackIdx]->renderBlock(trackBuffer, 0, numSamples,
-                                      currentPosition, tempo);
+        // Only render when transport is running
+        if (tracks[trackIdx]->frozen.load(std::memory_order_acquire) &&
+            tracks[trackIdx]->frozenPeriodSamples > 0) {
+          // Read from frozen buffer with modulo (periodic looping)
+          const auto& fb = tracks[trackIdx]->frozenBuffer;
+          const int period = tracks[trackIdx]->frozenPeriodSamples;
+          const int offset =
+              static_cast<int>(currentPosition * AudioContext::getInstance().sampleRate) %
+              period;
+
+          for (int ch = 0; ch < trackBuffer.getNumChannels() &&
+                           ch < fb.getNumChannels();
+               ++ch) {
+            int available = period - offset;
+            if (available >= numSamples) {
+              trackBuffer.copyFrom(ch, 0, fb, ch, offset, numSamples);
+            } else {
+              // Wrap around: copy tail then head
+              trackBuffer.copyFrom(ch, 0, fb, ch, offset, available);
+              trackBuffer.copyFrom(ch, available, fb, ch, 0,
+                                   numSamples - available);
+            }
+          }
+        } else {
+          tracks[trackIdx]->renderBlock(trackBuffer, 0, numSamples,
+                                        currentPosition, tempo);
+        }
       }
     }
 
@@ -72,6 +110,20 @@ void TracksManager::renderTracks(juce::AudioBuffer<float>& mixBuffer,
       int srcChannel = std::min(channel, trackBuffer.getNumChannels() - 1);
       mixBuffer.addFrom(channel, 0, trackBuffer, srcChannel, 0, numSamples);
     }
+  }
+}
+
+void TracksManager::freezeAll(float tempo, double sampleRate) {
+  for (auto& track : tracks) {
+    if (track->canFreeze() && !track->isMonitoring()) {
+      track->freeze(tempo, sampleRate);
+    }
+  }
+}
+
+void TracksManager::unfreezeAll() {
+  for (auto& track : tracks) {
+    track->unfreeze();
   }
 }
 
@@ -114,9 +166,7 @@ void TracksManager::loadFromJson(const nlohmann::json& j) {
 
     std::string type = trackJson["type"];
 
-    if (type == "BeatTrack") {
-      tracks.push_back(BeatTrack::fromJson(trackJson));
-    } else if (type == "AudioFileTrack") {
+    if (type == "AudioFileTrack") {
       tracks.push_back(AudioFileTrack::fromJson(trackJson));
     }
   }

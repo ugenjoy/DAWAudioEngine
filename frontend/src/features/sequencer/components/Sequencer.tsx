@@ -16,6 +16,9 @@ function Sequencer() {
     availableInputs,
     setTrackInput,
     setTrackMonitoring,
+    setTrackMute,
+    setTrackSolo,
+    setTrackVolume,
   } = useProject()
   const { send } = useWebSocket()
   const [zoom, setZoom] = useState(1)
@@ -99,10 +102,10 @@ function Sequencer() {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!activeSong) return
-      e.preventDefault()
 
       switch (e.key) {
         case ' ': {
+          e.preventDefault()
           send({
             action: `transport.${playing ? 'stop' : 'play'}`,
           })
@@ -169,6 +172,9 @@ function Sequencer() {
                   availableInputs={availableInputs}
                   onSetInput={setTrackInput}
                   onSetMonitoring={setTrackMonitoring}
+                  onSetMute={setTrackMute}
+                  onSetSolo={setTrackSolo}
+                  onSetVolume={setTrackVolume}
                 />
               )
             })}

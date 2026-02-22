@@ -18,8 +18,9 @@ void LoadProjectCommand::execute(AppContext& ctx) {
   auto& audioEngine = ctx.getAudioEngine();
   auto& wsServer = ctx.getWebSocketServer();
 
-  // Stop playback before loading
+  // Stop playback and detach song before destroying old data
   audioEngine.stop();
+  audioEngine.unloadSong();
 
   // Load the project
   if (projectManager.loadProject(projectPath, songsManager)) {
@@ -66,6 +67,12 @@ void SaveProjectCommand::execute(AppContext& ctx) {
   if (projectManager.saveProject(projectPath, songsManager)) {
     juce::Logger::writeToLog("[SaveProjectCommand] Project saved: " +
                              juce::String(projectPath));
+
+    nlohmann::json broadcast;
+    broadcast["type"] = "broadcast";
+    broadcast["event"] = "project.saved";
+    broadcast["path"] = projectPath;
+    ctx.getWebSocketServer().broadcast(broadcast.dump());
   } else {
     juce::Logger::writeToLog("[SaveProjectCommand] Failed to save project: " +
                              juce::String(projectManager.getLastError()));
@@ -168,13 +175,13 @@ REGISTER_COMMAND_WITH_CREATOR("project.load", LoadProject,
                                     path);
                               });
 
-REGISTER_COMMAND_WITH_CREATOR("project.save", SaveProject,
-                              [](const nlohmann::json& payload) -> CommandPtr {
-                                std::string path = payload.value("path", "");
-                                if (path.empty()) return nullptr;
-                                return std::make_unique<SaveProjectCommand>(
-                                    path);
-                              });
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "project.save", SaveProject,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string path = payload.value("path", "");
+      if (path.empty()) return nullptr;
+      return std::make_unique<SaveProjectCommand>(path);
+    });
 
 REGISTER_COMMAND("project.getLoaded", GetLoadedProjectCommand);
 

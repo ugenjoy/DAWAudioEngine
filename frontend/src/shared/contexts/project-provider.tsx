@@ -39,6 +39,13 @@ type ProjectProviderState = {
     stereo: boolean,
   ) => void
   setTrackMonitoring: (trackId: string, monitoring: boolean) => void
+  setTrackMute: (trackId: string, mute: boolean) => void
+  setTrackSolo: (trackId: string, solo: boolean) => void
+  setTrackVolume: (trackId: string, volume: number) => void
+  isDirty: boolean
+  saveProject: () => void
+  setTempo: (tempo: number) => void
+  setMetronomeMute: (mute: boolean) => void
   fetchAudioInputs: () => void
 }
 
@@ -53,6 +60,13 @@ const initialState: ProjectProviderState = {
   availableInputs: [],
   setTrackInput: () => null,
   setTrackMonitoring: () => null,
+  setTrackMute: () => null,
+  setTrackSolo: () => null,
+  setTrackVolume: () => null,
+  isDirty: false,
+  saveProject: () => null,
+  setTempo: () => null,
+  setMetronomeMute: () => null,
   fetchAudioInputs: () => null,
 }
 
@@ -70,6 +84,7 @@ export function ProjectProvider({
   const [playing, setPlaying] = useState<boolean>(false)
   const [trackViews, setTrackViews] = useState<TrackView[]>([])
   const [availableInputs, setAvailableInputs] = useState<AudioInput[]>([])
+  const [isDirty, setIsDirty] = useState<boolean>(false)
 
   const fetchAudioInputs = useCallback(() => {
     if (ws && isConnected) {
@@ -87,6 +102,47 @@ export function ProjectProvider({
   const setTrackMonitoring = useCallback(
     (trackId: string, monitoring: boolean) => {
       send({ action: 'track.setMonitoring', trackId, monitoring })
+    },
+    [send],
+  )
+
+  const setTrackMute = useCallback(
+    (trackId: string, mute: boolean) => {
+      send({ action: 'track.setMute', trackId, mute })
+    },
+    [send],
+  )
+
+  const setTrackSolo = useCallback(
+    (trackId: string, solo: boolean) => {
+      send({ action: 'track.setSolo', trackId, solo })
+    },
+    [send],
+  )
+
+  const setTrackVolume = useCallback(
+    (trackId: string, volume: number) => {
+      send({ action: 'track.setVolume', trackId, volume })
+    },
+    [send],
+  )
+
+  const saveProject = useCallback(() => {
+    if (project?.path) {
+      send({ action: 'project.save', path: project.path })
+    }
+  }, [send, project])
+
+  const setTempo = useCallback(
+    (tempo: number) => {
+      send({ action: 'song.setTempo', tempo })
+    },
+    [send],
+  )
+
+  const setMetronomeMute = useCallback(
+    (mute: boolean) => {
+      send({ action: 'song.setMetronomeMute', mute })
     },
     [send],
   )
@@ -119,6 +175,11 @@ export function ProjectProvider({
       }
       case 'project.loaded': {
         if (data.project !== undefined) setProject(data.project)
+        setIsDirty(false)
+        break
+      }
+      case 'project.saved': {
+        setIsDirty(false)
         break
       }
       case 'song.loaded': {
@@ -152,7 +213,24 @@ export function ProjectProvider({
         if (data.inputs !== undefined) setAvailableInputs(data.inputs)
         break
       }
+      case 'song.tempoChanged': {
+        setIsDirty(true)
+        setActiveSong((prev) => {
+          if (!prev) return prev
+          return { ...prev, tempo: data.tempo }
+        })
+        break
+      }
+      case 'song.metronomeMuteChanged': {
+        setIsDirty(true)
+        setActiveSong((prev) => {
+          if (!prev) return prev
+          return { ...prev, metronomeMute: data.mute }
+        })
+        break
+      }
       case 'track.inputChanged': {
+        setIsDirty(true)
         setActiveSong((prev) => {
           if (!prev) return prev
           return {
@@ -171,12 +249,52 @@ export function ProjectProvider({
         break
       }
       case 'track.monitoringChanged': {
+        setIsDirty(true)
         setActiveSong((prev) => {
           if (!prev) return prev
           return {
             ...prev,
             tracks: prev.tracks.map((t) =>
               t.id === data.trackId ? { ...t, monitoring: data.monitoring } : t,
+            ),
+          }
+        })
+        break
+      }
+      case 'track.muteChanged': {
+        setIsDirty(true)
+        setActiveSong((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            tracks: prev.tracks.map((t) =>
+              t.id === data.trackId ? { ...t, mute: data.mute } : t,
+            ),
+          }
+        })
+        break
+      }
+      case 'track.soloChanged': {
+        setIsDirty(true)
+        setActiveSong((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            tracks: prev.tracks.map((t) =>
+              t.id === data.trackId ? { ...t, solo: data.solo } : t,
+            ),
+          }
+        })
+        break
+      }
+      case 'track.volumeChanged': {
+        setIsDirty(true)
+        setActiveSong((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            tracks: prev.tracks.map((t) =>
+              t.id === data.trackId ? { ...t, volume: data.volume } : t,
             ),
           }
         })
@@ -213,6 +331,13 @@ export function ProjectProvider({
     availableInputs,
     setTrackInput,
     setTrackMonitoring,
+    setTrackMute,
+    setTrackSolo,
+    setTrackVolume,
+    isDirty,
+    saveProject,
+    setTempo,
+    setMetronomeMute,
     fetchAudioInputs,
   }
 

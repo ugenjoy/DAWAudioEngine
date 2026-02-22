@@ -64,7 +64,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/main.cpp
     src/audio/audio-engine-core.cpp
     src/audio/audio-track.cpp
-    src/audio/beat-track.cpp
+    src/audio/metronome-track.cpp
     src/audio/audio-file-track.cpp
     src/audio/audio-clip.cpp                                                                                           
     src/services/song.cpp
@@ -79,6 +79,9 @@ target_sources(DAWAudioEngine PRIVATE
     src/commands/transport-commands.cpp
     src/commands/project-commands.cpp
     src/commands/track-commands.cpp
+    src/commands/mode-commands.cpp
+    src/commands/song-commands.cpp
+    src/services/mode-manager.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE

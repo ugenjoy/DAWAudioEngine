@@ -26,6 +26,18 @@ void SetCursorPositionCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().setCursorPosition(position);
 }
 
+SetMasterVolumeCommand::SetMasterVolumeCommand(float volume)
+    : volume(volume) {}
+
+void SetMasterVolumeCommand::execute(AppContext& ctx) {
+  ctx.getAudioEngine().setMasterVolume(volume);
+
+  nlohmann::json broadcast = {{"type", "broadcast"},
+                               {"event", "transport.masterVolume"},
+                               {"volume", ctx.getAudioEngine().getMasterVolume()}};
+  ctx.getWebSocketServer().broadcast(broadcast.dump());
+}
+
 // Auto-registration
 REGISTER_COMMAND("transport.play", PlayCommand);
 
@@ -45,4 +57,13 @@ REGISTER_COMMAND_WITH_CREATOR(
     [](const nlohmann::json& payload) {
       return std::make_unique<SetCursorPositionCommand>(
           payload.value("position", 0.0));
+    });
+
+REGISTER_COMMAND_WITH_CREATOR(
+    "transport.setMasterVolume", SetMasterVolume,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      if (!payload.contains("volume")) return nullptr;
+      float vol = payload.value("volume", -1.0f);
+      if (vol < 0.0f || vol > 1.0f) return nullptr;
+      return std::make_unique<SetMasterVolumeCommand>(vol);
     });

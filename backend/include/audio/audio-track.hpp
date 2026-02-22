@@ -73,6 +73,12 @@ class AudioTrack {
   virtual void setMute(bool shouldMute);
 
   /**
+   * @brief Set the solo state of the track
+   * @param solo True to solo, false to unsolo
+   */
+  virtual void setSolo(bool shouldSolo);
+
+  /**
    * @brief Set the volume level of the track
    * @param volume Volume level (clamped to range [0.0, 1.0])
    */
@@ -87,13 +93,39 @@ class AudioTrack {
 
   /**
    * @brief Get the track type identifier
-   * @return String identifier for the track type (e.g., "BeatTrack")
+   * @return String identifier for the track type (e.g., "MetronomeTrack")
    * @note Pure virtual function - must be implemented by derived classes
    */
   virtual std::string getTrackType() const = 0;
 
   /** @brief Called when sample rate changes to allow resampling */
   virtual void sampleRateChanged() {};
+
+  /**
+   * @brief Whether this track type supports freezing (pre-rendering a period).
+   * MetronomeTrack returns true; AudioFileTrack returns false (position-dependent).
+   */
+  virtual bool canFreeze() const { return false; }
+
+  /**
+   * @brief Pre-render one period into the frozen buffer.
+   * Called on the command thread. Sets frozen = true when done.
+   * @param tempo Current tempo in BPM
+   * @param sampleRate Current sample rate
+   */
+  virtual void freeze(float tempo, double sampleRate) {}
+
+  /** @brief Release the frozen buffer and resume live rendering. */
+  void unfreeze();
+
+  /** @brief Whether this track is using the frozen buffer. */
+  std::atomic<bool> frozen{false};
+
+  /** @brief Pre-rendered audio buffer (stereo, one period). */
+  juce::AudioBuffer<float> frozenBuffer;
+
+  /** @brief Number of valid samples in frozenBuffer. */
+  int frozenPeriodSamples{0};
 
   // Input routing
   void setInputChannel(int channel);
@@ -120,6 +152,9 @@ class AudioTrack {
 
   /** @brief Mute state (true = muted, false = playing) */
   bool mute;
+
+  /** @brief Solo state (true = soloed) */
+  bool solo;
 
   /** @brief Selected input channel index (-1 = no input) */
   std::atomic<int> inputChannel{-1};

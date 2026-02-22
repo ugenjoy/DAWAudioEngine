@@ -35,11 +35,18 @@ class CommandProcessor : public juce::Thread {
    */
   void stopProcessing();
 
+  /**
+   * Set the polling interval in milliseconds.
+   * Use 1ms for Edit mode (low latency), 10ms for Live mode (resource saving).
+   */
+  void setPollInterval(int ms);
+
  private:
   void run() override;
 
   CommandQueue& queue;
   AppContext& ctx;
+  std::atomic<int> pollIntervalMs{1};
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CommandProcessor)
 };

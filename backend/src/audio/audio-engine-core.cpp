@@ -2,15 +2,10 @@
 
 #include "audio/audio-context.hpp"
 
-// TODO: [MEDIUM] Add audio mixer with bus routing and effects chain
-// TODO: [MEDIUM] Implement error handling for audio device failures
-// TODO: [LOW] Add panning control per track
-
 AudioEngineCore::AudioEngineCore()
     : playing(false),
       playheadPosition(0.0),
       cursorPosition(0.0),
-      masterVolume(0.5f),
       activeSong(nullptr) {
   auto savedState = loadSettings();
 
@@ -70,17 +65,26 @@ void AudioEngineCore::audioDeviceStopped() {
   juce::Logger::writeToLog("Audio device stopped");
 }
 
+void AudioEngineCore::unloadSong() {
+  activeSong = nullptr;
+  playheadPosition.store(0.0, std::memory_order_relaxed);
+  cursorPosition.store(0.0, std::memory_order_relaxed);
+  monitoringTrackCount.store(0, std::memory_order_relaxed);
+  monitoredChannelMask.store(0, std::memory_order_relaxed);
+}
+
 void AudioEngineCore::loadSong(Song* newSong) {
   activeSong = newSong;
   playheadPosition.store(0, std::memory_order_relaxed);
   cursorPosition.store(0, std::memory_order_relaxed);
 
-  // Sync monitoring counter with tracks loaded from JSON
+  // Sync monitoring counter and channel mask with tracks loaded from JSON
   int count = 0;
   for (const auto& track : activeSong->getTracksManager()->getTracks()) {
     if (track->isMonitoring()) ++count;
   }
   monitoringTrackCount.store(count, std::memory_order_relaxed);
+  rebuildMonitoredChannelMask();
 
   juce::Logger::writeToLog("[AudioEngine] song loaded");
 
@@ -239,16 +243,26 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
     const float* const* inputChannelData, int numInputChannels,
     float* const* outputChannelData, int numOutputChannels, int numSamples,
     const juce::AudioIODeviceCallbackContext& /*context*/) {
-  // Copy real input channels to pre-allocated inputBuffer
-  int channelsToCopy = std::min(numInputChannels, inputBuffer.getNumChannels());
-  for (int ch = 0; ch < channelsToCopy; ++ch) {
-    if (inputChannelData[ch] != nullptr) {
-      inputBuffer.copyFrom(ch, 0, inputChannelData[ch], numSamples);
-    }
-  }
+  // Copy only the input channels actually used by monitoring tracks.
+  // mask == 0 means no track is monitoring → skip the copy entirely.
+  const uint64_t mask = monitoredChannelMask.load(std::memory_order_relaxed);
+  const bool hasMonitoring = mask != 0;
 
-  bool hasMonitoring =
-      monitoringTrackCount.load(std::memory_order_relaxed) > 0;
+  if (hasMonitoring) {
+    const int maxCh =
+        std::min({numInputChannels, inputBuffer.getNumChannels(), 64});
+    for (int ch = 0; ch < maxCh; ++ch) {
+      if ((mask >> ch) & 1ULL) {
+        if (inputChannelData[ch] != nullptr) {
+          inputBuffer.copyFrom(ch, 0, inputChannelData[ch], numSamples);
+        }
+      } else {
+        inputBuffer.clear(ch, 0, numSamples);
+      }
+    }
+  } else {
+    inputBuffer.clear();
+  }
 
   if ((!playing && !hasMonitoring) || !activeSong) {
     // Clear output
@@ -276,8 +290,9 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
   }
 
   // Apply master volume to mixed buffer
+  float vol = masterVolume.load(std::memory_order_relaxed);
   for (int channel = 0; channel < mixBuffer.getNumChannels(); ++channel) {
-    mixBuffer.applyGain(channel, 0, numSamples, masterVolume);
+    mixBuffer.applyGain(channel, 0, numSamples, vol);
   }
 
   // Copy from mix buffer to output channel pointers
@@ -287,6 +302,55 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
                                       mixBuffer.getReadPointer(srcCh),
                                       numSamples);
   }
+}
+
+void AudioEngineCore::setMasterVolume(float volume) {
+  masterVolume.store(juce::jlimit(0.0f, 1.0f, volume),
+                     std::memory_order_relaxed);
+}
+
+void AudioEngineCore::setTimerRate(int intervalMs) {
+  if (isTimerRunning()) {
+    startTimer(intervalMs);
+  }
+}
+
+void AudioEngineCore::setMonitoringEnabled(bool enabled) {
+  // Kept for API compatibility; the channel mask drives the actual behaviour.
+  monitoringEnabled.store(enabled, std::memory_order_relaxed);
+}
+
+void AudioEngineCore::rebuildMonitoredChannelMask() {
+  if (!activeSong) {
+    monitoredChannelMask.store(0, std::memory_order_relaxed);
+    return;
+  }
+  uint64_t mask = 0;
+  for (const auto& track : activeSong->getTracksManager()->getTracks()) {
+    if (track->isMonitoring()) {
+      int ch = track->getInputChannel();
+      if (ch >= 0 && ch < 64) {
+        mask |= (1ULL << ch);
+        if (track->isInputStereo() && ch + 1 < 64) {
+          mask |= (1ULL << (ch + 1));
+        }
+      }
+    }
+  }
+  monitoredChannelMask.store(mask, std::memory_order_relaxed);
+}
+
+void AudioEngineCore::freezeTracks() {
+  if (!activeSong) return;
+  auto* device = deviceManager.getCurrentAudioDevice();
+  double sr = device ? device->getCurrentSampleRate()
+                     : AudioContext::getInstance().sampleRate;
+  activeSong->freezeAllTracks(activeSong->getTempo(), sr);
+}
+
+void AudioEngineCore::unfreezeTracks() {
+  if (!activeSong) return;
+  activeSong->unfreezeAllTracks();
 }
 
 void AudioEngineCore::timerCallback() {

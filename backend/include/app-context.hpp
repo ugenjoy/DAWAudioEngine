@@ -4,6 +4,8 @@ class AudioEngineCore;
 class SongsManager;
 class ProjectManager;
 class WebSocketServer;
+class ModeManager;
+class CommandProcessor;
 
 /**
  * Application context providing access to all core services.
@@ -17,20 +19,31 @@ class AppContext {
   AppContext(AudioEngineCore& audioEngine,
              SongsManager& songsManager,
              ProjectManager& projectManager,
-             WebSocketServer& wsServer)
+             WebSocketServer& wsServer,
+             ModeManager& modeManager)
       : audioEngine(audioEngine),
         songsManager(songsManager),
         projectManager(projectManager),
-        wsServer(wsServer) {}
+        wsServer(wsServer),
+        modeManager(modeManager) {}
 
   AudioEngineCore& getAudioEngine() { return audioEngine; }
   SongsManager& getSongsManager() { return songsManager; }
   ProjectManager& getProjectManager() { return projectManager; }
   WebSocketServer& getWebSocketServer() { return wsServer; }
+  ModeManager& getModeManager() { return modeManager; }
+
+  /** Injected after construction to avoid circular dependency. */
+  void setCommandProcessor(CommandProcessor* processor) {
+    commandProcessor = processor;
+  }
+  CommandProcessor* getCommandProcessor() { return commandProcessor; }
 
  private:
   AudioEngineCore& audioEngine;
   SongsManager& songsManager;
   ProjectManager& projectManager;
   WebSocketServer& wsServer;
+  ModeManager& modeManager;
+  CommandProcessor* commandProcessor = nullptr;
 };

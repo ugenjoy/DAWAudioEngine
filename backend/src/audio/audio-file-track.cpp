@@ -46,6 +46,7 @@ nlohmann::json AudioFileTrack::toJson() const {
   j["volume"] = volume;
   j["pan"] = pan;
   j["mute"] = mute;
+  j["solo"] = solo;
   j["clips"] = clipsManager->toJson();
   j["inputChannel"] = inputChannel.load(std::memory_order_relaxed);
   j["inputStereo"] = inputStereo.load(std::memory_order_relaxed);
@@ -66,6 +67,7 @@ std::unique_ptr<AudioFileTrack> AudioFileTrack::fromJson(
   track->volume = j.value("volume", 0.4f);
   track->pan = j.value("pan", 0.0f);
   track->mute = j.value("mute", false);
+  track->solo = j.value("solo", false);
   track->inputChannel.store(j.value("inputChannel", -1), std::memory_order_relaxed);
   track->inputStereo.store(j.value("inputStereo", false), std::memory_order_relaxed);
   track->monitoring.store(j.value("monitoring", false), std::memory_order_relaxed);

@@ -25,7 +25,7 @@ function HomePage() {
   return (
     <>
       <main className="flex flex-col h-screen w-screen">
-        <Navbar />
+        <Navbar onOpenProjectDialog={() => setProjectsDialogOpen(true)} />
         <div className="flex-1 overflow-auto">
           <Sequencer />
         </div>

@@ -5,8 +5,13 @@
 using json = nlohmann::json;
 
 WebSocketServer::WebSocketServer(CommandQueue& commandQueue,
-                                 const CommandFactory& commandFactory, int port)
-    : commandQueue(commandQueue), commandFactory(commandFactory), port(port) {}
+                                 const CommandFactory& commandFactory,
+                                 const ModeManager& modeManager,
+                                 int port)
+    : commandQueue(commandQueue),
+      commandFactory(commandFactory),
+      modeManager(modeManager),
+      port(port) {}
 
 WebSocketServer::~WebSocketServer() { stop(); }
 
@@ -54,6 +59,16 @@ void WebSocketServer::run() {
         try {
           auto msg = json::parse(data);
           std::string action = msg.value("action", "");
+
+          // Reject edit-only commands in Live mode
+          if (modeManager.isLiveMode() && commandFactory.isEditOnly(action)) {
+            json error = {{"type", "error"},
+                          {"code", "edit_only"},
+                          {"message", "Action '" + action +
+                                          "' is not available in Live mode"}};
+            conn.send_text(error.dump());
+            return;
+          }
 
           // Use factory to create command
           CommandPtr cmd = commandFactory.create(action, msg);
