@@ -116,7 +116,7 @@ void AudioEngineCore::play() {
   if (activeSong && !playing) {
     playing.store(true);
 
-    startTimerHz(30);
+    startTimerHz(60);
 
     if (wsServer != nullptr) {
       // Broadcast transport play event to all clients
@@ -189,7 +189,7 @@ void AudioEngineCore::switchPlaying() {
     playing.store(!wasPlaying);
 
     if (!wasPlaying) {
-      startTimerHz(30);
+      startTimerHz(60);
     } else {
       stopTimer();
     }
@@ -309,11 +309,6 @@ void AudioEngineCore::setMasterVolume(float volume) {
                      std::memory_order_relaxed);
 }
 
-void AudioEngineCore::setTimerRate(int intervalMs) {
-  if (isTimerRunning()) {
-    startTimer(intervalMs);
-  }
-}
 
 void AudioEngineCore::setMonitoringEnabled(bool enabled) {
   // Kept for API compatibility; the channel mask drives the actual behaviour.

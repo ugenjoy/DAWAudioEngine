@@ -59,7 +59,6 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   float getMasterVolume() const { return masterVolume.load(); }
 
   // Mode-driven optimizations
-  void setTimerRate(int intervalMs);
   void setMonitoringEnabled(bool enabled);
 
   /**

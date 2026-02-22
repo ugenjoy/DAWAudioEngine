@@ -134,10 +134,7 @@ function Sequencer() {
             : 0
           targetScrollY.current = Math.max(
             0,
-            Math.min(
-              maxScrollY,
-              targetScrollY.current + deltaY * scrollSpeed,
-            ),
+            Math.min(maxScrollY, targetScrollY.current + deltaY * scrollSpeed),
           )
         }
 
@@ -234,7 +231,7 @@ function Sequencer() {
         <div className="flex flex-row h-full overflow-hidden">
           <div
             ref={tracksContainer}
-            className="relative top-5.25 pb-50 flex flex-col w-48 border-r overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="relative top-5.25 pb-50 flex flex-col w-48 border-t border-r overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {trackViews.map((t) => {
               return (
@@ -261,7 +258,7 @@ function Sequencer() {
             })}
           </div>
 
-          <div className="h-full flex-1 border">
+          <div className="h-full flex-1">
             <Timeline
               draw={draw}
               onWheel={handleWheel}
