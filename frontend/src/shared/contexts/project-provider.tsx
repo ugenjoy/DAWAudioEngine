@@ -300,6 +300,10 @@ export function ProjectProvider({
         })
         break
       }
+      case 'event.listUpdated': {
+        setIsDirty(true)
+        break
+      }
     }
   }
 

@@ -5,6 +5,7 @@
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
+#include "events/event-engine.hpp"
 #include "services/project-manager.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/websocket-server.hpp"
@@ -30,6 +31,11 @@ void LoadProjectCommand::execute(AppContext& ctx) {
     // Load first song into audio engine if available
     if (auto* firstSong = songsManager.getSong(0)) {
       audioEngine.loadSong(firstSong);
+
+      // Load event rules and fire song.loaded trigger
+      ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(),
+                                     firstSong->getEventRules());
+      ctx.getEventEngine().fire("song.loaded", ctx);
     }
 
     nlohmann::json project = projectManager.getProject(projectPath);
@@ -164,6 +170,11 @@ void LoadSongCommand::execute(AppContext& ctx) {
   }
 
   audioEngine.loadSong(nextSong);
+
+  // Load event rules and fire song.loaded trigger
+  ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(),
+                                 nextSong->getEventRules());
+  ctx.getEventEngine().fire("song.loaded", ctx);
 }
 
 // Auto-registration

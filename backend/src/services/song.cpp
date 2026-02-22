@@ -1,5 +1,7 @@
 #include "model/song.hpp"
 
+#include <algorithm>
+
 #include "audio/audio-context.hpp"
 
 Song::Song()
@@ -58,6 +60,13 @@ nlohmann::json Song::toJson() const {
   j["metronomeMute"] = metronomeTrack->mute;
   j["metronome"] = metronomeTrack->toJson();
   j["tracks"] = tracksManager->toJson();
+
+  nlohmann::json eventsJson = nlohmann::json::array();
+  for (const auto& rule : eventRules) {
+    eventsJson.push_back(rule.toJson());
+  }
+  j["events"] = eventsJson;
+
   return j;
 }
 
@@ -81,5 +90,29 @@ std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j) {
     song->tracksManager->loadFromJson(j["tracks"]);
   }
 
+  // Load song-level event rules
+  if (j.contains("events") && j["events"].is_array()) {
+    for (const auto& ruleJson : j["events"]) {
+      song->eventRules.push_back(EventRule::fromJson(ruleJson));
+    }
+  }
+
   return song;
+}
+
+bool Song::removeEventRule(const std::string& ruleId) {
+  auto it = std::find_if(eventRules.begin(), eventRules.end(),
+                         [&](const EventRule& r) { return r.id == ruleId; });
+  if (it == eventRules.end()) return false;
+  eventRules.erase(it);
+  return true;
+}
+
+bool Song::updateEventRule(const std::string& ruleId,
+                           const EventRule& updated) {
+  auto it = std::find_if(eventRules.begin(), eventRules.end(),
+                         [&](const EventRule& r) { return r.id == ruleId; });
+  if (it == eventRules.end()) return false;
+  *it = updated;
+  return true;
 }

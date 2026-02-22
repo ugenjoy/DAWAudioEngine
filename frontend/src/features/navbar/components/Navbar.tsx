@@ -13,6 +13,7 @@ import {
   IconMusic,
 } from '@tabler/icons-react'
 import { AudioSettingsDialog } from '@/features/audio-settings/components/AudioSettingsDialog'
+import { EventsDialog } from '@/features/events/components/EventsDialog'
 
 interface NavbarProps {
   onOpenProjectDialog?: () => void
@@ -49,7 +50,7 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
   return (
     <div
       className={cn(
-        'w-full p-2 items-center grid-cols-[1fr_auto_1fr] grid border-b',
+        'w-full p-2 min-h-10 items-center grid-cols-[1fr_auto_1fr] grid border-b',
         isLiveMode ? 'border-primary' : 'border-orange-500/50',
       )}
     >
@@ -142,6 +143,7 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
           </Button>
         )}
 
+        <EventsDialog />
         <AudioSettingsDialog />
         <div className="flex items-center gap-2">
           <div

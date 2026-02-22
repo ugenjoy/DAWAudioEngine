@@ -3,6 +3,9 @@
 #include "commands/command-factory.hpp"
 #include "commands/command-processor.hpp"
 #include "commands/command-queue.hpp"
+#include "events/event-engine.hpp"
+#include "events/midi-action-executor.hpp"
+#include "services/midi-output-manager.hpp"
 #include "services/mode-manager.hpp"
 #include "services/project-manager.hpp"
 #include "services/songs-manager.hpp"
@@ -26,6 +29,11 @@ class AudioEngineApplication : public juce::JUCEApplication,
     songsManager = std::make_unique<SongsManager>();
     projectManager = std::make_unique<ProjectManager>();
     modeManager = std::make_unique<ModeManager>();
+    midiOutputManager = std::make_unique<MidiOutputManager>();
+
+    // Create and configure event engine
+    eventEngine = std::make_unique<EventEngine>();
+    eventEngine->registerExecutor(createMidiActionExecutor());
 
     // Connect ModeManager to AudioEngineCore playback state
     modeManager->setPlayingStateProvider(
@@ -44,9 +52,9 @@ class AudioEngineApplication : public juce::JUCEApplication,
     audioEngine->setWebSocketServer(wsServer.get());
 
     // Create application context
-    appContext =
-        std::make_unique<AppContext>(*audioEngine, *songsManager,
-                                     *projectManager, *wsServer, *modeManager);
+    appContext = std::make_unique<AppContext>(
+        *audioEngine, *songsManager, *projectManager, *wsServer, *modeManager,
+        *eventEngine, *midiOutputManager);
 
     // Create command processor and inject into context (avoids circular dep)
     commandProcessor =
@@ -82,6 +90,8 @@ class AudioEngineApplication : public juce::JUCEApplication,
     songsManager.reset();
     projectManager.reset();
     modeManager.reset();
+    midiOutputManager.reset();
+    eventEngine.reset();
     commandFactory.reset();
   }
 
@@ -99,6 +109,8 @@ class AudioEngineApplication : public juce::JUCEApplication,
   std::unique_ptr<SongsManager> songsManager;
   std::unique_ptr<ProjectManager> projectManager;
   std::unique_ptr<ModeManager> modeManager;
+  std::unique_ptr<MidiOutputManager> midiOutputManager;
+  std::unique_ptr<EventEngine> eventEngine;
   std::unique_ptr<AppContext> appContext;
   std::unique_ptr<CommandFactory> commandFactory;
   std::unique_ptr<CommandQueue> commandQueue;

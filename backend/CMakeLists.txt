@@ -81,7 +81,13 @@ target_sources(DAWAudioEngine PRIVATE
     src/commands/track-commands.cpp
     src/commands/mode-commands.cpp
     src/commands/song-commands.cpp
+    src/commands/midi-commands.cpp
+    src/commands/event-commands.cpp
     src/services/mode-manager.cpp
+    src/services/midi-output-manager.cpp
+    src/events/event-rule.cpp
+    src/events/event-engine.cpp
+    src/events/midi-action-executor.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE

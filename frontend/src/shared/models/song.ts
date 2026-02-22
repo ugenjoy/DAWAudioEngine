@@ -1,3 +1,4 @@
+import { EventRule } from './event-rule'
 import { Track } from './track'
 
 export interface Song {
@@ -6,4 +7,5 @@ export interface Song {
   tempo: number
   metronomeMute: boolean
   tracks: Track[]
+  events?: EventRule[]
 }
