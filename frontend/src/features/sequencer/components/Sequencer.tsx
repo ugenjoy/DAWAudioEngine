@@ -29,14 +29,67 @@ function Sequencer() {
   const tracksContainer = useRef<HTMLDivElement>(null)
   const isProgrammaticScroll = useRef(false)
 
+  const targetScrollX = useRef(0)
+  const targetScrollY = useRef(0)
+  const currentScrollX = useRef(0)
+  const currentScrollY = useRef(0)
+  const animFrameId = useRef(0)
+
+  const animateScroll = useCallback(() => {
+    const lerpFactor = 0.15
+    const threshold = 0.5
+    let needsUpdate = false
+
+    const diffX = targetScrollX.current - currentScrollX.current
+    if (Math.abs(diffX) < threshold) {
+      currentScrollX.current = targetScrollX.current
+    } else {
+      currentScrollX.current += diffX * lerpFactor
+      needsUpdate = true
+    }
+
+    const diffY = targetScrollY.current - currentScrollY.current
+    if (Math.abs(diffY) < threshold) {
+      currentScrollY.current = targetScrollY.current
+    } else {
+      currentScrollY.current += diffY * lerpFactor
+      needsUpdate = true
+    }
+
+    setScrollX(currentScrollX.current)
+    setScrollY(currentScrollY.current)
+
+    if (needsUpdate) {
+      animFrameId.current = requestAnimationFrame(animateScroll)
+    } else {
+      animFrameId.current = 0
+    }
+  }, [])
+
+  const startScrollAnimation = useCallback(() => {
+    if (!animFrameId.current) {
+      animFrameId.current = requestAnimationFrame(animateScroll)
+    }
+  }, [animateScroll])
+
+  useEffect(() => {
+    return () => {
+      if (animFrameId.current) cancelAnimationFrame(animFrameId.current)
+    }
+  }, [])
+
   const handleWheel = useCallback(
     (e: WheelEvent) => {
       e.preventDefault()
 
-      if (e.shiftKey) {
-        const scrollDelta = e.deltaY > 0 ? 50 : -50
-        setScrollX((prev) => Math.max(0, prev + scrollDelta))
-      } else if (e.ctrlKey) {
+      // Normalize delta to pixels: deltaMode 1 = lines, 2 = pages
+      const linePx = 20
+      const pagePx = 400
+      const modeMultiplier =
+        e.deltaMode === 1 ? linePx : e.deltaMode === 2 ? pagePx : 1
+      const scrollSpeed = 0.5
+
+      if (e.ctrlKey) {
         const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
         const canvasWidth = (e.target as HTMLElement).getBoundingClientRect()
           .width
@@ -51,22 +104,47 @@ function Sequencer() {
               Math.min(canvasWidth - offset, cursorPosScreenX),
             )
 
-            return Math.max(0, cursorPosRawPx * newZoom - anchorScreenX)
+            const newScrollX = Math.max(
+              0,
+              cursorPosRawPx * newZoom - anchorScreenX,
+            )
+            targetScrollX.current = newScrollX
+            currentScrollX.current = newScrollX
+            return newScrollX
           })
           return newZoom
         })
       } else {
-        const scrollDelta = e.deltaY > 0 ? 50 : -50
-        const maxScrollY = tracksContainer.current
-          ? tracksContainer.current.scrollHeight -
-            tracksContainer.current.clientHeight
-          : 0
-        setScrollY((prev) =>
-          Math.max(0, Math.min(maxScrollY, prev + scrollDelta)),
-        )
+        const rawDeltaX = e.deltaX * modeMultiplier
+        const rawDeltaY = e.deltaY * modeMultiplier
+        const deltaX = e.shiftKey ? rawDeltaY : rawDeltaX
+        const deltaY = e.shiftKey ? 0 : rawDeltaY
+
+        if (deltaX !== 0) {
+          targetScrollX.current = Math.max(
+            0,
+            targetScrollX.current + deltaX * scrollSpeed,
+          )
+        }
+
+        if (deltaY !== 0) {
+          const maxScrollY = tracksContainer.current
+            ? tracksContainer.current.scrollHeight -
+              tracksContainer.current.clientHeight
+            : 0
+          targetScrollY.current = Math.max(
+            0,
+            Math.min(
+              maxScrollY,
+              targetScrollY.current + deltaY * scrollSpeed,
+            ),
+          )
+        }
+
+        startScrollAnimation()
       }
     },
-    [cursorPos, activeSong],
+    [cursorPos, activeSong, startScrollAnimation],
   )
 
   const handleClick = useCallback(
@@ -130,6 +208,8 @@ function Sequencer() {
         isProgrammaticScroll.current = false
         return
       }
+      targetScrollY.current = container.scrollTop
+      currentScrollY.current = container.scrollTop
       setScrollY(container.scrollTop)
     }
     container.addEventListener('scroll', handleContainerScroll)
@@ -138,10 +218,11 @@ function Sequencer() {
 
   useEffect(() => {
     if (!activeSong) return
-    setScrollX(() => {
-      const cursorPosRawPx = (cursorPos / 60) * activeSong.tempo * 20
-      return Math.max(0, cursorPosRawPx - 100)
-    })
+    const cursorPosRawPx = (cursorPos / 60) * activeSong.tempo * 20
+    const newScrollX = Math.max(0, cursorPosRawPx - 100)
+    targetScrollX.current = newScrollX
+    currentScrollX.current = newScrollX
+    setScrollX(newScrollX)
     setZoom(1)
   }, [activeSong])
 
