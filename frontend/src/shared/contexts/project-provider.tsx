@@ -1,8 +1,15 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react'
 import { Project } from '../models/project'
 import { useWebSocket } from './websocket-provider'
 import { Song } from '../models/song'
 import { Track } from '../models/track'
+import { AudioInput } from '../models/audio-input'
 
 export interface TrackView {
   track: Track
@@ -25,6 +32,14 @@ type ProjectProviderState = {
   playing: boolean
   activeSong: Song | undefined
   trackViews: TrackView[]
+  availableInputs: AudioInput[]
+  setTrackInput: (
+    trackId: string,
+    inputChannel: number,
+    stereo: boolean,
+  ) => void
+  setTrackMonitoring: (trackId: string, monitoring: boolean) => void
+  fetchAudioInputs: () => void
 }
 
 const initialState: ProjectProviderState = {
@@ -35,6 +50,10 @@ const initialState: ProjectProviderState = {
   playing: false,
   activeSong: undefined,
   trackViews: [],
+  availableInputs: [],
+  setTrackInput: () => null,
+  setTrackMonitoring: () => null,
+  fetchAudioInputs: () => null,
 }
 
 const ProjectProviderContext = createContext<ProjectProviderState>(initialState)
@@ -50,14 +69,34 @@ export function ProjectProvider({
   const [cursorPos, setCursorPos] = useState<number>(0)
   const [playing, setPlaying] = useState<boolean>(false)
   const [trackViews, setTrackViews] = useState<TrackView[]>([])
+  const [availableInputs, setAvailableInputs] = useState<AudioInput[]>([])
+
+  const fetchAudioInputs = useCallback(() => {
+    if (ws && isConnected) {
+      send({ action: 'audio.listInputs' })
+    }
+  }, [ws, isConnected, send])
+
+  const setTrackInput = useCallback(
+    (trackId: string, inputChannel: number, stereo: boolean) => {
+      send({ action: 'track.setInput', trackId, inputChannel, stereo })
+    },
+    [send],
+  )
+
+  const setTrackMonitoring = useCallback(
+    (trackId: string, monitoring: boolean) => {
+      send({ action: 'track.setMonitoring', trackId, monitoring })
+    },
+    [send],
+  )
 
   useEffect(() => {
     if (ws && isConnected) {
       ws.addEventListener('message', onMessage)
       try {
-        send({
-          action: 'project.getLoaded',
-        })
+        send({ action: 'project.getLoaded' })
+        send({ action: 'audio.listInputs' })
       } catch (error) {
         console.error(error)
       }
@@ -109,6 +148,40 @@ export function ProjectProvider({
         setPlaying(false)
         break
       }
+      case 'audio.inputsList': {
+        if (data.inputs !== undefined) setAvailableInputs(data.inputs)
+        break
+      }
+      case 'track.inputChanged': {
+        setActiveSong((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            tracks: prev.tracks.map((t) =>
+              t.id === data.trackId
+                ? {
+                    ...t,
+                    inputChannel: data.inputChannel,
+                    inputStereo: data.stereo,
+                  }
+                : t,
+            ),
+          }
+        })
+        break
+      }
+      case 'track.monitoringChanged': {
+        setActiveSong((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            tracks: prev.tracks.map((t) =>
+              t.id === data.trackId ? { ...t, monitoring: data.monitoring } : t,
+            ),
+          }
+        })
+        break
+      }
     }
   }
 
@@ -120,7 +193,7 @@ export function ProjectProvider({
         track: t,
         fillColor: `--track-${colorIndex}-fill`,
         strokeColor: `--track-${colorIndex}-stroke`,
-        height: 80,
+        height: 100,
       } satisfies TrackView
       return tv
     })
@@ -137,6 +210,10 @@ export function ProjectProvider({
     playing,
     activeSong,
     trackViews,
+    availableInputs,
+    setTrackInput,
+    setTrackMonitoring,
+    fetchAudioInputs,
   }
 
   return (

@@ -3,6 +3,8 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 #include <nlohmann/json.hpp>
+
+#include <atomic>
 #include <string>
 
 /**
@@ -90,6 +92,17 @@ class AudioTrack {
    */
   virtual std::string getTrackType() const = 0;
 
+  /** @brief Called when sample rate changes to allow resampling */
+  virtual void sampleRateChanged() {};
+
+  // Input routing
+  void setInputChannel(int channel);
+  int getInputChannel() const;
+  void setInputStereo(bool stereo);
+  bool isInputStereo() const;
+  void setMonitoring(bool enabled);
+  bool isMonitoring() const;
+
   // Getters
   std::string getId() const { return id; }
 
@@ -107,4 +120,13 @@ class AudioTrack {
 
   /** @brief Mute state (true = muted, false = playing) */
   bool mute;
+
+  /** @brief Selected input channel index (-1 = no input) */
+  std::atomic<int> inputChannel{-1};
+
+  /** @brief Input stereo mode (false = mono duplicated, true = stereo pair) */
+  std::atomic<bool> inputStereo{false};
+
+  /** @brief Monitoring state (true = input audio replaces clips) */
+  std::atomic<bool> monitoring{false};
 };

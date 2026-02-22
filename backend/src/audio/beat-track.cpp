@@ -116,6 +116,9 @@ nlohmann::json BeatTrack::toJson() const {
   j["pan"] = pan;
   j["mute"] = mute;
   j["frequency"] = frequency;
+  j["inputChannel"] = inputChannel.load(std::memory_order_relaxed);
+  j["inputStereo"] = inputStereo.load(std::memory_order_relaxed);
+  j["monitoring"] = monitoring.load(std::memory_order_relaxed);
   return j;
 }
 
@@ -132,6 +135,9 @@ std::unique_ptr<BeatTrack> BeatTrack::fromJson(const nlohmann::json& j) {
   track->volume = j.value("volume", 0.4f);
   track->pan = j.value("pan", 0.0f);
   track->mute = j.value("mute", false);
+  track->inputChannel.store(j.value("inputChannel", -1), std::memory_order_relaxed);
+  track->inputStereo.store(j.value("inputStereo", false), std::memory_order_relaxed);
+  track->monitoring.store(j.value("monitoring", false), std::memory_order_relaxed);
 
   return track;
 }

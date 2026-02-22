@@ -1,21 +1,35 @@
 import { useProject } from '@/shared/contexts/project-provider'
 import { Transport } from '../../transport/components/Transport'
 import Track from './Track'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Timeline from './Timeline'
 import { useSequencer } from '../hooks/useSequencer'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 
 function Sequencer() {
-  const { project, playing, activeSong, cursorPos, trackViews } = useProject()
+  const {
+    project,
+    playing,
+    activeSong,
+    cursorPos,
+    trackViews,
+    availableInputs,
+    setTrackInput,
+    setTrackMonitoring,
+  } = useProject()
   const { send } = useWebSocket()
   const [zoom, setZoom] = useState(1)
   const [scrollX, setScrollX] = useState(0)
-  const { draw } = useSequencer(zoom, scrollX)
+  const [scrollY, setScrollY] = useState(0)
+  const { draw } = useSequencer(zoom, scrollX, scrollY)
+
+  const tracksContainer = useRef<HTMLDivElement>(null)
+  const isProgrammaticScroll = useRef(false)
 
   const handleWheel = useCallback(
     (e: WheelEvent) => {
       e.preventDefault()
+
       if (e.shiftKey) {
         const scrollDelta = e.deltaY > 0 ? 50 : -50
         setScrollX((prev) => Math.max(0, prev + scrollDelta))
@@ -38,6 +52,15 @@ function Sequencer() {
           })
           return newZoom
         })
+      } else {
+        const scrollDelta = e.deltaY > 0 ? 50 : -50
+        const maxScrollY = tracksContainer.current
+          ? tracksContainer.current.scrollHeight -
+            tracksContainer.current.clientHeight
+          : 0
+        setScrollY((prev) =>
+          Math.max(0, Math.min(maxScrollY, prev + scrollDelta)),
+        )
       }
     },
     [cursorPos, activeSong],
@@ -91,6 +114,26 @@ function Sequencer() {
   )
 
   useEffect(() => {
+    if (!tracksContainer.current) return
+    isProgrammaticScroll.current = true
+    tracksContainer.current.scrollTo({ top: scrollY, behavior: 'instant' })
+  }, [scrollY])
+
+  useEffect(() => {
+    if (!tracksContainer.current) return
+    const container = tracksContainer.current
+    function handleContainerScroll() {
+      if (isProgrammaticScroll.current) {
+        isProgrammaticScroll.current = false
+        return
+      }
+      setScrollY(container.scrollTop)
+    }
+    container.addEventListener('scroll', handleContainerScroll)
+    return () => container.removeEventListener('scroll', handleContainerScroll)
+  }, [tracksContainer.current])
+
+  useEffect(() => {
     if (!activeSong) return
     setScrollX(() => {
       const cursorPosRawPx = (cursorPos / 60) * activeSong.tempo * 20
@@ -104,19 +147,28 @@ function Sequencer() {
     activeSong && (
       <div className="flex flex-col h-full">
         <Transport />
-        <div className="flex flex-row h-full">
-          <div className="flex flex-col bg-foreground/5 w-48 border-r">
-            <div className="h-5.25 bg-background border-b border-border" />
+        <div className="flex flex-row h-full overflow-hidden">
+          <div
+            ref={tracksContainer}
+            className="relative top-5.25 pb-50 flex flex-col w-48 border-r overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {trackViews.map((t) => {
               return (
                 <Track
                   key={t.track.id}
+                  id={t.track.id}
                   name={t.track.name}
                   mute={t.track.mute}
                   solo={t.track.solo}
                   volume={t.track.volume}
                   color={t.strokeColor}
                   height={t.height}
+                  inputChannel={t.track.inputChannel ?? -1}
+                  inputStereo={t.track.inputStereo ?? false}
+                  monitoring={t.track.monitoring ?? false}
+                  availableInputs={availableInputs}
+                  onSetInput={setTrackInput}
+                  onSetMonitoring={setTrackMonitoring}
                 />
               )
             })}

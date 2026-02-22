@@ -17,6 +17,7 @@ class ClipsManager {
 
   void renderClips(juce::AudioBuffer<float>& clipBuffer, int numSamples,
                    double currentPosition);
+  void sampleRateChanged();
 
   // Serialization
   nlohmann::json toJson() const;

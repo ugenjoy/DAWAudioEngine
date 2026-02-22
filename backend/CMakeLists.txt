@@ -78,6 +78,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/commands/command-processor.cpp
     src/commands/transport-commands.cpp
     src/commands/project-commands.cpp
+    src/commands/track-commands.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE

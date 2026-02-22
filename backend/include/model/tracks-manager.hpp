@@ -16,8 +16,13 @@ class TracksManager {
   void getTrackList();
 
   void renderTracks(juce::AudioBuffer<float>& mixBuffer,
-                    juce::AudioBuffer<float>& trackBuffer, int numSamples,
-                    double currentPosition, float tempo);
+                    juce::AudioBuffer<float>& trackBuffer,
+                    const juce::AudioBuffer<float>& inputBuffer,
+                    int numSamples, double currentPosition, float tempo,
+                    bool isPlaying);
+
+  AudioTrack* findTrackById(const std::string& id) const;
+  void sampleRateChanged();
 
   // Serialization
   nlohmann::json toJson() const;

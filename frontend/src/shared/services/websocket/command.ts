@@ -12,7 +12,11 @@ type TransportCommand =
   | 'transport.setPlayheadPosition'
   | 'transport.setCursorPosition'
 
-type Command = ProjectCommand | TransportCommand
+type AudioCommand = 'audio.listInputs' | 'audio.listDevices' | 'audio.setDevice'
+
+type TrackCommand = 'track.setInput' | 'track.setMonitoring'
+
+type Command = ProjectCommand | TransportCommand | AudioCommand | TrackCommand
 
 export interface WebSocketMessage {
   action: Command

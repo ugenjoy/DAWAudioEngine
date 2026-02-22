@@ -5,6 +5,7 @@ import { useProject } from '@/shared/contexts/project-provider'
 import { useEffect, useState } from 'react'
 import { Song } from '@/shared/models/song'
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
+import { AudioSettingsDialog } from '@/features/audio-settings/components/AudioSettingsDialog'
 
 function Navbar() {
   const { isConnected, send } = useWebSocket()
@@ -65,14 +66,17 @@ function Navbar() {
         )}
       </div>
 
-      <div className="absolute right-4 text-xs flex items-center gap-2 w-min">
-        <div
-          className={cn(
-            'rounded-full size-2.5',
-            isConnected ? 'bg-chart-4' : 'bg-gray-500',
-          )}
-        />
-        {isConnected ? 'Connected' : 'Disconnected'}
+      <div className="absolute right-4 text-xs flex items-center gap-3">
+        <AudioSettingsDialog />
+        <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              'rounded-full size-2.5',
+              isConnected ? 'bg-chart-4' : 'bg-gray-500',
+            )}
+          />
+          {isConnected ? 'Connected' : 'Disconnected'}
+        </div>
       </div>
     </div>
   )

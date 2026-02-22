@@ -34,6 +34,10 @@ void AudioFileTrack::renderBlock(juce::AudioBuffer<float>& buffer,
   }
 }
 
+void AudioFileTrack::sampleRateChanged() {
+  clipsManager->sampleRateChanged();
+}
+
 nlohmann::json AudioFileTrack::toJson() const {
   nlohmann::json j;
   j["type"] = getTrackType();
@@ -43,6 +47,9 @@ nlohmann::json AudioFileTrack::toJson() const {
   j["pan"] = pan;
   j["mute"] = mute;
   j["clips"] = clipsManager->toJson();
+  j["inputChannel"] = inputChannel.load(std::memory_order_relaxed);
+  j["inputStereo"] = inputStereo.load(std::memory_order_relaxed);
+  j["monitoring"] = monitoring.load(std::memory_order_relaxed);
   return j;
 }
 
@@ -59,6 +66,9 @@ std::unique_ptr<AudioFileTrack> AudioFileTrack::fromJson(
   track->volume = j.value("volume", 0.4f);
   track->pan = j.value("pan", 0.0f);
   track->mute = j.value("mute", false);
+  track->inputChannel.store(j.value("inputChannel", -1), std::memory_order_relaxed);
+  track->inputStereo.store(j.value("inputStereo", false), std::memory_order_relaxed);
+  track->monitoring.store(j.value("monitoring", false), std::memory_order_relaxed);
 
   // Load clips
   if (j.contains("clips")) {
