@@ -20,12 +20,13 @@ export function Transport() {
   const [isRecording, setIsRecording] = useState(false)
   const [isLooping, setIsLooping] = useState(false)
   const [bpm, setBpm] = useState<number | string>(120)
-  const [masterVolume, setMasterVolume] = useState(1.0)
   const { send } = useWebSocket()
   const {
     activeSong,
     playheadPos: transportPos,
     playing,
+    masterVolume,
+    setMasterVolume,
     setTempo,
     setMetronomeMute,
   } = useProject()
@@ -45,9 +46,7 @@ export function Transport() {
   }
 
   function handleMasterVolume(value: number[]) {
-    const vol = value[0]
-    setMasterVolume(vol)
-    send({ action: 'transport.setMasterVolume', volume: vol })
+    setMasterVolume(value[0])
   }
 
   function commitBpm() {

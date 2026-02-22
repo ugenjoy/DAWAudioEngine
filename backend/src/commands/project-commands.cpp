@@ -108,6 +108,7 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
   response["playheadPosition"] = audioEngine.getPlayheadPosition();
   response["cursorPosition"] = audioEngine.getCursorPosition();
   response["isPlaying"] = audioEngine.isPlaying();
+  response["masterVolume"] = audioEngine.getMasterVolume();
 
   reply(response.dump());
 

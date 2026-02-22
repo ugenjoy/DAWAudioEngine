@@ -30,6 +30,8 @@ type ProjectProviderState = {
   playheadPos: number
   cursorPos: number
   playing: boolean
+  masterVolume: number
+  setMasterVolume: (volume: number) => void
   activeSong: Song | undefined
   trackViews: TrackView[]
   availableInputs: AudioInput[]
@@ -55,6 +57,8 @@ const initialState: ProjectProviderState = {
   playheadPos: 0,
   cursorPos: 0,
   playing: false,
+  masterVolume: 1.0,
+  setMasterVolume: () => null,
   activeSong: undefined,
   trackViews: [],
   availableInputs: [],
@@ -85,6 +89,7 @@ export function ProjectProvider({
   const [trackViews, setTrackViews] = useState<TrackView[]>([])
   const [availableInputs, setAvailableInputs] = useState<AudioInput[]>([])
   const [isDirty, setIsDirty] = useState<boolean>(false)
+  const [masterVolume, setMasterVolume] = useState<number>(1.0)
 
   const fetchAudioInputs = useCallback(() => {
     if (ws && isConnected) {
@@ -147,6 +152,14 @@ export function ProjectProvider({
     [send],
   )
 
+  const sendMasterVolume = useCallback(
+    (volume: number) => {
+      setMasterVolume(volume)
+      send({ action: 'transport.setMasterVolume', volume })
+    },
+    [send],
+  )
+
   useEffect(() => {
     if (ws && isConnected) {
       ws.addEventListener('message', onMessage)
@@ -171,7 +184,7 @@ export function ProjectProvider({
           setPlayheadPos(data.playheadPosition)
         if (data.cursorPosition !== undefined) setCursorPos(data.cursorPosition)
         if (data.isPlaying !== undefined) setPlaying(data.isPlaying)
-
+        if (data.masterVolume !== undefined) setMasterVolume(data.masterVolume)
         break
       }
       case 'project.loaded': {
@@ -301,6 +314,10 @@ export function ProjectProvider({
         })
         break
       }
+      case 'transport.masterVolume': {
+        if (data.volume !== undefined) setMasterVolume(data.volume)
+        break
+      }
       case 'event.listUpdated': {
         setIsDirty(true)
         break
@@ -331,6 +348,8 @@ export function ProjectProvider({
     playheadPos,
     cursorPos,
     playing,
+    masterVolume,
+    setMasterVolume: sendMasterVolume,
     activeSong,
     trackViews,
     availableInputs,
