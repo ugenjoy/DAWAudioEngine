@@ -150,6 +150,19 @@ nlohmann::json ProjectManager::serializeProject(
   // Serialize songs
   projectJson["songs"] = songsManager.toJson();
 
+  // Strip waveform data from clips (regenerated on load from audio files)
+  for (auto& song : projectJson["songs"]) {
+    if (song.contains("tracks")) {
+      for (auto& track : song["tracks"]) {
+        if (track.contains("clips")) {
+          for (auto& clip : track["clips"]) {
+            clip.erase("waveform");
+          }
+        }
+      }
+    }
+  }
+
   // Serialize project-level events
   projectJson["events"] = songsManager.projectEventsToJson();
 

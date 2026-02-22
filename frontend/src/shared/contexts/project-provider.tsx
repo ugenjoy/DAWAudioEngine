@@ -170,6 +170,7 @@ export function ProjectProvider({
         if (data.playheadPosition !== undefined)
           setPlayheadPos(data.playheadPosition)
         if (data.cursorPosition !== undefined) setCursorPos(data.cursorPosition)
+        if (data.isPlaying !== undefined) setPlaying(data.isPlaying)
 
         break
       }

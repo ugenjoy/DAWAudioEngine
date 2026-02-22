@@ -107,6 +107,7 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
   response["activeSong"] = songJson;
   response["playheadPosition"] = audioEngine.getPlayheadPosition();
   response["cursorPosition"] = audioEngine.getCursorPosition();
+  response["isPlaying"] = audioEngine.isPlaying();
 
   reply(response.dump());
 

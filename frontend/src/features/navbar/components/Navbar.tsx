@@ -71,14 +71,17 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
         >
           {project?.name}
         </Button>
-        {!isLiveMode && isDirty && (
+        {!isLiveMode && (
           <Button
             variant="ghost"
-            // size="icon-xs"
             onClick={saveProject}
-            title="Save project"
+            title={isDirty ? 'Save project (unsaved changes)' : 'Save project'}
+            className="relative"
           >
             <IconDeviceFloppy size={16} />
+            {isDirty && (
+              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-400" />
+            )}
           </Button>
         )}
       </div>
