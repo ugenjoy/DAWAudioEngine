@@ -27,6 +27,14 @@ export function AudioSettingsDialog() {
     (dt) => dt.name === currentDevice?.deviceType,
   )
 
+  function handleDeviceTypeChange(typeName: string) {
+    const type = deviceTypes.find((dt) => dt.name === typeName)
+    if (!type) return
+    const output = type.outputDevices[0] ?? ''
+    const input = type.inputDevices[0] ?? ''
+    setAudioDevice(typeName, output, input)
+  }
+
   function handleInputChange(inputDevice: string) {
     if (!currentDevice) return
     setAudioDevice(
@@ -84,6 +92,27 @@ export function AudioSettingsDialog() {
           <DialogTitle>Audio Settings</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
+          {deviceTypes.length > 1 && (
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-medium">Driver</Label>
+              <Select
+                onValueChange={handleDeviceTypeChange}
+                value={currentDevice?.deviceType}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Driver" />
+                </SelectTrigger>
+                <SelectContent>
+                  {deviceTypes.map((dt) => (
+                    <SelectItem key={dt.name} value={dt.name}>
+                      {dt.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="flex flex-row justify-between">
             {currentDevice?.availableSampleRates?.length &&
               currentDevice.availableSampleRates.length > 0 && (

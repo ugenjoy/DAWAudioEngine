@@ -17,9 +17,13 @@ import { EventsDialog } from '@/features/events/components/EventsDialog'
 
 interface NavbarProps {
   onOpenProjectDialog?: () => void
+  onOpenConnectionDialog?: () => void
 }
 
-function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
+function Navbar({
+  onOpenProjectDialog,
+  onOpenConnectionDialog,
+}: Readonly<NavbarProps>) {
   const { isConnected, send } = useWebSocket()
   const { activeSong, project, playing, isDirty, saveProject } = useProject()
   const { isLiveMode, setEditMode, setLiveMode } = useMode()
@@ -66,10 +70,10 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
       <div className="absolute left-2 flex items-center gap-1">
         <Button
           variant="ghost"
-          className="text-md text-foreground hover:text-foreground"
+          className="text-sm text-foreground hover:text-foreground"
           onClick={onOpenProjectDialog}
         >
-          {project?.name}
+          {project?.name ?? 'Open project'}
         </Button>
         {!isLiveMode && (
           <Button
@@ -148,7 +152,10 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
 
         <EventsDialog />
         <AudioSettingsDialog />
-        <div className="flex items-center gap-2">
+        <button
+          className="flex items-center gap-2 cursor-pointer hover:opacity-80"
+          onClick={onOpenConnectionDialog}
+        >
           <div
             className={cn(
               'rounded-full size-2.5',
@@ -156,7 +163,7 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
             )}
           />
           {isConnected ? 'Connected' : 'Disconnected'}
-        </div>
+        </button>
       </div>
     </div>
   )

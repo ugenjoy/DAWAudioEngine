@@ -1,0 +1,46 @@
+[Unit]
+Description=JACK Audio Connection Kit - Real-time audio server
+After=sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+User=ugo
+Group=audio
+
+# JACK server configuration:
+# -d alsa          : Use ALSA backend
+# -d hw:Pro70795057: USB audio interface (use `aplay -l` to find card name)
+# -r 48000         : Sample rate 48kHz
+# -p 256           : Period size (buffer) in samples
+# -n 3             : Number of periods (absorbs USB jitter)
+# -i 12            : Input channels
+# -o 2             : Output channels
+ExecStart=/usr/bin/jackd -d alsa -d hw:Pro70795057,0 -r 48000 -p 256 -n 3 -i 12 -o 2
+
+# Restart policy
+Restart=on-failure
+RestartSec=3
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Real-time audio scheduling
+Nice=-20
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=80
+
+# Resource limits for audio
+LimitRTPRIO=95
+LimitMEMLOCK=infinity
+
+# Environment
+Environment=HOME=/home/ugo
+Environment=JACK_NO_AUDIO_RESERVATION=1
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jack-audio
+
+[Install]
+WantedBy=multi-user.target

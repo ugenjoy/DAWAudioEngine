@@ -26,7 +26,8 @@ type ProjectProviderProps = {
 
 type ProjectProviderState = {
   project: Project | undefined | null
-  setProject: (project: Project) => void
+  loadProject: (path: string) => void
+  isLoading: boolean
   playheadPos: number
   cursorPos: number
   playing: boolean
@@ -53,11 +54,12 @@ type ProjectProviderState = {
 
 const initialState: ProjectProviderState = {
   project: undefined,
-  setProject: () => null,
+  loadProject: () => null,
+  isLoading: false,
   playheadPos: 0,
   cursorPos: 0,
   playing: false,
-  masterVolume: 1.0,
+  masterVolume: 1,
   setMasterVolume: () => null,
   activeSong: undefined,
   trackViews: [],
@@ -82,6 +84,7 @@ export function ProjectProvider({
 }: Readonly<ProjectProviderProps>) {
   const { ws, isConnected, send } = useWebSocket()
   const [project, setProject] = useState<Project | null>()
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [activeSong, setActiveSong] = useState<Song>()
   const [playheadPos, setPlayheadPos] = useState<number>(0)
   const [cursorPos, setCursorPos] = useState<number>(0)
@@ -89,13 +92,21 @@ export function ProjectProvider({
   const [trackViews, setTrackViews] = useState<TrackView[]>([])
   const [availableInputs, setAvailableInputs] = useState<AudioInput[]>([])
   const [isDirty, setIsDirty] = useState<boolean>(false)
-  const [masterVolume, setMasterVolume] = useState<number>(1.0)
+  const [masterVolume, setMasterVolume] = useState<number>(1)
 
   const fetchAudioInputs = useCallback(() => {
     if (ws && isConnected) {
       send({ action: 'audio.listInputs' })
     }
   }, [ws, isConnected, send])
+
+  const loadProject = useCallback(
+    (path: string) => {
+      send({ action: 'project.load', path: path })
+      setIsLoading(true)
+    },
+    [send],
+  )
 
   const setTrackInput = useCallback(
     (trackId: string, inputChannel: number, stereo: boolean) => {
@@ -190,6 +201,7 @@ export function ProjectProvider({
       case 'project.loaded': {
         if (data.project !== undefined) setProject(data.project)
         setIsDirty(false)
+        setIsLoading(false)
         break
       }
       case 'project.saved': {
@@ -342,9 +354,8 @@ export function ProjectProvider({
 
   const value = {
     project,
-    setProject: (project: Project) => {
-      setProject(project)
-    },
+    loadProject,
+    isLoading,
     playheadPos,
     cursorPos,
     playing,

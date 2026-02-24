@@ -1,23 +1,11 @@
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { Button } from '@/shared/shadcn/components/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/shadcn/components/dialog'
 import { Input } from '@/shared/shadcn/components/input'
 import { IconLoader } from '@tabler/icons-react'
 import { useState } from 'react'
 
-interface ConnectionDialogProps {
-  open: boolean
-  setOpen: (value: boolean) => void
-}
-
-function ConnectionDialog({ open, setOpen }: Readonly<ConnectionDialogProps>) {
-  const { connect, isConnected, isLoading } = useWebSocket()
-
+function ConnectionPage() {
+  const { isConnected, connect, isLoading } = useWebSocket()
   const [ip, setIp] = useState('127.0.0.1')
   const [port, setPort] = useState('8080')
 
@@ -26,11 +14,8 @@ function ConnectionDialog({ open, setOpen }: Readonly<ConnectionDialogProps>) {
   }
 
   return (
-    <Dialog modal={true} open={open} onOpenChange={setOpen}>
-      <DialogContent className="flex flex-col gap-6 m-auto">
-        <DialogHeader>
-          <DialogTitle>Connect to server</DialogTitle>
-        </DialogHeader>
+    <main className="flex flex-col h-screen w-screen">
+      <div className="m-auto">
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -58,9 +43,9 @@ function ConnectionDialog({ open, setOpen }: Readonly<ConnectionDialogProps>) {
             )}
           </Button>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </main>
   )
 }
 
-export default ConnectionDialog
+export default ConnectionPage

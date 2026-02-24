@@ -1,42 +1,40 @@
-# Compilation sur Raspberry Pi OS
+# Raspberry Pi Deployment Guide
 
-Guide complet pour compiler et exécuter le DAW Audio Engine sur Raspberry Pi.
+Complete guide to build, configure and deploy the DAW Audio Engine on Raspberry Pi.
 
-## Compatibilité
+## Compatibility
 
-✅ **Le projet est compatible Raspberry Pi OS**
+- **JUCE 8.x**: Official ARM/Raspberry Pi support
+- **Crow WebSocket**: ARM compatible (header-only)
+- **ASIO standalone**: All architectures (header-only)
+- **nlohmann/json**: All architectures (header-only)
+- **No x86-specific code** in the sources
 
-- **JUCE 8.0.10** : Support officiel ARM/Raspberry Pi
-- **Crow WebSocket** : Compatible ARM (header-only)
-- **ASIO standalone** : Compatible toutes architectures
-- **nlohmann/json** : Compatible ARM (header-only)
-- **Aucun code x86-specific** dans les sources
+### Recommended hardware
 
-### Matériel recommandé
+- **Raspberry Pi 4** (2GB+ RAM) - Recommended
+- **Raspberry Pi 3B+** - Works but slower compilation
+- **USB audio interface** (class-compliant) - Required for quality audio
+- **Fast SD card** - Class 10 / U3 minimum
 
-- **Raspberry Pi 4** (2GB+ RAM) - Recommandé
-- **Raspberry Pi 3B+** - Fonctionne mais plus lent
-- **Interface audio USB** - Fortement recommandé pour meilleure qualité/latence
-- **Carte SD rapide** - Classe 10 ou U3 minimum
+### Estimated build time
 
-### Temps de compilation estimé
-
-- **Raspberry Pi 4** : ~30-40 minutes (première compilation)
-- **Raspberry Pi 3** : ~45-60 minutes
-- Compilations incrémentales : 2-5 minutes
+- **Raspberry Pi 4**: ~30-40 min (first build)
+- **Raspberry Pi 3**: ~45-60 min
+- Incremental builds: 2-5 min
 
 ---
 
-## Étape 1 : Installation des dépendances
+## Step 1: System dependencies
 
-### Mise à jour du système
+### System update
 
 ```bash
 sudo apt-get update
 sudo apt-get upgrade -y
 ```
 
-### Outils de compilation essentiels
+### Build tools
 
 ```bash
 sudo apt-get install -y \
@@ -46,7 +44,7 @@ sudo apt-get install -y \
     pkg-config
 ```
 
-### Dépendances JUCE
+### JUCE dependencies
 
 ```bash
 sudo apt-get install -y \
@@ -63,371 +61,398 @@ sudo apt-get install -y \
     libxrender-dev
 ```
 
-⚠️ **Important** : `libfontconfig1-dev` est indispensable pour compiler `juceaide` (outil interne JUCE).
+> `libfontconfig1-dev` is required to build `juceaide` (internal JUCE tool).
 
-💡 **Note** : Ce projet utilise **ALSA uniquement** sur Raspberry Pi (pas de JACK requis). Configuration simple et latence correcte.
+### JACK audio server
+
+JACK is required for low-latency USB audio on Raspberry Pi. The built-in ALSA driver has timing issues with USB interfaces at 48kHz on the Pi's xHCI controller.
+
+```bash
+sudo apt-get install -y jackd2 libjack-jackd2-dev
+```
+
+When prompted about real-time privileges, select **Yes**.
 
 ---
 
-## Étape 2 : Clonage du projet
+## Step 2: Clone the project
 
 ```bash
-# Aller dans votre répertoire de travail
 cd ~
-
-# Cloner le repository
-git clone <URL_DU_REPOSITORY> daw
+git clone <REPOSITORY_URL> daw
 cd daw
 
-# Initialiser le submodule JUCE (CRITIQUE !)
+# Initialize JUCE submodule (CRITICAL!)
 git submodule update --init --recursive
 ```
 
-⚠️ **N'oubliez pas le submodule** : Sans cette commande, JUCE ne sera pas présent et la compilation échouera.
+> Without the submodule, JUCE will be missing and compilation will fail.
 
 ---
 
-## Étape 3 : Configuration avec CMake
+## Step 3: System configuration for real-time audio
+
+### CPU governor
+
+Set the CPU to `performance` mode to prevent frequency scaling during audio processing:
 
 ```bash
-# Créer le dossier de build
-cd backend
-mkdir build
-cd build
+# Create a systemd service for persistent CPU governor
+sudo tee /etc/systemd/system/cpu-performance.service << 'EOF'
+[Unit]
+Description=Set CPU governor to performance
 
-# Configurer le projet en mode Release
-cmake .. -DCMAKE_BUILD_TYPE=Release
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable cpu-performance
+sudo systemctl start cpu-performance
 ```
 
-### Vérifications après CMake
+### Real-time audio limits
 
-La sortie devrait afficher :
-- ✅ `Found ALSA`
-- ✅ `Configuring juceaide` → `Building juceaide` (peut prendre 5-10 minutes)
-- ✅ `Configuring done`
+```bash
+# Add real-time limits for the audio group
+sudo tee -a /etc/security/limits.conf << 'EOF'
+@audio   -  rtprio     95
+@audio   -  memlock    unlimited
+@audio   -  nice       -20
+EOF
 
-Si vous voyez des erreurs, consultez la section [Dépannage](#dépannage).
+# Add user to audio group
+sudo usermod -aG audio $USER
+```
+
+> A reboot is required for limits.conf changes to take effect.
+
+### Verify configuration
+
+After reboot:
+
+```bash
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor  # → performance
+ulimit -r                                                    # → 95
+groups $USER                                                 # → should include "audio"
+```
 
 ---
 
-## Étape 4 : Compilation
+## Step 4: Build
 
 ```bash
-# Compiler avec tous les cores disponibles
+cd ~/daw/backend
+mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 ```
 
-☕ **Patience** : La première compilation prend 30-45 minutes sur Raspberry Pi 4.
+### Verify build output
 
-### Compilation réussie
+CMake should display:
 
-Vous devriez voir à la fin :
-```
-[100%] Built target DAWAudioEngine
-```
+- `Found ALSA`
+- `JACK Audio Connection Kit found - enabling JACK support`
+- `Configuring done`
 
-Le binaire se trouve dans :
+The binary is located at:
+
 ```
 build/DAWAudioEngine_artefacts/Release/DAWAudioEngine
 ```
 
-### Vérifier le binaire
+### Architecture-specific optimizations (optional)
 
+**Raspberry Pi 4:**
 ```bash
-# Vérifier que c'est bien un exécutable ARM
-file DAWAudioEngine_artefacts/Release/DAWAudioEngine
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -mcpu=cortex-a72 -mfpu=neon-fp-armv8"
 ```
 
-Sortie attendue :
-```
-ELF 32-bit LSB executable, ARM, ...
+**Raspberry Pi 3:**
+```bash
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -mcpu=cortex-a53 -mfpu=neon-fp-armv8"
 ```
 
 ---
 
-## Étape 5 : Configuration audio
+## Step 5: Audio configuration
 
-### Lister les périphériques audio
+### Identify your USB audio interface
 
 ```bash
 aplay -l
 ```
 
-Exemple de sortie :
+Example output:
+
 ```
-card 0: vc4hdmi0 [vc4-hdmi-0] ...       # HDMI (haute latence)
+card 0: vc4hdmi0 [vc4-hdmi-0] ...       # HDMI (high latency)
 card 1: vc4hdmi1 [vc4-hdmi-1] ...       # HDMI 2
-card 2: Pro70795057 [Babyface Pro] ...  # Interface USB
+card 2: Pro70795057 [Babyface Pro] ...   # USB interface
 ```
 
-### Recommandations
-
-- **Interface USB** (carte 2 dans l'exemple) : Meilleure qualité, latence plus basse
-- **Audio intégré 3.5mm** : Latence élevée (~50-100ms), qualité moyenne
-- **HDMI** : Fonctionne mais latence variable
-
-### Tester la sortie audio
+### Test audio output
 
 ```bash
-# Tester avec interface USB (remplacer X par le numéro de carte)
-speaker-test -D plughw:2,0 -c 2 -t wav
-
-# Tester avec audio intégré
-speaker-test -D plughw:0,0 -c 2 -t wav
+speaker-test -D plughw:2,0 -c 2 -r 48000 -t wav
 ```
 
-Appuyez sur Ctrl+C pour arrêter.
+> Replace `2` with your USB interface card number. Press Ctrl+C to stop.
+
+### Start JACK
+
+JACK manages the audio interface and provides low-latency, real-time audio routing. Configure it for your interface:
+
+```bash
+# Start JACK (adjust parameters for your interface)
+jackd -d alsa -d hw:Pro70795057,0 -r 48000 -p 256 -n 3 -i 12 -o 2 &
+```
+
+Parameters:
+- `-d hw:<CARD_NAME>,0`: Your USB interface (use card name from `aplay -l`)
+- `-r 48000`: Sample rate in Hz
+- `-p 256`: Period size in samples (lower = less latency, more CPU)
+- `-n 3`: Number of periods (3 recommended for USB on Pi, absorbs USB jitter)
+- `-i 12`: Number of input channels
+- `-o 2`: Number of output channels
+
+> Adjust `-p` based on your needs: 256 (~16ms latency), 512 (~32ms). If you hear crackling, increase the period size.
+
+### Verify JACK
+
+```bash
+# List JACK ports
+jack_lsp
+```
+
+You should see `system:capture_*` and `system:playback_*` ports.
 
 ---
 
-## Étape 6 : Lancement de l'application
+## Step 6: Launch the application
 
 ```bash
 cd ~/daw/backend/build
 ./DAWAudioEngine_artefacts/Release/DAWAudioEngine
 ```
 
-### Sortie attendue
+In the frontend audio settings, select **JACK** as the driver (not ALSA).
+
+### Expected output
 
 ```
 === DAW Audio Engine - Starting ===
-[Messages d'initialisation JUCE]
-WebSocket server started on port 8080
-```
-
-### Avertissements normaux (non bloquants)
-
-Vous pourriez voir ce message au lancement :
-```
-Cannot connect to server socket err = No such file or directory
-jack server is not running or cannot be started
-```
-
-**C'est totalement normal !** JUCE essaie automatiquement JACK en premier (même si désactivé à la compilation), puis bascule sur ALSA. Le son fonctionne correctement via ALSA. Cet avertissement est inoffensif et peut être ignoré.
-
----
-
-## Test de l'application
-
-### Vérifier le WebSocket
-
-Depuis un autre terminal ou une autre machine sur le réseau :
-
-```bash
-# Vérifier que le port 8080 écoute
-netstat -tuln | grep 8080
-
-# Ou depuis une autre machine
-telnet <IP_RASPBERRY_PI> 8080
-```
-
-### Tester la lecture audio
-
-Connectez votre frontend/client au WebSocket de la Raspberry Pi et testez la lecture audio.
-
----
-
-## Dépannage
-
-### Erreur : `ft2build.h: No such file or directory`
-
-**Cause** : Headers FreeType manquants
-
-**Solution** :
-```bash
-sudo apt-get install -y libfontconfig1-dev libfreetype-dev
-cd ~/daw/backend
-rm -rf build
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-```
-
-### Erreur de link : `undefined reference to __atomic_*`
-
-**Cause** : Sur Raspberry Pi 3 et antérieurs, la bibliothèque atomique doit être liée explicitement
-
-**Solution** :
-```bash
-cd ~/daw/backend/build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-latomic"
-make -j$(nproc)
-```
-
-### Pas de son / Erreur de périphérique audio
-
-**Vérifier les permissions** :
-```bash
-# Vérifier que vous êtes dans le groupe audio
-groups $USER
-
-# Si "audio" n'apparaît pas :
-sudo usermod -aG audio $USER
-# Puis déconnectez-vous et reconnectez-vous
-```
-
-**Vérifier ALSA** :
-```bash
-# Lister les devices
-aplay -L
-
-# Tester la sortie
-speaker-test -D default -c 2
-```
-
-### Port 8080 déjà utilisé
-
-```bash
-# Voir ce qui utilise le port
-sudo netstat -tulpn | grep :8080
-
-# Tuer le processus si nécessaire
-sudo kill -9 <PID>
+Audio initialized:
+- Buffer size: 256 samples
+- Sample rate: 48000 Hz
+- Input channels: 12
+- Output channels: 2
+- Ready to play!
+WebSocket server starting on port 8080
 ```
 
 ---
 
-## Optimisations de compilation
+## Production deployment
 
-### Pour Raspberry Pi 4 spécifiquement
+### JACK service (auto-start at boot)
 
-```bash
-cd ~/daw/backend/build
-cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_FLAGS="-O3 -mcpu=cortex-a72 -mfpu=neon-fp-armv8"
-make -j4
-```
+A systemd service template is provided in `backend/jack-audio.service`.
 
-### Pour Raspberry Pi 3
+> **Important**: Edit `jack-audio.service` to match your audio interface card name and desired settings (sample rate, buffer size, channels) before installing.
 
 ```bash
-cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_FLAGS="-O3 -mcpu=cortex-a53 -mfpu=neon-fp-armv8"
-make -j4
+sudo cp ~/daw/backend/jack-audio.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable jack-audio
+sudo systemctl start jack-audio
+sudo systemctl status jack-audio
 ```
 
-### Pour Raspberry Pi 2
+### DAW Audio Engine service
+
+The DAW service (`backend/daw-audio-engine.service`) is configured to start **after** JACK. It includes real-time scheduling priority and security hardening.
 
 ```bash
-cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CXX_FLAGS="-O3 -mcpu=cortex-a7 -mfpu=neon-vfpv4"
-make -j4
-```
-
----
-
-## Déploiement en production
-
-### Lancer au démarrage avec systemd
-
-Créer le fichier de service :
-```bash
-sudo nano /etc/systemd/system/daw-audio-engine.service
-```
-
-Contenu :
-```ini
-[Unit]
-Description=DAW Audio Engine
-After=network.target sound.target
-
-[Service]
-Type=simple
-User=ugo
-WorkingDirectory=/home/ugo/daw/backend/build
-ExecStart=/home/ugo/daw/backend/build/DAWAudioEngine_artefacts/Release/DAWAudioEngine
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Activer et démarrer :
-```bash
+sudo cp ~/daw/backend/daw-audio-engine.service /etc/systemd/system/
+sudo systemctl daemon-reload
 sudo systemctl enable daw-audio-engine
 sudo systemctl start daw-audio-engine
 sudo systemctl status daw-audio-engine
 ```
 
+### nginx reverse proxy
+
+A nginx configuration is provided in `backend/nginx-daw-audio-engine.conf`. It exposes the WebSocket (`/ws`) and health check (`/health`) on port 80.
+
+```bash
+sudo apt-get install -y nginx
+sudo cp ~/daw/backend/nginx-daw-audio-engine.conf /etc/nginx/sites-available/daw-audio-engine
+sudo ln -sf /etc/nginx/sites-available/daw-audio-engine /etc/nginx/sites-enabled/daw-audio-engine
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl restart nginx
+sudo systemctl enable nginx
+```
+
+### Frontend static files
+
+The frontend is served from `/var/www/daw-frontend` (nginx cannot access home directories by default).
+
+```bash
+# Install Node.js
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash -
+sudo apt-get install -y nodejs
+
+# Install pnpm
+sudo npm install -g pnpm
+
+# Build the frontend
+cd ~/daw/frontend
+pnpm install
+pnpm build
+
+# Deploy to /var/www
+sudo mkdir -p /var/www/daw-frontend
+sudo cp -r ~/daw/frontend/dist/* /var/www/daw-frontend/
+```
+
+> After each frontend rebuild, run `sudo cp -r` again to update the served files.
+
+### Test the deployment
+
+From another machine on the network:
+
+```bash
+# Health check
+curl http://<RASPBERRY_PI_IP>/health
+
+# WebSocket
+npx wscat -c ws://<RASPBERRY_PI_IP>/ws
+
+# Frontend: open http://<RASPBERRY_PI_IP> in a browser
+```
+
 ### Logs
 
 ```bash
-# Voir les logs en temps réel
+# JACK server logs
+sudo journalctl -u jack-audio -f
+
+# DAW Audio Engine logs
 sudo journalctl -u daw-audio-engine -f
 
-# Voir les derniers logs
-sudo journalctl -u daw-audio-engine -n 50
+# nginx logs
+sudo tail -f /var/log/nginx/error.log
 ```
 
 ---
 
-## Performances attendues
+## Troubleshooting
 
-### Raspberry Pi 4 (4GB)
+### `ft2build.h: No such file or directory`
 
-- ✅ Compilation : 30-40 minutes
-- ✅ Latence audio : 5-20ms (USB), 50-100ms (intégré)
-- ✅ Utilisation CPU : 15-30% par piste
-- ✅ Pistes simultanées : 8-16 tracks
+Missing FreeType headers:
 
-### Raspberry Pi 3B+
+```bash
+sudo apt-get install -y libfontconfig1-dev libfreetype-dev
+rm -rf ~/daw/backend/build
+cd ~/daw/backend && mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+```
 
-- ✅ Compilation : 45-60 minutes
-- ✅ Latence audio : 10-30ms (USB), 50-100ms (intégré)
-- ⚠️ Utilisation CPU : 20-40% par piste
-- ⚠️ Pistes simultanées : 4-8 tracks
+### `undefined reference to __atomic_*`
 
-### Raspberry Pi Zero/2
+On Raspberry Pi 3 and earlier, link the atomic library explicitly:
 
-❌ Non recommandé pour audio temps-réel
-✅ Peut fonctionner pour lecture seule (non temps-réel)
+```bash
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-latomic"
+```
+
+### JACK not found during CMake
+
+```bash
+sudo apt-get install -y jackd2 libjack-jackd2-dev
+```
+
+Then reconfigure: `cmake .. -DCMAKE_BUILD_TYPE=Release`
+
+### No sound / Audio device error
+
+```bash
+# Check group membership
+groups $USER  # should include "audio"
+
+# If not:
+sudo usermod -aG audio $USER
+# Then log out and log back in
+```
+
+### JACK fails to start
+
+```bash
+# Check if another process uses the audio device
+fuser -v /dev/snd/*
+
+# Check JACK logs
+sudo journalctl -u jack-audio --no-pager -n 20
+
+# Test JACK manually
+jackd -d alsa -d hw:Pro70795057,0 -r 48000 -p 512 -n 3 -i 12 -o 2
+```
+
+### Audio crackling with JACK
+
+Increase the period size (`-p`) or number of periods (`-n`):
+
+```bash
+# More conservative settings
+jackd -d alsa -d hw:Pro70795057,0 -r 48000 -p 512 -n 4 -i 12 -o 2
+```
+
+Also verify:
+- CPU governor is `performance`: `cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor`
+- Real-time limits are set: `ulimit -r` should return `95`
+- Power supply is adequate (3A+ for Pi 4 with USB audio)
+
+### Port 8080 already in use
+
+```bash
+sudo netstat -tulpn | grep :8080
+sudo kill -9 <PID>
+```
 
 ---
 
-## Conseils et bonnes pratiques
+## Architecture notes
 
-### Audio
+### Why JACK instead of ALSA directly?
 
-- 🎛️ **Privilégier une interface USB** de qualité (class-compliant)
-- 🔊 **Éviter l'audio intégré** pour applications critiques
-- ⏱️ **Ajuster les buffers** selon vos besoins de latence vs stabilité
-- 🎚️ **Vérifier les niveaux** avec `alsamixer`
+USB audio interfaces on Raspberry Pi (via the VL805 xHCI controller) have timing issues when accessed directly through ALSA. Symptoms include:
 
-### Système
+- **At 44.1kHz**: Audio plays ~9% too fast (hardware clock runs at 48kHz regardless)
+- **At 48kHz**: Crackling/xruns even with large buffers (>5000 samples)
 
-- 💾 **Utiliser une carte SD rapide** (U3 minimum)
-- 🌡️ **Surveiller la température** : `vcgencmd measure_temp`
-- ⚡ **Utiliser une alimentation de qualité** (3A minimum pour Pi 4)
-- 🔌 **Éviter les hubs USB non alimentés**
+JACK solves this by managing USB audio timing with its own real-time threads and triple-buffering (`-n 3`), absorbing the USB jitter that the raw ALSA driver cannot handle.
 
-### Développement
+### Audio driver selection
 
-- 📝 **Compilations incrémentales** : Seul le code modifié est recompilé
-- 🔄 **Git workflow** : Développer sur PC, compiler sur Pi
-- 🧪 **Tester avant déploiement** : Mode Debug pour développement
-- 🚀 **Mode Release pour production** : Optimisations activées
+| Driver | Use case | Latency |
+|--------|----------|---------|
+| **JACK** | USB audio on Raspberry Pi (recommended) | ~5-16ms |
+| **ALSA** | Built-in audio, HDMI, or desktop Linux | Variable |
+
+Sample rate and buffer size are configured at the **JACK server level** (in `jack-audio.service`), not per-client. The application inherits these settings when connecting to JACK.
 
 ---
 
-## Ressources supplémentaires
+## Resources
 
 - [JUCE Documentation](https://docs.juce.com/)
+- [JACK Audio Connection Kit](https://jackaudio.org/)
 - [Raspberry Pi Audio Documentation](https://www.raspberrypi.com/documentation/computers/os.html#audio)
 - [ALSA Project](https://www.alsa-project.org/)
-
----
-
-## Support
-
-Pour tout problème spécifique au projet, ouvrir une issue sur le repository GitHub.
-
-Pour les problèmes généraux Raspberry Pi :
-- [Forum Raspberry Pi](https://forums.raspberrypi.com/)
-- [JUCE Forum](https://forum.juce.com/)
-
----
-
-**Compilation réussie ? Bon développement audio sur Raspberry Pi ! 🎵🎛️**
