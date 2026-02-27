@@ -149,7 +149,7 @@ function Track({
           min={0}
           max={1}
           step={0.01}
-          defaultValue={[volume]}
+          value={[volume]}
           onValueChange={(value) => onSetVolume(id, value[0])}
           className="flex-1 h-1 bg-muted rounded-full cursor-pointer"
           disabled={isLiveMode}

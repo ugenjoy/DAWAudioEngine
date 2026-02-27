@@ -16,7 +16,7 @@ interface ConnectionDialogProps {
 }
 
 function ConnectionDialog({ open, setOpen }: Readonly<ConnectionDialogProps>) {
-  const { connect, isLoading } = useWebSocket()
+  const { connect, isConnected, isLoading } = useWebSocket()
 
   const [ip, setIp] = useState('127.0.0.1')
   const [port, setPort] = useState('8080')
@@ -26,24 +26,38 @@ function ConnectionDialog({ open, setOpen }: Readonly<ConnectionDialogProps>) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog modal={true} open={open} onOpenChange={setOpen}>
       <DialogContent className="flex flex-col gap-6 m-auto">
         <DialogHeader>
           <DialogTitle>Connect to server</DialogTitle>
         </DialogHeader>
-        <Input
-          placeholder="127.0.0.1"
-          value={ip}
-          onChange={(e) => setIp(e.target.value)}
-        />
-        <Input
-          placeholder="8080"
-          value={port}
-          onChange={(e) => setPort(e.target.value)}
-        />
-        <Button onClick={handleConnect}>
-          {isLoading ? <IconLoader className="animate-spin" /> : 'Connect'}
-        </Button>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleConnect()
+          }}
+          className="flex flex-col gap-6"
+        >
+          <Input
+            placeholder="127.0.0.1"
+            value={ip}
+            onChange={(e) => setIp(e.target.value)}
+          />
+          <Input
+            placeholder="8080"
+            value={port}
+            onChange={(e) => setPort(e.target.value)}
+          />
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? (
+              <IconLoader className="animate-spin" />
+            ) : isConnected ? (
+              'Reconnect'
+            ) : (
+              'Connect'
+            )}
+          </Button>
+        </form>
       </DialogContent>
     </Dialog>
   )

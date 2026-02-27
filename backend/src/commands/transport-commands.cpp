@@ -33,8 +33,8 @@ void SetMasterVolumeCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().setMasterVolume(volume);
 
   nlohmann::json broadcast = {{"type", "broadcast"},
-                               {"event", "transport.masterVolume"},
-                               {"volume", ctx.getAudioEngine().getMasterVolume()}};
+                              {"event", "transport.masterVolume"},
+                              {"volume", ctx.getAudioEngine().getMasterVolume()}};
   ctx.getWebSocketServer().broadcast(broadcast.dump());
 }
 

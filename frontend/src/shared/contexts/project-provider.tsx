@@ -26,10 +26,13 @@ type ProjectProviderProps = {
 
 type ProjectProviderState = {
   project: Project | undefined | null
-  setProject: (project: Project) => void
+  loadProject: (path: string) => void
+  isLoading: boolean
   playheadPos: number
   cursorPos: number
   playing: boolean
+  masterVolume: number
+  setMasterVolume: (volume: number) => void
   activeSong: Song | undefined
   trackViews: TrackView[]
   availableInputs: AudioInput[]
@@ -51,10 +54,13 @@ type ProjectProviderState = {
 
 const initialState: ProjectProviderState = {
   project: undefined,
-  setProject: () => null,
+  loadProject: () => null,
+  isLoading: false,
   playheadPos: 0,
   cursorPos: 0,
   playing: false,
+  masterVolume: 1,
+  setMasterVolume: () => null,
   activeSong: undefined,
   trackViews: [],
   availableInputs: [],
@@ -78,6 +84,7 @@ export function ProjectProvider({
 }: Readonly<ProjectProviderProps>) {
   const { ws, isConnected, send } = useWebSocket()
   const [project, setProject] = useState<Project | null>()
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [activeSong, setActiveSong] = useState<Song>()
   const [playheadPos, setPlayheadPos] = useState<number>(0)
   const [cursorPos, setCursorPos] = useState<number>(0)
@@ -85,12 +92,21 @@ export function ProjectProvider({
   const [trackViews, setTrackViews] = useState<TrackView[]>([])
   const [availableInputs, setAvailableInputs] = useState<AudioInput[]>([])
   const [isDirty, setIsDirty] = useState<boolean>(false)
+  const [masterVolume, setMasterVolume] = useState<number>(1)
 
   const fetchAudioInputs = useCallback(() => {
     if (ws && isConnected) {
       send({ action: 'audio.listInputs' })
     }
   }, [ws, isConnected, send])
+
+  const loadProject = useCallback(
+    (path: string) => {
+      send({ action: 'project.load', path: path })
+      setIsLoading(true)
+    },
+    [send],
+  )
 
   const setTrackInput = useCallback(
     (trackId: string, inputChannel: number, stereo: boolean) => {
@@ -147,6 +163,14 @@ export function ProjectProvider({
     [send],
   )
 
+  const sendMasterVolume = useCallback(
+    (volume: number) => {
+      setMasterVolume(volume)
+      send({ action: 'transport.setMasterVolume', volume })
+    },
+    [send],
+  )
+
   useEffect(() => {
     if (ws && isConnected) {
       ws.addEventListener('message', onMessage)
@@ -170,12 +194,14 @@ export function ProjectProvider({
         if (data.playheadPosition !== undefined)
           setPlayheadPos(data.playheadPosition)
         if (data.cursorPosition !== undefined) setCursorPos(data.cursorPosition)
-
+        if (data.isPlaying !== undefined) setPlaying(data.isPlaying)
+        if (data.masterVolume !== undefined) setMasterVolume(data.masterVolume)
         break
       }
       case 'project.loaded': {
         if (data.project !== undefined) setProject(data.project)
         setIsDirty(false)
+        setIsLoading(false)
         break
       }
       case 'project.saved': {
@@ -300,6 +326,14 @@ export function ProjectProvider({
         })
         break
       }
+      case 'transport.masterVolume': {
+        if (data.volume !== undefined) setMasterVolume(data.volume)
+        break
+      }
+      case 'event.listUpdated': {
+        setIsDirty(true)
+        break
+      }
     }
   }
 
@@ -320,12 +354,13 @@ export function ProjectProvider({
 
   const value = {
     project,
-    setProject: (project: Project) => {
-      setProject(project)
-    },
+    loadProject,
+    isLoading,
     playheadPos,
     cursorPos,
     playing,
+    masterVolume,
+    setMasterVolume: sendMasterVolume,
     activeSong,
     trackViews,
     availableInputs,

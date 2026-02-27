@@ -36,8 +36,8 @@ float MetronomeTrack::getSampleValue(double sampleTime, float tempo) {
 }
 
 void MetronomeTrack::renderBlock(juce::AudioBuffer<float>& buffer,
-                                  int startSample, int numSamples,
-                                  double startTime, float tempo) {
+                                 int startSample, int numSamples,
+                                 double startTime, float tempo) {
   if (mute) {
     buffer.clear(0, startSample, numSamples);
     return;

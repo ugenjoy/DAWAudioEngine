@@ -1,8 +1,8 @@
 #pragma once
 
-#include "commands/command.hpp"
-
 #include <string>
+
+#include "commands/command.hpp"
 
 /**
  * Command to list available audio devices.

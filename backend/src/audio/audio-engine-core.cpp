@@ -48,8 +48,8 @@ void AudioEngineCore::audioDeviceAboutToStart(juce::AudioIODevice* device) {
   }
 
   juce::Logger::writeToLog("Audio initialized:");
-  juce::Logger::writeToLog(
-      "- Buffer size: " + juce::String(bufferSize) + " samples");
+  juce::Logger::writeToLog("- Buffer size: " + juce::String(bufferSize) +
+                           " samples");
   juce::Logger::writeToLog("- Sample rate: " + juce::String(sampleRate) +
                            " Hz");
   juce::Logger::writeToLog(
@@ -116,7 +116,7 @@ void AudioEngineCore::play() {
   if (activeSong && !playing) {
     playing.store(true);
 
-    startTimerHz(30);
+    startTimerHz(10);
 
     if (wsServer != nullptr) {
       // Broadcast transport play event to all clients
@@ -189,7 +189,7 @@ void AudioEngineCore::switchPlaying() {
     playing.store(!wasPlaying);
 
     if (!wasPlaying) {
-      startTimerHz(30);
+      startTimerHz(60);
     } else {
       stopTimer();
     }
@@ -298,21 +298,14 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
   // Copy from mix buffer to output channel pointers
   for (int ch = 0; ch < numOutputChannels; ++ch) {
     int srcCh = std::min(ch, mixBuffer.getNumChannels() - 1);
-    juce::FloatVectorOperations::copy(outputChannelData[ch],
-                                      mixBuffer.getReadPointer(srcCh),
-                                      numSamples);
+    juce::FloatVectorOperations::copy(
+        outputChannelData[ch], mixBuffer.getReadPointer(srcCh), numSamples);
   }
 }
 
 void AudioEngineCore::setMasterVolume(float volume) {
   masterVolume.store(juce::jlimit(0.0f, 1.0f, volume),
                      std::memory_order_relaxed);
-}
-
-void AudioEngineCore::setTimerRate(int intervalMs) {
-  if (isTimerRunning()) {
-    startTimer(intervalMs);
-  }
 }
 
 void AudioEngineCore::setMonitoringEnabled(bool enabled) {

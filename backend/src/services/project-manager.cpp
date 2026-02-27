@@ -1,4 +1,5 @@
 #include "services/project-manager.hpp"
+
 #include <fstream>
 
 ProjectManager::ProjectManager()
@@ -150,6 +151,22 @@ nlohmann::json ProjectManager::serializeProject(
   // Serialize songs
   projectJson["songs"] = songsManager.toJson();
 
+  // Strip waveform data from clips (regenerated on load from audio files)
+  for (auto& song : projectJson["songs"]) {
+    if (song.contains("tracks")) {
+      for (auto& track : song["tracks"]) {
+        if (track.contains("clips")) {
+          for (auto& clip : track["clips"]) {
+            clip.erase("waveform");
+          }
+        }
+      }
+    }
+  }
+
+  // Serialize project-level events
+  projectJson["events"] = songsManager.projectEventsToJson();
+
   return projectJson;
 }
 
@@ -257,5 +274,10 @@ void ProjectManager::deserializeProject(const nlohmann::json& projectJson,
   // Load songs
   if (projectJson.contains("songs")) {
     songsManager.loadFromJson(projectJson["songs"]);
+  }
+
+  // Load project-level events
+  if (projectJson.contains("events")) {
+    songsManager.loadProjectEventsFromJson(projectJson["events"]);
   }
 }

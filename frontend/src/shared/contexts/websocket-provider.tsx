@@ -4,27 +4,35 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { WebSocketMessage } from '../services/websocket/command'
+import { useNavigate } from 'react-router'
+
+const AUTO_CONNECT = import.meta.env.VITE_WS_AUTO_CONNECT === 'true'
 
 type WebSocketProviderProps = {
   children: React.ReactNode
 }
 
 type WebSocketProviderState = {
-  ws: WebSocket | undefined | null
+  ws: WebSocket | null
   isConnected: boolean
   isLoading: boolean
+  autoConnect: boolean
   connect: (url: string) => void
+  disconnect: () => void
   send: (command: WebSocketMessage) => void
 }
 
 const initialState: WebSocketProviderState = {
-  ws: undefined,
+  ws: null,
   isConnected: false,
   isLoading: false,
+  autoConnect: AUTO_CONNECT,
   connect: () => undefined,
+  disconnect: () => undefined,
   send: () => undefined,
 }
 
@@ -35,44 +43,69 @@ export function WebSocketProvider({
   children,
   ...props
 }: Readonly<WebSocketProviderProps>) {
-  const [ws, setWs] = useState<WebSocket | null | undefined>()
+  const [ws, setWs] = useState<WebSocket | null>(null)
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState<boolean>(false)
+  const navigate = useNavigate()
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function createSocket(url: string) {
+    const newWs = new WebSocket(url)
+    newWs.onopen = () => {
+      setIsLoading(false)
+      setIsConnected(true)
+      navigate('/')
+      console.log('WebSocket connected')
+    }
+    newWs.onclose = () => {
+      setWs(null)
+      setIsConnected(false)
+      console.log('WebSocket disconnected')
+      if (AUTO_CONNECT) {
+        reconnectTimer.current = setTimeout(() => {
+          console.log('Auto-reconnecting...')
+          createSocket(url)
+        }, 2000)
+      }
+    }
+    newWs.onerror = () => {
+      setWs(null)
+      setIsLoading(false)
+    }
+    setWs(newWs)
+  }
 
   useEffect(() => {
+    if (AUTO_CONNECT) {
+      const protocol =
+        globalThis.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const url = `${protocol}//${globalThis.location.host}/ws`
+      console.log(`Auto-connecting to ${url}`)
+      setIsLoading(true)
+      createSocket(url)
+    }
+    return () => {
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
+    }
+  }, [])
+
+  const disconnect = useCallback(() => {
+    if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
     if (ws) {
-      ws.onopen = () => {
-        setIsLoading(false)
-        setIsConnected(true)
-        console.log('WebSocket connected')
-      }
-      ws.onclose = () => {
-        setIsConnected(false)
-        setWs(null)
-        console.log('WebSocket disconnected')
-      }
-      ws.onerror = () => {
-        if (isLoading) setIsLoading(false)
-        if (ws) setWs(null)
-      }
+      ws.close()
+      setWs(null)
     }
   }, [ws])
 
-  const connect = useCallback(
-    (url: string) => {
-      if (!ws) {
-        setIsLoading(true)
-        setWs(new WebSocket(url))
-      }
-    },
-    [ws],
-  )
+  const connect = useCallback((url: string) => {
+    setIsLoading(true)
+    createSocket(url)
+  }, [])
 
   const send = useCallback(
     (command: WebSocketMessage) => {
       if (ws?.readyState === WebSocket.OPEN) {
-        const strCmd = JSON.stringify(command)
-        ws.send(strCmd)
+        ws.send(JSON.stringify(command))
       }
     },
     [ws],
@@ -83,10 +116,12 @@ export function WebSocketProvider({
       ws,
       isConnected,
       isLoading,
+      autoConnect: AUTO_CONNECT,
       connect,
+      disconnect,
       send,
     }
-  }, [ws, isConnected, connect, send])
+  }, [ws, isConnected, isLoading, connect, disconnect, send])
 
   return (
     <WebSocketProviderContext.Provider {...props} value={value}>

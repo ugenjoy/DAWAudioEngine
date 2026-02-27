@@ -6,6 +6,8 @@ class ProjectManager;
 class WebSocketServer;
 class ModeManager;
 class CommandProcessor;
+class EventEngine;
+class MidiOutputManager;
 
 /**
  * Application context providing access to all core services.
@@ -20,18 +22,24 @@ class AppContext {
              SongsManager& songsManager,
              ProjectManager& projectManager,
              WebSocketServer& wsServer,
-             ModeManager& modeManager)
+             ModeManager& modeManager,
+             EventEngine& eventEngine,
+             MidiOutputManager& midiOutputManager)
       : audioEngine(audioEngine),
         songsManager(songsManager),
         projectManager(projectManager),
         wsServer(wsServer),
-        modeManager(modeManager) {}
+        modeManager(modeManager),
+        eventEngine(eventEngine),
+        midiOutputManager(midiOutputManager) {}
 
   AudioEngineCore& getAudioEngine() { return audioEngine; }
   SongsManager& getSongsManager() { return songsManager; }
   ProjectManager& getProjectManager() { return projectManager; }
   WebSocketServer& getWebSocketServer() { return wsServer; }
   ModeManager& getModeManager() { return modeManager; }
+  EventEngine& getEventEngine() { return eventEngine; }
+  MidiOutputManager& getMidiOutputManager() { return midiOutputManager; }
 
   /** Injected after construction to avoid circular dependency. */
   void setCommandProcessor(CommandProcessor* processor) {
@@ -45,5 +53,7 @@ class AppContext {
   ProjectManager& projectManager;
   WebSocketServer& wsServer;
   ModeManager& modeManager;
+  EventEngine& eventEngine;
+  MidiOutputManager& midiOutputManager;
   CommandProcessor* commandProcessor = nullptr;
 };

@@ -9,15 +9,13 @@
 
 #include <atomic>
 #include <memory>
-#include <vector>
-
 #include <nlohmann/json.hpp>
+#include <vector>
 
 #include "audio/audio-track.hpp"
 #include "audio/metronome-track.hpp"
 #include "model/song.hpp"
 #include "websocket/websocket-server.hpp"
-
 
 // TODO: [MEDIUM] Add error callback system:
 // - std::function<void(const String& error)> errorCallback;
@@ -59,7 +57,6 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   float getMasterVolume() const { return masterVolume.load(); }
 
   // Mode-driven optimizations
-  void setTimerRate(int intervalMs);
   void setMonitoringEnabled(bool enabled);
 
   /**

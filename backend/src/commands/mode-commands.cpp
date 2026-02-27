@@ -11,8 +11,6 @@
 
 static constexpr int kEditPollIntervalMs = 1;
 static constexpr int kLivePollIntervalMs = 10;
-static constexpr int kEditTimerRateMs = 33;   // ~30Hz
-static constexpr int kLiveTimerRateMs = 100;  // ~10Hz
 
 void SetEditModeCommand::execute(AppContext& ctx) {
   auto& modeManager = ctx.getModeManager();
@@ -25,42 +23,40 @@ void SetEditModeCommand::execute(AppContext& ctx) {
     return;
   }
 
-  // Restore edit optimizations: faster polling, higher broadcast rate, unfreeze
+  // Restore edit optimizations: faster polling, unfreeze
   if (auto* proc = ctx.getCommandProcessor()) {
     proc->setPollInterval(kEditPollIntervalMs);
   }
-  ctx.getAudioEngine().setTimerRate(kEditTimerRateMs);
   ctx.getAudioEngine().rebuildMonitoredChannelMask();
   ctx.getAudioEngine().unfreezeTracks();
 
   nlohmann::json broadcast = {{"type", "broadcast"},
-                               {"event", "mode.changed"},
-                               {"mode", "edit"}};
+                              {"event", "mode.changed"},
+                              {"mode", "edit"}};
   ctx.getWebSocketServer().broadcast(broadcast.dump());
 }
 
 void SetLiveModeCommand::execute(AppContext& ctx) {
   ctx.getModeManager().setMode(AppMode::Live);
 
-  // Live optimizations: slower polling, lower broadcast rate, freeze tracks
+  // Live optimizations: slower polling, freeze tracks
   // Monitoring remains functional — the channel mask already avoids unnecessary copies
   if (auto* proc = ctx.getCommandProcessor()) {
     proc->setPollInterval(kLivePollIntervalMs);
   }
-  ctx.getAudioEngine().setTimerRate(kLiveTimerRateMs);
   ctx.getAudioEngine().freezeTracks();
 
   nlohmann::json broadcast = {{"type", "broadcast"},
-                               {"event", "mode.changed"},
-                               {"mode", "live"}};
+                              {"event", "mode.changed"},
+                              {"mode", "live"}};
   ctx.getWebSocketServer().broadcast(broadcast.dump());
 }
 
 void GetModeCommand::execute(AppContext& ctx) {
   std::string mode = ctx.getModeManager().isLiveMode() ? "live" : "edit";
   nlohmann::json response = {{"type", "response"},
-                              {"event", "mode.current"},
-                              {"mode", mode}};
+                             {"event", "mode.current"},
+                             {"mode", mode}};
   reply(response.dump());
 }
 

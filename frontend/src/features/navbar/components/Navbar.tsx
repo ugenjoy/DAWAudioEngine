@@ -13,12 +13,17 @@ import {
   IconMusic,
 } from '@tabler/icons-react'
 import { AudioSettingsDialog } from '@/features/audio-settings/components/AudioSettingsDialog'
+import { EventsDialog } from '@/features/events/components/EventsDialog'
 
 interface NavbarProps {
   onOpenProjectDialog?: () => void
+  onOpenConnectionDialog?: () => void
 }
 
-function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
+function Navbar({
+  onOpenProjectDialog,
+  onOpenConnectionDialog,
+}: Readonly<NavbarProps>) {
   const { isConnected, send } = useWebSocket()
   const { activeSong, project, playing, isDirty, saveProject } = useProject()
   const { isLiveMode, setEditMode, setLiveMode } = useMode()
@@ -49,7 +54,7 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
   return (
     <div
       className={cn(
-        'w-full p-2 items-center grid-cols-[1fr_auto_1fr] grid border-b',
+        'w-full p-2 min-h-10 items-center grid-cols-[1fr_auto_1fr] grid border-b',
         isLiveMode ? 'border-primary' : 'border-orange-500/50',
       )}
     >
@@ -65,19 +70,22 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
       <div className="absolute left-2 flex items-center gap-1">
         <Button
           variant="ghost"
-          className="text-md text-foreground hover:text-foreground"
+          className="text-sm text-foreground hover:text-foreground"
           onClick={onOpenProjectDialog}
         >
-          {project?.name}
+          {project?.name ?? 'Open project'}
         </Button>
-        {!isLiveMode && isDirty && (
+        {!isLiveMode && (
           <Button
             variant="ghost"
-            // size="icon-xs"
             onClick={saveProject}
-            title="Save project"
+            title={isDirty ? 'Save project (unsaved changes)' : 'Save project'}
+            className="relative"
           >
             <IconDeviceFloppy size={16} />
+            {isDirty && (
+              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-400" />
+            )}
           </Button>
         )}
       </div>
@@ -142,8 +150,12 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
           </Button>
         )}
 
+        <EventsDialog />
         <AudioSettingsDialog />
-        <div className="flex items-center gap-2">
+        <button
+          className="flex items-center gap-2 cursor-pointer hover:opacity-80"
+          onClick={onOpenConnectionDialog}
+        >
           <div
             className={cn(
               'rounded-full size-2.5',
@@ -151,7 +163,7 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
             )}
           />
           {isConnected ? 'Connected' : 'Disconnected'}
-        </div>
+        </button>
       </div>
     </div>
   )

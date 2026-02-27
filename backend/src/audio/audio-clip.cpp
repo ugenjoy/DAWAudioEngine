@@ -47,6 +47,14 @@ void AudioClip::loadAudioFile() {
   }
 
   loaded = true;
+
+  // Clamp duration to actual audio file length (accounting for offset)
+  double audioDuration = resampledLength / ctx.sampleRate;
+  double maxDuration = std::max(0.0, audioDuration - offset);
+  if (duration <= 0.0 || duration > maxDuration) {
+    duration = maxDuration;
+  }
+
   generateWaveformPeaks();
 }
 
@@ -96,7 +104,8 @@ void AudioClip::generateWaveformPeaks(int pointsPerSecond) {
   int samplesPerPoint = (int)(ctx.sampleRate / pointsPerSecond);
   int totalSamples = audioData.getNumSamples();
 
-  // Only generate peaks for the visible portion: [offset, offset + duration]
+  // Generate peaks for the visible portion [offset, offset + duration]
+  // duration is guaranteed to be clamped to the audio file length at load time
   int startSample = std::max(0, (int)std::lround(offset * ctx.sampleRate));
   int endSample =
       std::min(totalSamples, (int)std::lround((offset + duration) * ctx.sampleRate));

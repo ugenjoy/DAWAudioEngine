@@ -2,12 +2,14 @@
 
 #include <crow.h>
 #include <juce_core/juce_core.h>
+
 #include <atomic>
 #include <memory>
 #include <mutex>
 #include <set>
 #include <string>
 #include <thread>
+
 #include "commands/command-factory.hpp"
 #include "commands/command-queue.hpp"
 #include "services/mode-manager.hpp"

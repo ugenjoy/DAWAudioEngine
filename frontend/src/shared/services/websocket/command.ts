@@ -26,6 +26,10 @@ type SongCommand = 'song.setTempo' | 'song.setMetronomeMute'
 
 type ModeCommand = 'mode.setEdit' | 'mode.setLive' | 'mode.getMode'
 
+type MidiCommand = 'midi.listOutputs' | 'midi.send'
+
+type EventCommand = 'event.list' | 'event.add' | 'event.remove' | 'event.update'
+
 type Command =
   | ProjectCommand
   | TransportCommand
@@ -33,6 +37,8 @@ type Command =
   | TrackCommand
   | SongCommand
   | ModeCommand
+  | MidiCommand
+  | EventCommand
 
 export interface WebSocketMessage {
   action: Command

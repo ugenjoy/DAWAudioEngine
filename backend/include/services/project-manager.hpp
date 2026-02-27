@@ -1,8 +1,10 @@
 #pragma once
 
 #include <juce_core/juce_core.h>
+
 #include <nlohmann/json.hpp>
 #include <string>
+
 #include "songs-manager.hpp"
 
 /**
