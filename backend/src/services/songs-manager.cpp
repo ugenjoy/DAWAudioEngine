@@ -62,7 +62,7 @@ bool SongsManager::removeProjectEventRule(const std::string& ruleId) {
 }
 
 bool SongsManager::updateProjectEventRule(const std::string& ruleId,
-                                           const EventRule& updated) {
+                                          const EventRule& updated) {
   auto it = std::find_if(
       projectEventRules.begin(), projectEventRules.end(),
       [&](const EventRule& r) { return r.id == ruleId; });

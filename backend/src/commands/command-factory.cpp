@@ -1,5 +1,7 @@
 #include "commands/command-factory.hpp"
+
 #include <juce_core/juce_core.h>
+
 #include <nlohmann/json.hpp>
 
 std::unordered_map<std::string, CommandFactory::CommandRegistration>&

@@ -1,8 +1,9 @@
 #pragma once
 
 #include <juce_audio_devices/juce_audio_devices.h>
-#include <nlohmann/json.hpp>
+
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
 

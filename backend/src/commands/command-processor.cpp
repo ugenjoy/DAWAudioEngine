@@ -1,4 +1,5 @@
 #include "commands/command-processor.hpp"
+
 #include "app-context.hpp"
 
 CommandProcessor::CommandProcessor(CommandQueue& queue, AppContext& ctx)
@@ -14,7 +15,7 @@ void CommandProcessor::setPollInterval(int ms) {
 
 void CommandProcessor::stopProcessing() {
   signalThreadShouldExit();
-  notify();  // Wake up the thread if it's waiting
+  notify();          // Wake up the thread if it's waiting
   stopThread(1000);  // Wait up to 1 second for thread to finish
 }
 

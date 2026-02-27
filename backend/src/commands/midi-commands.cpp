@@ -75,5 +75,5 @@ REGISTER_COMMAND_WITH_CREATOR(
       if (bytes.empty()) return nullptr;
 
       return std::make_unique<MidiSendCommand>(std::move(device),
-                                              std::move(bytes));
+                                               std::move(bytes));
     });

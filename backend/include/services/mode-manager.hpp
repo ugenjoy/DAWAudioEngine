@@ -5,7 +5,8 @@
 
 // Prevent copy/assign manually since we don't want to pull in all of JUCE here
 
-enum class AppMode { Live, Edit };
+enum class AppMode { Live,
+                     Edit };
 
 /**
  * Manages the application mode (Live vs Edit).

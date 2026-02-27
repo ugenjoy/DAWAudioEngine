@@ -1,10 +1,10 @@
 #include "model/tracks-manager.hpp"
 
+#include <cmath>
+
 #include "audio/audio-context.hpp"
 #include "audio/audio-file-track.hpp"
 #include "audio/metronome-track.hpp"
-
-#include <cmath>
 
 namespace {
 /** @brief Equal-power panning: compute left/right gains from pan in [-1, 1] */

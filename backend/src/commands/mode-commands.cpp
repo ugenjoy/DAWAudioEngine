@@ -31,8 +31,8 @@ void SetEditModeCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().unfreezeTracks();
 
   nlohmann::json broadcast = {{"type", "broadcast"},
-                               {"event", "mode.changed"},
-                               {"mode", "edit"}};
+                              {"event", "mode.changed"},
+                              {"mode", "edit"}};
   ctx.getWebSocketServer().broadcast(broadcast.dump());
 }
 
@@ -47,16 +47,16 @@ void SetLiveModeCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().freezeTracks();
 
   nlohmann::json broadcast = {{"type", "broadcast"},
-                               {"event", "mode.changed"},
-                               {"mode", "live"}};
+                              {"event", "mode.changed"},
+                              {"mode", "live"}};
   ctx.getWebSocketServer().broadcast(broadcast.dump());
 }
 
 void GetModeCommand::execute(AppContext& ctx) {
   std::string mode = ctx.getModeManager().isLiveMode() ? "live" : "edit";
   nlohmann::json response = {{"type", "response"},
-                              {"event", "mode.current"},
-                              {"mode", mode}};
+                             {"event", "mode.current"},
+                             {"mode", mode}};
   reply(response.dump());
 }
 

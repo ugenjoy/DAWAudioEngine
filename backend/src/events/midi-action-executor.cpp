@@ -1,8 +1,7 @@
-#include "events/action-executor.hpp"
-
 #include <juce_core/juce_core.h>
 
 #include "app-context.hpp"
+#include "events/action-executor.hpp"
 #include "services/midi-output-manager.hpp"
 
 /**

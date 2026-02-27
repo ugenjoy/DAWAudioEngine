@@ -1,7 +1,9 @@
 #pragma once
 
 #include <juce_audio_basics/juce_audio_basics.h>
+
 #include <nlohmann/json.hpp>
+
 #include "audio/audio-track.hpp"
 #include "events/event-rule.hpp"
 #include "model/song.hpp"
@@ -32,7 +34,7 @@ class SongsManager {
   }
   bool removeProjectEventRule(const std::string& ruleId);
   bool updateProjectEventRule(const std::string& ruleId,
-                               const EventRule& updated);
+                              const EventRule& updated);
 
   // Project-level events serialization (separate from songs array)
   nlohmann::json projectEventsToJson() const;

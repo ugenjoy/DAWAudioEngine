@@ -8,7 +8,7 @@ void EventEngine::registerExecutor(std::unique_ptr<ActionExecutor> executor) {
 }
 
 void EventEngine::loadRules(const std::vector<EventRule>& projectRules,
-                             const std::vector<EventRule>& songRules) {
+                            const std::vector<EventRule>& songRules) {
   rules.clear();
   rules.insert(rules.end(), projectRules.begin(), projectRules.end());
   rules.insert(rules.end(), songRules.begin(), songRules.end());

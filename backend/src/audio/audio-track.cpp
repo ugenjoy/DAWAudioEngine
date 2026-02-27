@@ -1,4 +1,5 @@
 #include "audio/audio-track.hpp"
+
 #include <juce_audio_utils/juce_audio_utils.h>
 
 AudioTrack::AudioTrack()

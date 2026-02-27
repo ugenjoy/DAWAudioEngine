@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+
 #include "commands/command.hpp"
 #include "events/event-rule.hpp"
 

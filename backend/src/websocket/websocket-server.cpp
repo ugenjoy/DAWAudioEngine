@@ -162,4 +162,3 @@ void WebSocketServer::broadcast(const std::string& message) {
     }
   }
 }
-
