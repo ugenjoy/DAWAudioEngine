@@ -24,7 +24,7 @@ function Sequencer() {
   const [zoom, setZoom] = useState(1)
   const [scrollX, setScrollX] = useState(0)
   const [scrollY, setScrollY] = useState(0)
-  const { draw } = useSequencer(zoom, scrollX, scrollY)
+  const { draw, playing: isPlaying } = useSequencer(zoom, scrollX, scrollY)
 
   const tracksContainer = useRef<HTMLDivElement>(null)
   const isProgrammaticScroll = useRef(false)
@@ -261,6 +261,7 @@ function Sequencer() {
           <div className="h-full flex-1">
             <Timeline
               draw={draw}
+              playing={isPlaying}
               onWheel={handleWheel}
               onClick={handleClick}
               onKeyDown={handleKeyDown}

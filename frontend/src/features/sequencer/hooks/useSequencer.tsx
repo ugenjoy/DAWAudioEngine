@@ -2,9 +2,12 @@ import { useProject } from '@/shared/contexts/project-provider'
 import { useCallback } from 'react'
 import { getCSSVar } from '../utils'
 import { drawClip } from '../canvas/clips'
+import { useInterpolatedPlayhead } from './useInterpolatedPlayhead'
 
 export function useSequencer(zoom: number, scrollX: number, scrollY: number) {
-  const { activeSong, playheadPos, cursorPos, trackViews } = useProject()
+  const { activeSong, playheadPos, cursorPos, trackViews, playing } =
+    useProject()
+  const interpolatedPlayheadPos = useInterpolatedPlayhead(playheadPos, playing)
 
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -156,9 +159,12 @@ export function useSequencer(zoom: number, scrollX: number, scrollY: number) {
       ctx.lineTo(cursorPosPx, 5)
       ctx.fill()
 
-      // Playhead
+      // Playhead (interpolated for smooth rendering)
       const playheadPosPx =
-        (playheadPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+        (interpolatedPlayheadPos.current / 60) *
+          activeSong.tempo *
+          pixelsPerBeat -
+        scrollX
 
       ctx.strokeStyle = getCSSVar('--playhead')
       ctx.lineWidth = 1
@@ -167,7 +173,7 @@ export function useSequencer(zoom: number, scrollX: number, scrollY: number) {
       ctx.lineTo(playheadPosPx, height)
       ctx.stroke()
     },
-    [playheadPos, cursorPos, activeSong, trackViews, zoom, scrollX, scrollY],
+    [cursorPos, activeSong, trackViews, zoom, scrollX, scrollY],
   )
-  return { draw }
+  return { draw, playing }
 }
