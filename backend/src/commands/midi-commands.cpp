@@ -5,7 +5,8 @@
 #include "app-context.hpp"
 #include "commands/command-factory.hpp"
 #include "services/midi-output-manager.hpp"
-#include "websocket/websocket-server.hpp"
+#include "services/midi-utils.hpp"
+#include "websocket/broadcast-helpers.hpp"
 
 // ── MidiListOutputsCommand ─────────────────────────────────────────────────
 
@@ -13,12 +14,8 @@ void MidiListOutputsCommand::execute(AppContext& ctx) {
   auto& midiManager = ctx.getMidiOutputManager();
   nlohmann::json outputs = midiManager.getAvailableOutputs();
 
-  nlohmann::json broadcast;
-  broadcast["type"] = "broadcast";
-  broadcast["event"] = "midi.outputsListed";
-  broadcast["outputs"] = outputs;
-
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "midi.outputsListed",
+                  {{"outputs", outputs}});
   juce::Logger::writeToLog("[MidiListOutputsCommand] Listed " +
                            juce::String((int)outputs.size()) +
                            " MIDI output(s)");
@@ -38,15 +35,7 @@ void MidiSendCommand::execute(AppContext& ctx) {
     return;
   }
 
-  // Build a raw MIDI message from bytes
-  juce::MidiMessage message;
-  if (bytes.size() == 1) {
-    message = juce::MidiMessage(bytes[0]);
-  } else if (bytes.size() == 2) {
-    message = juce::MidiMessage(bytes[0], bytes[1]);
-  } else {
-    message = juce::MidiMessage(bytes[0], bytes[1], bytes[2]);
-  }
+  auto message = midi::fromBytes(bytes);
 
   bool ok = ctx.getMidiOutputManager().sendMessage(deviceIdentifier, message);
 

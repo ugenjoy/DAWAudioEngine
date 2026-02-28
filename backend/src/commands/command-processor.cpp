@@ -23,11 +23,12 @@ void CommandProcessor::run() {
   while (!threadShouldExit()) {
     if (CommandPtr cmd = queue.pop()) {
       try {
-        DBG("[CommandProcessor] Executing: " << cmd->getName());
+        juce::Logger::writeToLog("[CommandProcessor] Executing: " +
+                                 cmd->getName());
         cmd->execute(ctx);
       } catch (const std::exception& e) {
-        DBG("[CommandProcessor] Error executing " << cmd->getName() << ": "
-                                                  << e.what());
+        juce::Logger::writeToLog("[CommandProcessor] Error executing " +
+                                 cmd->getName() + ": " + e.what());
       }
     } else {
       // Queue empty, wait before checking again

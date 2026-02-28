@@ -6,6 +6,9 @@
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
 #include "model/song.hpp"
+#include "websocket/broadcast-helpers.hpp"
+
+// ── ListDevicesCommand ───────────────────────────────────────────────────────
 
 void ListDevicesCommand::execute(AppContext& ctx) {
   nlohmann::json response;
@@ -18,6 +21,8 @@ void ListDevicesCommand::execute(AppContext& ctx) {
   }
   reply(response.dump());
 }
+
+// ── SetAudioDeviceCommand ────────────────────────────────────────────────────
 
 SetAudioDeviceCommand::SetAudioDeviceCommand(std::string deviceType,
                                              std::string outputDevice,
@@ -35,24 +40,18 @@ void SetAudioDeviceCommand::execute(AppContext& ctx) {
       juce::String(deviceType), juce::String(outputDevice),
       juce::String(inputDevice), sampleRate, bufferSize);
 
-  nlohmann::json response;
-  response["type"] = "broadcast";
-  response["event"] = "audio.deviceChanged";
-  response["current"] = ctx.getAudioEngine().getCurrentDeviceInfo();
-
+  nlohmann::json deviceData = {{"current", ctx.getAudioEngine().getCurrentDeviceInfo()}};
   if (result.isNotEmpty()) {
-    response["error"] = result.toStdString();
+    deviceData["error"] = result.toStdString();
   }
-
-  ctx.getWebSocketServer().broadcast(response.dump());
+  broadcast::send(ctx.getWebSocketServer(), "audio.deviceChanged", deviceData);
 
   // Also broadcast updated input list since channels may have changed
-  nlohmann::json inputsMsg;
-  inputsMsg["type"] = "broadcast";
-  inputsMsg["event"] = "audio.inputsList";
-  inputsMsg["inputs"] = ctx.getAudioEngine().getAvailableInputs();
-  ctx.getWebSocketServer().broadcast(inputsMsg.dump());
+  broadcast::send(ctx.getWebSocketServer(), "audio.inputsList",
+                  {{"inputs", ctx.getAudioEngine().getAvailableInputs()}});
 }
+
+// ── ListInputsCommand ────────────────────────────────────────────────────────
 
 void ListInputsCommand::execute(AppContext& ctx) {
   nlohmann::json response;
@@ -61,6 +60,8 @@ void ListInputsCommand::execute(AppContext& ctx) {
   response["inputs"] = ctx.getAudioEngine().getAvailableInputs();
   reply(response.dump());
 }
+
+// ── SetTrackInputCommand ─────────────────────────────────────────────────────
 
 SetTrackInputCommand::SetTrackInputCommand(std::string trackId,
                                            int inputChannel, bool stereo)
@@ -80,14 +81,11 @@ void SetTrackInputCommand::execute(AppContext& ctx) {
 
   ctx.getAudioEngine().rebuildMonitoredChannelMask();
 
-  nlohmann::json broadcast;
-  broadcast["type"] = "broadcast";
-  broadcast["event"] = "track.inputChanged";
-  broadcast["trackId"] = trackId;
-  broadcast["inputChannel"] = inputChannel;
-  broadcast["stereo"] = stereo;
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "track.inputChanged",
+                  {{"trackId", trackId}, {"inputChannel", inputChannel}, {"stereo", stereo}});
 }
+
+// ── SetTrackMonitoringCommand ────────────────────────────────────────────────
 
 SetTrackMonitoringCommand::SetTrackMonitoringCommand(std::string trackId,
                                                      bool monitoring)
@@ -113,13 +111,11 @@ void SetTrackMonitoringCommand::execute(AppContext& ctx) {
 
   ctx.getAudioEngine().rebuildMonitoredChannelMask();
 
-  nlohmann::json broadcast;
-  broadcast["type"] = "broadcast";
-  broadcast["event"] = "track.monitoringChanged";
-  broadcast["trackId"] = trackId;
-  broadcast["monitoring"] = monitoring;
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "track.monitoringChanged",
+                  {{"trackId", trackId}, {"monitoring", monitoring}});
 }
+
+// ── SetTrackMuteCommand ──────────────────────────────────────────────────────
 
 SetTrackMuteCommand::SetTrackMuteCommand(std::string trackId, bool mute)
     : trackId(std::move(trackId)), mute(mute) {}
@@ -133,13 +129,11 @@ void SetTrackMuteCommand::execute(AppContext& ctx) {
 
   track->setMute(mute);
 
-  nlohmann::json broadcast;
-  broadcast["type"] = "broadcast";
-  broadcast["event"] = "track.muteChanged";
-  broadcast["trackId"] = trackId;
-  broadcast["mute"] = mute;
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "track.muteChanged",
+                  {{"trackId", trackId}, {"mute", mute}});
 }
+
+// ── SetTrackSoloCommand ──────────────────────────────────────────────────────
 
 SetTrackSoloCommand::SetTrackSoloCommand(std::string trackId, bool solo)
     : trackId(std::move(trackId)), solo(solo) {}
@@ -153,13 +147,11 @@ void SetTrackSoloCommand::execute(AppContext& ctx) {
 
   track->setSolo(solo);
 
-  nlohmann::json broadcast;
-  broadcast["type"] = "broadcast";
-  broadcast["event"] = "track.soloChanged";
-  broadcast["trackId"] = trackId;
-  broadcast["solo"] = solo;
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "track.soloChanged",
+                  {{"trackId", trackId}, {"solo", solo}});
 }
+
+// ── SetTrackVolumeCommand ────────────────────────────────────────────────────
 
 SetTrackVolumeCommand::SetTrackVolumeCommand(std::string trackId, float volume)
     : trackId(std::move(trackId)), volume(volume) {}
@@ -173,12 +165,8 @@ void SetTrackVolumeCommand::execute(AppContext& ctx) {
 
   track->setVolume(volume);
 
-  nlohmann::json broadcast;
-  broadcast["type"] = "broadcast";
-  broadcast["event"] = "track.volumeChanged";
-  broadcast["trackId"] = trackId;
-  broadcast["volume"] = track->volume;
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "track.volumeChanged",
+                  {{"trackId", trackId}, {"volume", track->volume}});
 }
 
 // Auto-registration

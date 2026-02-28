@@ -55,15 +55,12 @@ export function WebSocketProvider({
       setIsLoading(false)
       setIsConnected(true)
       navigate('/')
-      console.log('WebSocket connected')
     }
     newWs.onclose = () => {
       setWs(null)
       setIsConnected(false)
-      console.log('WebSocket disconnected')
       if (AUTO_CONNECT) {
         reconnectTimer.current = setTimeout(() => {
-          console.log('Auto-reconnecting...')
           createSocket(url)
         }, 2000)
       }
@@ -80,7 +77,6 @@ export function WebSocketProvider({
       const protocol =
         globalThis.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const url = `${protocol}//${globalThis.location.host}/ws`
-      console.log(`Auto-connecting to ${url}`)
       setIsLoading(true)
       createSocket(url)
     }

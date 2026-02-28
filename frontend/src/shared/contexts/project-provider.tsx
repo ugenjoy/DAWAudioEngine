@@ -25,7 +25,7 @@ type ProjectProviderProps = {
 }
 
 type ProjectProviderState = {
-  project: Project | undefined | null
+  project: Project | null
   loadProject: (path: string) => void
   isLoading: boolean
   playheadPos: number
@@ -53,7 +53,7 @@ type ProjectProviderState = {
 }
 
 const initialState: ProjectProviderState = {
-  project: undefined,
+  project: null,
   loadProject: () => null,
   isLoading: false,
   playheadPos: 0,
@@ -83,7 +83,7 @@ export function ProjectProvider({
   ...props
 }: Readonly<ProjectProviderProps>) {
   const { ws, isConnected, send } = useWebSocket()
-  const [project, setProject] = useState<Project | null>()
+  const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [activeSong, setActiveSong] = useState<Song>()
   const [playheadPos, setPlayheadPos] = useState<number>(0)
@@ -184,6 +184,19 @@ export function ProjectProvider({
     }
   }, [ws, isConnected])
 
+  function updateTrack(trackId: string, updates: Partial<Track>) {
+    setIsDirty(true)
+    setActiveSong((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        tracks: prev.tracks.map((t) =>
+          t.id === trackId ? { ...t, ...updates } : t,
+        ),
+      }
+    })
+  }
+
   function onMessage(ev: MessageEvent<unknown>) {
     if (typeof ev.data !== 'string') return
     const data = JSON.parse(ev.data)
@@ -256,74 +269,26 @@ export function ProjectProvider({
         break
       }
       case 'track.inputChanged': {
-        setIsDirty(true)
-        setActiveSong((prev) => {
-          if (!prev) return prev
-          return {
-            ...prev,
-            tracks: prev.tracks.map((t) =>
-              t.id === data.trackId
-                ? {
-                    ...t,
-                    inputChannel: data.inputChannel,
-                    inputStereo: data.stereo,
-                  }
-                : t,
-            ),
-          }
+        updateTrack(data.trackId, {
+          inputChannel: data.inputChannel,
+          inputStereo: data.stereo,
         })
         break
       }
       case 'track.monitoringChanged': {
-        setIsDirty(true)
-        setActiveSong((prev) => {
-          if (!prev) return prev
-          return {
-            ...prev,
-            tracks: prev.tracks.map((t) =>
-              t.id === data.trackId ? { ...t, monitoring: data.monitoring } : t,
-            ),
-          }
-        })
+        updateTrack(data.trackId, { monitoring: data.monitoring })
         break
       }
       case 'track.muteChanged': {
-        setIsDirty(true)
-        setActiveSong((prev) => {
-          if (!prev) return prev
-          return {
-            ...prev,
-            tracks: prev.tracks.map((t) =>
-              t.id === data.trackId ? { ...t, mute: data.mute } : t,
-            ),
-          }
-        })
+        updateTrack(data.trackId, { mute: data.mute })
         break
       }
       case 'track.soloChanged': {
-        setIsDirty(true)
-        setActiveSong((prev) => {
-          if (!prev) return prev
-          return {
-            ...prev,
-            tracks: prev.tracks.map((t) =>
-              t.id === data.trackId ? { ...t, solo: data.solo } : t,
-            ),
-          }
-        })
+        updateTrack(data.trackId, { solo: data.solo })
         break
       }
       case 'track.volumeChanged': {
-        setIsDirty(true)
-        setActiveSong((prev) => {
-          if (!prev) return prev
-          return {
-            ...prev,
-            tracks: prev.tracks.map((t) =>
-              t.id === data.trackId ? { ...t, volume: data.volume } : t,
-            ),
-          }
-        })
+        updateTrack(data.trackId, { volume: data.volume })
         break
       }
       case 'transport.masterVolume': {

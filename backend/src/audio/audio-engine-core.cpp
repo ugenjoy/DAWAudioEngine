@@ -1,6 +1,7 @@
 #include "audio/audio-engine-core.hpp"
 
 #include "audio/audio-context.hpp"
+#include "websocket/broadcast-helpers.hpp"
 
 AudioEngineCore::AudioEngineCore()
     : playing(false),
@@ -78,7 +79,8 @@ void AudioEngineCore::loadSong(Song* newSong) {
   playheadPosition.store(0, std::memory_order_relaxed);
   cursorPosition.store(0, std::memory_order_relaxed);
 
-  // Sync monitoring counter and channel mask with tracks loaded from JSON
+  // Tracks loaded from JSON may already have monitoring enabled,
+  // so we must rebuild the atomic counter and bitmask to match.
   int count = 0;
   for (const auto& track : activeSong->getTracksManager()->getTracks()) {
     if (track->isMonitoring()) ++count;
@@ -89,26 +91,11 @@ void AudioEngineCore::loadSong(Song* newSong) {
   juce::Logger::writeToLog("[AudioEngine] song loaded");
 
   if (wsServer != nullptr) {
-    // Broadcast project loaded event to all clients
-    nlohmann::json loadedSongMsg;
-    loadedSongMsg["type"] = "broadcast";
-    loadedSongMsg["event"] = "song.loaded";
-    loadedSongMsg["song"] = activeSong->toJson();
-    wsServer->broadcast(loadedSongMsg.dump());
-
-    // Broadcast playhead position to all clients
-    nlohmann::json posMsg;
-    posMsg["type"] = "broadcast";
-    posMsg["event"] = "transport.playheadpPosition";
-    posMsg["position"] = playheadPosition.load(std::memory_order_relaxed);
-    wsServer->broadcast(posMsg.dump());
-
-    // Broadcast cursor position to all clients
-    nlohmann::json startPosMsg;
-    startPosMsg["type"] = "broadcast";
-    startPosMsg["event"] = "transport.cursorPosition";
-    startPosMsg["position"] = cursorPosition.load(std::memory_order_relaxed);
-    wsServer->broadcast(startPosMsg.dump());
+    broadcast::send(*wsServer, "song.loaded", {{"song", activeSong->toJson()}});
+    broadcast::send(*wsServer, "transport.playheadPosition",
+                    {{"position", playheadPosition.load(std::memory_order_relaxed)}});
+    broadcast::send(*wsServer, "transport.cursorPosition",
+                    {{"position", cursorPosition.load(std::memory_order_relaxed)}});
   }
 }
 
@@ -119,12 +106,7 @@ void AudioEngineCore::play() {
     startTimerHz(10);
 
     if (wsServer != nullptr) {
-      // Broadcast transport play event to all clients
-      nlohmann::json broadcast;
-      broadcast["type"] = "broadcast";
-      broadcast["event"] = "transport.play";
-
-      wsServer->broadcast(broadcast.dump());
+      broadcast::send(*wsServer, "transport.play");
     }
   }
 }
@@ -136,18 +118,15 @@ void AudioEngineCore::pause() {
     stopTimer();
 
     if (wsServer != nullptr) {
-      // Broadcast transport pause event to all clients
-      nlohmann::json broadcast;
-      broadcast["type"] = "broadcast";
-      broadcast["event"] = "transport.pause";
-
-      wsServer->broadcast(broadcast.dump());
+      broadcast::send(*wsServer, "transport.pause");
     }
   }
 }
 
 void AudioEngineCore::stop() {
   if (activeSong) {
+    // Two-phase stop: first press returns to cursor position,
+    // second press (already paused) resets everything to zero.
     if (playing) {
       playing.store(false);
       stopTimer();
@@ -158,27 +137,11 @@ void AudioEngineCore::stop() {
     }
 
     if (wsServer != nullptr) {
-      // Broadcast transport stop event to all clients
-      nlohmann::json stopMsg;
-      stopMsg["type"] = "broadcast";
-      stopMsg["event"] = "transport.stop";
-      wsServer->broadcast(stopMsg.dump());
-
-      // Broadcast playhead position event to all clients
-      nlohmann::json playheadPositionMsg;
-      playheadPositionMsg["type"] = "broadcast";
-      playheadPositionMsg["event"] = "transport.playheadPosition";
-      playheadPositionMsg["position"] =
-          playheadPosition.load(std::memory_order_relaxed);
-      wsServer->broadcast(playheadPositionMsg.dump());
-
-      // Broadcast cursor position event to all clients
-      nlohmann::json cursorPositionMsg;
-      cursorPositionMsg["type"] = "broadcast";
-      cursorPositionMsg["event"] = "transport.cursorPosition";
-      cursorPositionMsg["position"] =
-          cursorPosition.load(std::memory_order_relaxed);
-      wsServer->broadcast(cursorPositionMsg.dump());
+      broadcast::send(*wsServer, "transport.stop");
+      broadcast::send(*wsServer, "transport.playheadPosition",
+                      {{"position", playheadPosition.load(std::memory_order_relaxed)}});
+      broadcast::send(*wsServer, "transport.cursorPosition",
+                      {{"position", cursorPosition.load(std::memory_order_relaxed)}});
     }
   }
 }
@@ -201,13 +164,8 @@ void AudioEngineCore::setPlayheadPosition(double position) {
     playheadPosition.store(position, std::memory_order_relaxed);
 
     if (wsServer != nullptr) {
-      // Broadcast playhead position event to all clients
-      nlohmann::json positionMsg;
-      positionMsg["type"] = "broadcast";
-      positionMsg["event"] = "transport.playheadPosition";
-      positionMsg["position"] =
-          playheadPosition.load(std::memory_order_relaxed);
-      wsServer->broadcast(positionMsg.dump());
+      broadcast::send(*wsServer, "transport.playheadPosition",
+                      {{"position", playheadPosition.load(std::memory_order_relaxed)}});
     }
   }
 }
@@ -220,21 +178,10 @@ void AudioEngineCore::setCursorPosition(double position) {
     cursorPosition.store(position, std::memory_order_relaxed);
 
     if (wsServer != nullptr) {
-      // Broadcast cursor position event to all clients
-      nlohmann::json cursorPositionMsg;
-      cursorPositionMsg["type"] = "broadcast";
-      cursorPositionMsg["event"] = "transport.cursorPosition";
-      cursorPositionMsg["position"] =
-          cursorPosition.load(std::memory_order_relaxed);
-      wsServer->broadcast(cursorPositionMsg.dump());
-
-      // Broadcast playhead position event to all clients
-      nlohmann::json playheadPositionMsg;
-      playheadPositionMsg["type"] = "broadcast";
-      playheadPositionMsg["event"] = "transport.playheadPosition";
-      playheadPositionMsg["position"] =
-          playheadPosition.load(std::memory_order_relaxed);
-      wsServer->broadcast(playheadPositionMsg.dump());
+      broadcast::send(*wsServer, "transport.cursorPosition",
+                      {{"position", cursorPosition.load(std::memory_order_relaxed)}});
+      broadcast::send(*wsServer, "transport.playheadPosition",
+                      {{"position", playheadPosition.load(std::memory_order_relaxed)}});
     }
   }
 }
@@ -243,8 +190,9 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
     const float* const* inputChannelData, int numInputChannels,
     float* const* outputChannelData, int numOutputChannels, int numSamples,
     const juce::AudioIODeviceCallbackContext& /*context*/) {
-  // Copy only the input channels actually used by monitoring tracks.
-  // mask == 0 means no track is monitoring → skip the copy entirely.
+  // Bitmask of input channels needed by monitoring tracks.
+  // Each bit corresponds to a hardware input channel index.
+  // Only copy channels that at least one track is monitoring.
   const uint64_t mask = monitoredChannelMask.load(std::memory_order_relaxed);
   const bool hasMonitoring = mask != 0;
 
@@ -349,12 +297,8 @@ void AudioEngineCore::unfreezeTracks() {
 void AudioEngineCore::timerCallback() {
   if (wsServer == nullptr || activeSong == nullptr) return;
 
-  nlohmann::json msg;
-  msg["type"] = "broadcast";
-  msg["event"] = "transport.playheadPosition";
-  msg["position"] = playheadPosition.load(std::memory_order_relaxed);
-
-  wsServer->broadcast(msg.dump());
+  broadcast::send(*wsServer, "transport.playheadPosition",
+                  {{"position", playheadPosition.load(std::memory_order_relaxed)}});
 }
 
 nlohmann::json AudioEngineCore::getAvailableDevices() {

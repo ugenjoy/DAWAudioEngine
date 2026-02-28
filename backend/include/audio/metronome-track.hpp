@@ -3,18 +3,8 @@
 #include "audio/dsp/wave-table.hpp"
 
 /**
- * @file metronome-track.hpp
- * @brief Metronome track with ADSR envelope synchronized to song tempo
- */
-
-/**
- * @class MetronomeTrack
- * @brief Audio track that generates beat-synchronized click with ADSR envelope
- *
- * Each song has a dedicated MetronomeTrack that produces a click on every beat.
- * Uses a wavetable oscillator and ADSR envelope for the click sound.
- *
- * @note Uses a shared static WaveTable for efficiency
+ * Audio track that generates a beat-synchronized click using a wavetable
+ * oscillator and ADSR envelope. Each song has one dedicated MetronomeTrack.
  */
 class MetronomeTrack : public AudioTrack {
  public:

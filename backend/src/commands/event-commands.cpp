@@ -6,7 +6,7 @@
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
 #include "services/songs-manager.hpp"
-#include "websocket/websocket-server.hpp"
+#include "websocket/broadcast-helpers.hpp"
 
 // ── Helper: build and broadcast the full event list ───────────────────────
 
@@ -26,13 +26,8 @@ static void broadcastEventList(AppContext& ctx) {
     }
   }
 
-  nlohmann::json broadcast;
-  broadcast["type"] = "broadcast";
-  broadcast["event"] = "event.listUpdated";
-  broadcast["projectEvents"] = projectEventsJson;
-  broadcast["songEvents"] = songEventsJson;
-
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "event.listUpdated",
+                  {{"projectEvents", projectEventsJson}, {"songEvents", songEventsJson}});
 }
 
 // ── EventListCommand ───────────────────────────────────────────────────────

@@ -28,6 +28,8 @@ void EventEngine::fire(const std::string& trigger, AppContext& ctx) {
   for (const auto& rule : rules) {
     if (!rule.enabled || rule.trigger != trigger) continue;
 
+    // Skip gracefully if no executor is registered for this action type.
+    // This allows rules to reference future action types without crashing.
     auto it = executors.find(rule.action.type);
     if (it == executors.end()) {
       juce::Logger::writeToLog(

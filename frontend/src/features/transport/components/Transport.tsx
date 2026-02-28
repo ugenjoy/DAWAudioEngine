@@ -17,8 +17,6 @@ import {
 import { useEffect, useState } from 'react'
 
 export function Transport() {
-  const [isRecording, setIsRecording] = useState(false)
-  const [isLooping, setIsLooping] = useState(false)
   const [bpm, setBpm] = useState<number | string>(120)
   const { send } = useWebSocket()
   const {
@@ -80,7 +78,6 @@ export function Transport() {
   return (
     activeSong && (
       <div className="flex items-center gap-4 px-3 py-2 bg-card border-b border-border">
-        {/* Transport controls */}
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -91,7 +88,6 @@ export function Transport() {
             <IconPlayerSkipBackFilled className="size-4" />
           </Button>
 
-          {/* Stop button */}
           <Button
             variant="ghost"
             size="icon-sm"
@@ -101,7 +97,6 @@ export function Transport() {
             <IconPlayerStopFilled className="size-4" />
           </Button>
 
-          {/* Play / Pause button */}
           <Button
             variant={playing ? 'default' : 'ghost'}
             size="icon-sm"
@@ -115,37 +110,32 @@ export function Transport() {
             )}
           </Button>
 
-          {/* Record button */}
           <Button
-            variant={isRecording ? 'destructive' : 'ghost'}
+            variant="ghost"
             size="icon-sm"
-            onClick={() => setIsRecording(!isRecording)}
-            title="Record"
-            className={isRecording ? 'text-red-500' : ''}
+            disabled
+            title="Record (not yet implemented)"
           >
             <IconPlayerRecordFilled className="size-4" />
           </Button>
         </div>
 
-        {/* Loop toggle */}
         <Button
-          variant={isLooping ? 'secondary' : 'ghost'}
+          variant="ghost"
           size="icon-sm"
-          onClick={() => setIsLooping(!isLooping)}
-          title="Loop"
-          className={isLooping ? 'text-primary' : ''}
+          disabled
+          title="Loop (not yet implemented)"
         >
           <IconRepeat className="size-4" />
         </Button>
 
-        {/* Position display */}
         <div className="flex items-center gap-2 bg-background/50 px-3 py-1 font-mono text-sm border border-border">
           <span className="font-medium tabular-nums">
             {getBarPosition()}.{getBeatPosition()}.{getSubPosition()}
           </span>
         </div>
 
-        {/* BPM control — disabled in Live mode */}
+        {/* BPM and time signature are disabled in Live mode */}
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-xs">BPM</span>
           <Input
@@ -166,7 +156,6 @@ export function Transport() {
           />
         </div>
 
-        {/* Time signature — disabled in Live mode */}
         <div className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground text-xs">SIG</span>
           <span
@@ -178,7 +167,6 @@ export function Transport() {
           </span>
         </div>
 
-        {/* Metronome toggle — disabled in Live mode */}
         <Button
           variant={!activeSong.metronomeMute ? 'secondary' : 'ghost'}
           size="icon-sm"
@@ -192,7 +180,6 @@ export function Transport() {
 
         <div className="flex-1" />
 
-        {/* Master volume — always available */}
         <div className="flex items-center gap-2">
           <IconVolume size={14} className="text-muted-foreground shrink-0" />
           <Slider

@@ -5,7 +5,9 @@
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
-#include "websocket/websocket-server.hpp"
+#include "websocket/broadcast-helpers.hpp"
+
+// ── SetTempoCommand ─────────────────────────────────────────────────────────
 
 SetTempoCommand::SetTempoCommand(float tempo) : tempo(tempo) {}
 
@@ -15,12 +17,11 @@ void SetTempoCommand::execute(AppContext& ctx) {
 
   song->setTempo(tempo);
 
-  nlohmann::json broadcast;
-  broadcast["type"] = "broadcast";
-  broadcast["event"] = "song.tempoChanged";
-  broadcast["tempo"] = tempo;
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "song.tempoChanged",
+                  {{"tempo", tempo}});
 }
+
+// ── SetMetronomeMuteCommand ──────────────────────────────────────────────────
 
 SetMetronomeMuteCommand::SetMetronomeMuteCommand(bool mute) : mute(mute) {}
 
@@ -33,11 +34,8 @@ void SetMetronomeMuteCommand::execute(AppContext& ctx) {
 
   metronome->setMute(mute);
 
-  nlohmann::json broadcast;
-  broadcast["type"] = "broadcast";
-  broadcast["event"] = "song.metronomeMuteChanged";
-  broadcast["mute"] = mute;
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "song.metronomeMuteChanged",
+                  {{"mute", mute}});
 }
 
 // Auto-registration

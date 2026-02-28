@@ -5,12 +5,21 @@
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
+#include "websocket/broadcast-helpers.hpp"
+
+// ── PlayCommand ─────────────────────────────────────────────────────────────
 
 void PlayCommand::execute(AppContext& ctx) { ctx.getAudioEngine().play(); }
 
+// ── PauseCommand ────────────────────────────────────────────────────────────
+
 void PauseCommand::execute(AppContext& ctx) { ctx.getAudioEngine().pause(); }
 
+// ── StopCommand ─────────────────────────────────────────────────────────────
+
 void StopCommand::execute(AppContext& ctx) { ctx.getAudioEngine().stop(); }
+
+// ── SetPlayheadPositionCommand ──────────────────────────────────────────────
 
 SetPlayheadPositionCommand::SetPlayheadPositionCommand(double position)
     : position(position) {}
@@ -19,6 +28,8 @@ void SetPlayheadPositionCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().setPlayheadPosition(position);
 }
 
+// ── SetCursorPositionCommand ────────────────────────────────────────────────
+
 SetCursorPositionCommand::SetCursorPositionCommand(double position)
     : position(position) {}
 
@@ -26,16 +37,16 @@ void SetCursorPositionCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().setCursorPosition(position);
 }
 
+// ── SetMasterVolumeCommand ──────────────────────────────────────────────────
+
 SetMasterVolumeCommand::SetMasterVolumeCommand(float volume)
     : volume(volume) {}
 
 void SetMasterVolumeCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().setMasterVolume(volume);
 
-  nlohmann::json broadcast = {{"type", "broadcast"},
-                              {"event", "transport.masterVolume"},
-                              {"volume", ctx.getAudioEngine().getMasterVolume()}};
-  ctx.getWebSocketServer().broadcast(broadcast.dump());
+  broadcast::send(ctx.getWebSocketServer(), "transport.masterVolume",
+                  {{"volume", ctx.getAudioEngine().getMasterVolume()}});
 }
 
 // Auto-registration

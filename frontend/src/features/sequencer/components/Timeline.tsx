@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 
 interface TimelineProps {
   draw: (value: CanvasRenderingContext2D, width: number, height: number) => void
+  playing?: boolean
   onWheel?: (e: WheelEvent) => void
   onClick?: (e: MouseEvent) => void
   onKeyDown?: (e: KeyboardEvent) => void
@@ -9,11 +10,14 @@ interface TimelineProps {
 
 function Timeline({
   draw,
+  playing,
   onWheel,
   onClick,
   onKeyDown,
 }: Readonly<TimelineProps>) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawRef = useRef(draw)
+  drawRef.current = draw
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -22,18 +26,27 @@ function Timeline({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    requestAnimationFrame(() => {
-      const rect = canvas.getBoundingClientRect()
+    let rafId: number
+
+    function render() {
+      const rect = canvas!.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
 
-      canvas.width = rect.width * dpr
-      canvas.height = rect.height * dpr
+      canvas!.width = rect.width * dpr
+      canvas!.height = rect.height * dpr
 
-      ctx.scale(dpr, dpr)
+      ctx!.scale(dpr, dpr)
 
-      draw(ctx, canvas.width, canvas.height)
-    })
-  }, [draw])
+      drawRef.current(ctx!, canvas!.width, canvas!.height)
+
+      if (playing) {
+        rafId = requestAnimationFrame(render)
+      }
+    }
+
+    rafId = requestAnimationFrame(render)
+    return () => cancelAnimationFrame(rafId)
+  }, [draw, playing])
 
   useEffect(() => {
     const canvas = canvasRef.current
