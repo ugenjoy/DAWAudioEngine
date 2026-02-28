@@ -12,8 +12,9 @@ class TracksManager {
   ~TracksManager();
 
   void addTrack(std::unique_ptr<AudioTrack>);
-  void removeTrack();
-  void getTrackList();
+  bool removeTrack(const std::string& id);
+  bool renameTrack(const std::string& id, const std::string& name);
+  bool reorderTrack(const std::string& id, int newIndex);
 
   void renderTracks(juce::AudioBuffer<float>& mixBuffer,
                     juce::AudioBuffer<float>& trackBuffer,

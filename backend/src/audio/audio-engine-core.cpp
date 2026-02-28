@@ -299,6 +299,13 @@ void AudioEngineCore::timerCallback() {
 
   broadcast::send(*wsServer, "transport.playheadPosition",
                   {{"position", playheadPosition.load(std::memory_order_relaxed)}});
+
+  // Broadcast per-track peak levels for VU meters
+  nlohmann::json levels = nlohmann::json::object();
+  for (const auto& track : activeSong->getTracksManager()->getTracks()) {
+    levels[track->getId()] = track->peakLevel.load(std::memory_order_relaxed);
+  }
+  broadcast::send(*wsServer, "track.levels", {{"levels", levels}});
 }
 
 nlohmann::json AudioEngineCore::getAvailableDevices() {

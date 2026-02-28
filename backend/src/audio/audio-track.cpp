@@ -2,12 +2,20 @@
 
 #include <juce_audio_utils/juce_audio_utils.h>
 
+namespace {
+int nextColor() {
+  static int counter = 0;
+  return (counter++ % 8) + 1;
+}
+}  // namespace
+
 AudioTrack::AudioTrack()
     : id(juce::Uuid().toDashedString().toStdString()),
-      volume(0.4f),
+      volume(0.0f),
       pan(0.0f),
       mute(false),
-      solo(false) {}
+      solo(false),
+      color(nextColor()) {}
 
 void AudioTrack::setMute(bool shouldMute) {
   this->mute = shouldMute;
@@ -18,7 +26,7 @@ void AudioTrack::setSolo(bool shouldSolo) {
 }
 
 void AudioTrack::setVolume(float newVolume) {
-  this->volume = juce::jlimit(0.0f, 1.0f, newVolume);
+  this->volume = juce::jlimit(-80.0f, 12.0f, newVolume);
 }
 
 void AudioTrack::setInputChannel(int channel) {

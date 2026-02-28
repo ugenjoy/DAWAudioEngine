@@ -16,7 +16,7 @@ class Song {
   ~Song();
 
   void addTrack(std::unique_ptr<AudioTrack>);
-  void removeTrack();
+  bool removeTrack(const std::string& trackId);
 
   void render(juce::AudioBuffer<float>& mixBuffer,
               juce::AudioBuffer<float>& trackBuffer,
@@ -29,6 +29,7 @@ class Song {
 
   // Setters / Getters
   std::string getId() const { return id; }
+  std::string getName() const { return name; }
 
   void sampleRateChanged();
 

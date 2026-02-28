@@ -18,8 +18,8 @@ void Song::addTrack(std::unique_ptr<AudioTrack> track) {
   tracksManager->addTrack(std::move(track));
 }
 
-void Song::removeTrack() {
-  // To implement
+bool Song::removeTrack(const std::string& trackId) {
+  return tracksManager->removeTrack(trackId);
 }
 
 void Song::render(juce::AudioBuffer<float>& mixBuffer,

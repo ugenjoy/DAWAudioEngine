@@ -29,7 +29,7 @@ float MetronomeTrack::getSampleValue(double sampleTime, float tempo) {
       timeSinceLastBeat < duration + rel) {
     float envelopeVolume = computeEnvelope(timeSinceLastBeat);
     float currentPhase = 2.0f * pi * frequency * timeSinceLastBeat;
-    return envelopeVolume * volume * waveTable.getSampleFast(currentPhase);
+    return envelopeVolume * getLinearGain() * waveTable.getSampleFast(currentPhase);
   }
 
   return 0.0f;
@@ -58,7 +58,7 @@ void MetronomeTrack::renderBlock(juce::AudioBuffer<float>& buffer,
       const float envelopeVolume = computeEnvelope(timeSinceLastBeat);
       const float currentPhase = 2.0f * pi * frequency * timeSinceLastBeat;
       bufferData[i] =
-          envelopeVolume * volume * waveTable.getSampleFast(currentPhase);
+          envelopeVolume * getLinearGain() * waveTable.getSampleFast(currentPhase);
     } else {
       bufferData[i] = 0.0f;
     }
@@ -115,7 +115,7 @@ std::unique_ptr<MetronomeTrack> MetronomeTrack::fromJson(
     const nlohmann::json& j) {
   float freq = j.value("frequency", 1000.0f);
   auto track = std::make_unique<MetronomeTrack>(freq);
-  track->volume = j.value("volume", 0.4f);
+  track->volume = j.value("volume", 0.0f);
   track->mute = j.value("mute", false);
   return track;
 }

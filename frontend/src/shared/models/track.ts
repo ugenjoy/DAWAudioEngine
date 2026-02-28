@@ -18,6 +18,7 @@ export interface AudioFileTrack {
   inputChannel: number
   inputStereo: boolean
   monitoring: boolean
+  color: number
 }
 
 export type Track = AudioFileTrack

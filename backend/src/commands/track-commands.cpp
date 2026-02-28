@@ -4,9 +4,19 @@
 
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
+#include "audio/audio-file-track.hpp"
 #include "commands/command-factory.hpp"
 #include "model/song.hpp"
 #include "websocket/broadcast-helpers.hpp"
+
+namespace {
+void broadcastTrackList(AppContext& ctx) {
+  auto* song = ctx.getAudioEngine().getActiveSong();
+  if (!song) return;
+  broadcast::send(ctx.getWebSocketServer(), "track.listUpdated",
+                  {{"tracks", song->getTracksManager()->toJson()}});
+}
+}  // namespace
 
 // ── ListDevicesCommand ───────────────────────────────────────────────────────
 
@@ -169,6 +179,85 @@ void SetTrackVolumeCommand::execute(AppContext& ctx) {
                   {{"trackId", trackId}, {"volume", track->volume}});
 }
 
+// ── AddTrackCommand ──────────────────────────────────────────────────────────
+
+AddTrackCommand::AddTrackCommand(std::string name)
+    : name(std::move(name)) {}
+
+void AddTrackCommand::execute(AppContext& ctx) {
+  auto* song = ctx.getAudioEngine().getActiveSong();
+  if (!song) return;
+
+  auto track = std::make_unique<AudioFileTrack>();
+  if (name.empty()) {
+    track->name = "Track " + std::to_string(song->getTracksManager()->getTracks().size() + 1);
+  } else {
+    track->name = name;
+  }
+  song->addTrack(std::move(track));
+  broadcastTrackList(ctx);
+}
+
+// ── RemoveTrackCommand ───────────────────────────────────────────────────────
+
+RemoveTrackCommand::RemoveTrackCommand(std::string trackId)
+    : trackId(std::move(trackId)) {}
+
+void RemoveTrackCommand::execute(AppContext& ctx) {
+  auto* song = ctx.getAudioEngine().getActiveSong();
+  if (!song) return;
+
+  if (song->removeTrack(trackId)) {
+    broadcastTrackList(ctx);
+  }
+}
+
+// ── RenameTrackCommand ───────────────────────────────────────────────────────
+
+RenameTrackCommand::RenameTrackCommand(std::string trackId, std::string name)
+    : trackId(std::move(trackId)), name(std::move(name)) {}
+
+void RenameTrackCommand::execute(AppContext& ctx) {
+  auto* song = ctx.getAudioEngine().getActiveSong();
+  if (!song) return;
+
+  if (song->getTracksManager()->renameTrack(trackId, name)) {
+    broadcastTrackList(ctx);
+  }
+}
+
+// ── ReorderTrackCommand ──────────────────────────────────────────────────────
+
+ReorderTrackCommand::ReorderTrackCommand(std::string trackId, int index)
+    : trackId(std::move(trackId)), index(index) {}
+
+void ReorderTrackCommand::execute(AppContext& ctx) {
+  auto* song = ctx.getAudioEngine().getActiveSong();
+  if (!song) return;
+
+  if (song->getTracksManager()->reorderTrack(trackId, index)) {
+    broadcastTrackList(ctx);
+  }
+}
+
+// ── SetTrackColorCommand ─────────────────────────────────────────────────────
+
+SetTrackColorCommand::SetTrackColorCommand(std::string trackId, int color)
+    : trackId(std::move(trackId)), color(color) {}
+
+void SetTrackColorCommand::execute(AppContext& ctx) {
+  auto* song = ctx.getAudioEngine().getActiveSong();
+  if (!song) return;
+
+  auto* track = song->getTracksManager()->findTrackById(trackId);
+  if (!track) return;
+
+  track->color = std::clamp(color, 1, 8);
+
+  broadcast::send(ctx.getWebSocketServer(), "track.colorChanged",
+                  {{"trackId", trackId}, {"color", track->color}});
+}
+
 // Auto-registration
 REGISTER_COMMAND("audio.listDevices", ListDevicesCommand);
 
@@ -230,4 +319,46 @@ REGISTER_EDIT_COMMAND_WITH_CREATOR(
       if (trackId.empty()) return nullptr;
       float volume = payload.value("volume", 0.4f);
       return std::make_unique<SetTrackVolumeCommand>(trackId, volume);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.add", AddTrack,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string name = payload.value("name", "");
+      return std::make_unique<AddTrackCommand>(name);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.remove", RemoveTrack,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      return std::make_unique<RemoveTrackCommand>(trackId);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.rename", RenameTrack,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      std::string name = payload.value("name", "");
+      if (trackId.empty() || name.empty()) return nullptr;
+      return std::make_unique<RenameTrackCommand>(trackId, name);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.reorder", ReorderTrack,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      int index = payload.value("index", 0);
+      return std::make_unique<ReorderTrackCommand>(trackId, index);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.setColor", SetTrackColor,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      int color = payload.value("color", 1);
+      return std::make_unique<SetTrackColorCommand>(trackId, color);
     });

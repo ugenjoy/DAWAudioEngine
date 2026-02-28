@@ -79,3 +79,51 @@ class SetTrackVolumeCommand : public Command {
   std::string trackId;
   float volume;
 };
+
+class AddTrackCommand : public Command {
+ public:
+  AddTrackCommand(std::string name);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string name;
+};
+
+class RemoveTrackCommand : public Command {
+ public:
+  RemoveTrackCommand(std::string trackId);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string trackId;
+};
+
+class RenameTrackCommand : public Command {
+ public:
+  RenameTrackCommand(std::string trackId, std::string name);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string trackId;
+  std::string name;
+};
+
+class ReorderTrackCommand : public Command {
+ public:
+  ReorderTrackCommand(std::string trackId, int index);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string trackId;
+  int index;
+};
+
+class SetTrackColorCommand : public Command {
+ public:
+  SetTrackColorCommand(std::string trackId, int color);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string trackId;
+  int color;
+};

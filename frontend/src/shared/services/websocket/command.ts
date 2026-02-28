@@ -21,6 +21,11 @@ type TrackCommand =
   | 'track.setMute'
   | 'track.setSolo'
   | 'track.setVolume'
+  | 'track.add'
+  | 'track.remove'
+  | 'track.rename'
+  | 'track.reorder'
+  | 'track.setColor'
 
 type SongCommand = 'song.setTempo' | 'song.setMetronomeMute'
 

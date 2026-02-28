@@ -4,6 +4,7 @@
 #include <juce_core/juce_core.h>
 
 #include <atomic>
+#include <cmath>
 #include <nlohmann/json.hpp>
 #include <string>
 
@@ -34,7 +35,12 @@ class AudioTrack {
 
   virtual void setMute(bool shouldMute);
   virtual void setSolo(bool shouldSolo);
-  virtual void setVolume(float volume);
+  virtual void setVolume(float volumeDb);
+
+  /** Convert volume (dB) to linear gain. -80 dB maps to 0. */
+  float getLinearGain() const {
+    return volume <= -80.0f ? 0.0f : std::pow(10.0f, volume / 20.0f);
+  }
 
   virtual nlohmann::json toJson() const = 0;
   virtual std::string getTrackType() const = 0;
@@ -75,6 +81,9 @@ class AudioTrack {
   float pan;
   bool mute;
   bool solo;
+  int color;  // palette index (1-8)
+
+  std::atomic<float> peakLevel{0.0f};
 
   std::atomic<int> inputChannel{-1};
   std::atomic<bool> inputStereo{false};

@@ -1,12 +1,24 @@
-import { useProject } from '@/shared/contexts/project-provider'
+import { useProject, type TrackView } from '@/shared/contexts/project-provider'
 import { useCallback } from 'react'
 import { getCSSVar } from '../utils'
 import { drawClip } from '../canvas/clips'
 import { useInterpolatedPlayhead } from './useInterpolatedPlayhead'
 
-export function useSequencer(zoom: number, scrollX: number, scrollY: number) {
-  const { activeSong, playheadPos, cursorPos, trackViews, playing } =
-    useProject()
+export function useSequencer(
+  zoom: number,
+  scrollX: number,
+  scrollY: number,
+  trackViewsOverride?: TrackView[],
+  selectedTrackId?: string | null,
+) {
+  const {
+    activeSong,
+    playheadPos,
+    cursorPos,
+    trackViews: contextTrackViews,
+    playing,
+  } = useProject()
+  const trackViews = trackViewsOverride ?? contextTrackViews
   const interpolatedPlayheadPos = useInterpolatedPlayhead(playheadPos, playing)
 
   const draw = useCallback(
@@ -17,30 +29,30 @@ export function useSequencer(zoom: number, scrollX: number, scrollY: number) {
       const basePixelsPerBeat = 20
       const pixelsPerBeat = basePixelsPerBeat * zoom
 
-      const headerHeight = 20
+      const headerHeight = 22
       let totalHeight = 0
 
       // Clips
       for (const [index, trackView] of trackViews.entries()) {
+        const isSelected = trackView.track.id === selectedTrackId
+        const trackY = totalHeight + headerHeight - scrollY
+
         if (index % 2) {
           ctx.fillStyle = getCSSVar('--track-background-1')
-          ctx.fillRect(
-            0,
-            totalHeight + headerHeight - scrollY,
-            width,
-            trackView.height,
-          )
         } else {
           ctx.fillStyle = getCSSVar('--track-background-2')
-          ctx.fillRect(
-            0,
-            totalHeight + headerHeight - scrollY,
-            width,
-            trackView.height,
-          )
+        }
+        ctx.fillRect(0, trackY, width, trackView.height)
+
+        if (isSelected) {
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.04)'
+          ctx.fillRect(0, trackY, width, trackView.height)
         }
 
         if (trackView.track.type === 'AudioFileTrack') {
+          if (isSelected) ctx.globalAlpha = 1
+          else ctx.globalAlpha = 0.7
+
           for (const clip of trackView.track.clips) {
             const offset = 1.5
             const x =
@@ -59,6 +71,7 @@ export function useSequencer(zoom: number, scrollX: number, scrollY: number) {
               ctx,
             )
           }
+          ctx.globalAlpha = 1
         }
         totalHeight += trackView.height
       }
@@ -173,7 +186,15 @@ export function useSequencer(zoom: number, scrollX: number, scrollY: number) {
       ctx.lineTo(playheadPosPx, height)
       ctx.stroke()
     },
-    [cursorPos, activeSong, trackViews, zoom, scrollX, scrollY],
+    [
+      cursorPos,
+      activeSong,
+      trackViews,
+      zoom,
+      scrollX,
+      scrollY,
+      selectedTrackId,
+    ],
   )
   return { draw, playing }
 }

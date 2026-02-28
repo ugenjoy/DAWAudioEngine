@@ -1,10 +1,137 @@
 import { useProject } from '@/shared/contexts/project-provider'
 import { Transport } from '../../transport/components/Transport'
 import Track from './Track'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useRef, useState } from 'react'
 import Timeline from './Timeline'
 import { useSequencer } from '../hooks/useSequencer'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
+import { useMode } from '@/shared/contexts/mode-provider'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Button } from '@/shared/shadcn/components/button'
+import { IconPlus } from '@tabler/icons-react'
+import type { TrackView } from '@/shared/contexts/project-provider'
+import type { AudioInput } from '@/shared/models/audio-input'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/shared/shadcn/components/context-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/shadcn/components/alert-dialog'
+
+type SortableTrackProps = {
+  trackView: TrackView
+  availableInputs: AudioInput[]
+  trackLevelsRef: React.RefObject<Record<string, number>>
+  selected: boolean
+  sortDisabled: boolean
+  onTrackSelect: (trackId: string) => void
+  onSetInput: (trackId: string, inputChannel: number, stereo: boolean) => void
+  onSetMonitoring: (trackId: string, monitoring: boolean) => void
+  onSetMute: (trackId: string, mute: boolean) => void
+  onSetSolo: (trackId: string, solo: boolean) => void
+  onSetVolume: (trackId: string, volume: number) => void
+  onRename: (trackId: string, name: string) => void
+  onSetColor: (trackId: string, color: number) => void
+  onResize: (trackId: string, height: number) => void
+}
+
+const SortableTrack = forwardRef<
+  HTMLDivElement,
+  SortableTrackProps & React.HTMLAttributes<HTMLDivElement>
+>(function SortableTrack(
+  {
+    trackView,
+    availableInputs,
+    trackLevelsRef,
+    selected,
+    sortDisabled,
+    onTrackSelect,
+    onSetInput,
+    onSetMonitoring,
+    onSetMute,
+    onSetSolo,
+    onSetVolume,
+    onRename,
+    onSetColor,
+    onResize,
+    ...restProps
+  },
+  externalRef,
+) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: trackView.track.id, disabled: sortDisabled })
+
+  const restrictedTransform = transform
+    ? { ...transform, x: 0, scaleX: 1, scaleY: 1 }
+    : transform
+  const style = {
+    transform: CSS.Transform.toString(restrictedTransform),
+    transition,
+  }
+
+  const mergedRef = (node: HTMLDivElement | null) => {
+    setNodeRef(node)
+    if (typeof externalRef === 'function') externalRef(node)
+    else if (externalRef) externalRef.current = node
+  }
+
+  return (
+    <Track
+      ref={mergedRef}
+      {...restProps}
+      style={{ ...style, ...restProps.style }}
+      {...attributes}
+      {...listeners}
+      id={trackView.track.id}
+      name={trackView.track.name}
+      mute={trackView.track.mute}
+      solo={trackView.track.solo}
+      volume={trackView.track.volume}
+      color={trackView.strokeColor}
+      height={trackView.height}
+      inputChannel={trackView.track.inputChannel ?? -1}
+      inputStereo={trackView.track.inputStereo ?? false}
+      monitoring={trackView.track.monitoring ?? false}
+      availableInputs={availableInputs}
+      trackLevelsRef={trackLevelsRef}
+      selected={selected}
+      onTrackSelect={onTrackSelect}
+      onSetInput={onSetInput}
+      onSetMonitoring={onSetMonitoring}
+      onSetMute={onSetMute}
+      onSetSolo={onSetSolo}
+      onSetVolume={onSetVolume}
+      onRename={onRename}
+      onSetColor={onSetColor}
+      onResize={onResize}
+    />
+  )
+})
 
 function Sequencer() {
   const {
@@ -18,13 +145,33 @@ function Sequencer() {
     setTrackMonitoring,
     setTrackMute,
     setTrackSolo,
+    setTrackColor,
+    setTrackHeight,
     setTrackVolume,
+    addTrack,
+    removeTrack,
+    renameTrack,
+    reorderTrack,
+    trackLevelsRef,
   } = useProject()
+  const { isLiveMode } = useMode()
   const { send } = useWebSocket()
   const [zoom, setZoom] = useState(1)
   const [scrollX, setScrollX] = useState(0)
   const [scrollY, setScrollY] = useState(0)
-  const { draw, playing: isPlaying } = useSequencer(zoom, scrollX, scrollY)
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [dragTrackViews, setDragTrackViews] = useState<
+    typeof trackViews | null
+  >(null)
+  const activeTrackViews = dragTrackViews ?? trackViews
+  const { draw, playing: isPlaying } = useSequencer(
+    zoom,
+    scrollX,
+    scrollY,
+    activeTrackViews,
+    selectedTrackId,
+  )
 
   const tracksContainer = useRef<HTMLDivElement>(null)
   const isProgrammaticScroll = useRef(false)
@@ -170,8 +317,22 @@ function Sequencer() {
         action: 'transport.setCursorPosition',
         position: cursorPos,
       })
+
+      // Select track based on Y position
+      const headerHeight = 20
+      const clickY = e.offsetY + scrollY - headerHeight
+      if (clickY >= 0) {
+        let accHeight = 0
+        for (const tv of activeTrackViews) {
+          accHeight += tv.height
+          if (clickY < accHeight) {
+            setSelectedTrackId(tv.track.id)
+            break
+          }
+        }
+      }
     },
-    [zoom, scrollX, activeSong],
+    [zoom, scrollX, scrollY, activeSong, activeTrackViews],
   )
 
   const handleKeyDown = useCallback(
@@ -186,10 +347,25 @@ function Sequencer() {
           })
           break
         }
+        case 'Delete': {
+          if (!isLiveMode && selectedTrackId) {
+            e.preventDefault()
+            setDeleteDialogOpen(true)
+          }
+          break
+        }
       }
     },
-    [activeSong, playing],
+    [activeSong, playing, isLiveMode, selectedTrackId],
   )
+
+  const confirmDelete = useCallback(() => {
+    if (selectedTrackId) {
+      removeTrack(selectedTrackId)
+      setSelectedTrackId(null)
+    }
+    setDeleteDialogOpen(false)
+  }, [selectedTrackId, removeTrack])
 
   useEffect(() => {
     if (!tracksContainer.current) return
@@ -213,6 +389,42 @@ function Sequencer() {
     return () => container.removeEventListener('scroll', handleContainerScroll)
   }, [tracksContainer.current])
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+  )
+
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id) {
+        setDragTrackViews(null)
+        return
+      }
+      const oldIndex = trackViews.findIndex((t) => t.track.id === active.id)
+      const newIndex = trackViews.findIndex((t) => t.track.id === over.id)
+      if (oldIndex >= 0 && newIndex >= 0) {
+        setDragTrackViews(arrayMove(trackViews, oldIndex, newIndex))
+      }
+    },
+    [trackViews],
+  )
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setDragTrackViews(null)
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+      const newIndex = trackViews.findIndex((t) => t.track.id === over.id)
+      if (newIndex >= 0) {
+        reorderTrack(active.id as string, newIndex)
+      }
+    },
+    [trackViews, reorderTrack],
+  )
+
+  const activeSongId = activeSong?.id
   useEffect(() => {
     if (!activeSong) return
     const cursorPosRawPx = (cursorPos / 60) * activeSong.tempo * 20
@@ -221,7 +433,7 @@ function Sequencer() {
     currentScrollX.current = newScrollX
     setScrollX(newScrollX)
     setZoom(1)
-  }, [activeSong])
+  }, [activeSongId])
 
   return (
     project &&
@@ -231,31 +443,78 @@ function Sequencer() {
         <div className="flex flex-row h-full overflow-hidden">
           <div
             ref={tracksContainer}
-            className="relative top-5.25 pb-50 flex flex-col w-48 border-t border-r overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="relative top-5.25 pb-50 pl-1 pr-0.5 flex flex-col w-48 border-t border-r overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {trackViews.map((t) => {
-              return (
-                <Track
-                  key={t.track.id}
-                  id={t.track.id}
-                  name={t.track.name}
-                  mute={t.track.mute}
-                  solo={t.track.solo}
-                  volume={t.track.volume}
-                  color={t.strokeColor}
-                  height={t.height}
-                  inputChannel={t.track.inputChannel ?? -1}
-                  inputStereo={t.track.inputStereo ?? false}
-                  monitoring={t.track.monitoring ?? false}
-                  availableInputs={availableInputs}
-                  onSetInput={setTrackInput}
-                  onSetMonitoring={setTrackMonitoring}
-                  onSetMute={setTrackMute}
-                  onSetSolo={setTrackSolo}
-                  onSetVolume={setTrackVolume}
-                />
-              )
-            })}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={(event) =>
+                setSelectedTrackId(event.active.id as string)
+              }
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+              onDragCancel={() => setDragTrackViews(null)}
+            >
+              <SortableContext
+                items={trackViews.map((t) => t.track.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {trackViews.map((t) => {
+                  const trackComponent = (
+                    <SortableTrack
+                      trackView={t}
+                      availableInputs={availableInputs}
+                      trackLevelsRef={trackLevelsRef}
+                      selected={selectedTrackId === t.track.id}
+                      sortDisabled={isLiveMode}
+                      onTrackSelect={setSelectedTrackId}
+                      onSetInput={setTrackInput}
+                      onSetMonitoring={setTrackMonitoring}
+                      onSetMute={setTrackMute}
+                      onSetSolo={setTrackSolo}
+                      onSetVolume={setTrackVolume}
+                      onRename={renameTrack}
+                      onSetColor={setTrackColor}
+                      onResize={setTrackHeight}
+                    />
+                  )
+
+                  return isLiveMode ? (
+                    trackComponent
+                  ) : (
+                    <ContextMenu key={t.track.id}>
+                      <ContextMenuTrigger asChild>
+                        {trackComponent}
+                      </ContextMenuTrigger>
+                      {!isLiveMode && (
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            variant="destructive"
+                            onClick={() => {
+                              setSelectedTrackId(t.track.id)
+                              setDeleteDialogOpen(true)
+                            }}
+                          >
+                            Remove track
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      )}
+                    </ContextMenu>
+                  )
+                })}
+              </SortableContext>
+            </DndContext>
+            {!isLiveMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-xs text-muted-foreground justify-center gap-1"
+                onClick={() => addTrack()}
+              >
+                <IconPlus size={14} />
+                Add Track
+              </Button>
+            )}
           </div>
 
           <div className="h-full flex-1">
@@ -268,6 +527,24 @@ function Sequencer() {
             />
           </div>
         </div>
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove track</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove this track? This action cannot
+                be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} variant="destructive">
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     )
   )

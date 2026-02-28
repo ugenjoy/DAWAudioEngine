@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from 'react'
 import { Project } from '../models/project'
 import { useWebSocket } from './websocket-provider'
@@ -45,11 +46,18 @@ type ProjectProviderState = {
   setTrackMute: (trackId: string, mute: boolean) => void
   setTrackSolo: (trackId: string, solo: boolean) => void
   setTrackVolume: (trackId: string, volume: number) => void
+  addTrack: (name?: string) => void
+  removeTrack: (trackId: string) => void
+  renameTrack: (trackId: string, name: string) => void
+  reorderTrack: (trackId: string, index: number) => void
+  setTrackColor: (trackId: string, color: number) => void
+  setTrackHeight: (trackId: string, height: number) => void
   isDirty: boolean
   saveProject: () => void
   setTempo: (tempo: number) => void
   setMetronomeMute: (mute: boolean) => void
   fetchAudioInputs: () => void
+  trackLevelsRef: React.RefObject<Record<string, number>>
 }
 
 const initialState: ProjectProviderState = {
@@ -69,11 +77,18 @@ const initialState: ProjectProviderState = {
   setTrackMute: () => null,
   setTrackSolo: () => null,
   setTrackVolume: () => null,
+  addTrack: () => null,
+  removeTrack: () => null,
+  renameTrack: () => null,
+  reorderTrack: () => null,
+  setTrackColor: () => null,
+  setTrackHeight: () => null,
   isDirty: false,
   saveProject: () => null,
   setTempo: () => null,
   setMetronomeMute: () => null,
   fetchAudioInputs: () => null,
+  trackLevelsRef: { current: {} },
 }
 
 const ProjectProviderContext = createContext<ProjectProviderState>(initialState)
@@ -93,6 +108,7 @@ export function ProjectProvider({
   const [availableInputs, setAvailableInputs] = useState<AudioInput[]>([])
   const [isDirty, setIsDirty] = useState<boolean>(false)
   const [masterVolume, setMasterVolume] = useState<number>(1)
+  const trackLevelsRef = useRef<Record<string, number>>({})
 
   const fetchAudioInputs = useCallback(() => {
     if (ws && isConnected) {
@@ -143,6 +159,54 @@ export function ProjectProvider({
     [send],
   )
 
+  const addTrack = useCallback(
+    (name?: string) => {
+      send({ action: 'track.add', ...(name ? { name } : {}) })
+    },
+    [send],
+  )
+
+  const removeTrack = useCallback(
+    (trackId: string) => {
+      send({ action: 'track.remove', trackId })
+    },
+    [send],
+  )
+
+  const renameTrack = useCallback(
+    (trackId: string, name: string) => {
+      updateTrack(trackId, { name })
+      send({ action: 'track.rename', trackId, name })
+    },
+    [send],
+  )
+
+  const reorderTrack = useCallback(
+    (trackId: string, index: number) => {
+      setActiveSong((prev) => {
+        if (!prev) return prev
+        const tracks = [...prev.tracks]
+        const oldIndex = tracks.findIndex((t) => t.id === trackId)
+        if (oldIndex < 0) return prev
+        const [moved] = tracks.splice(oldIndex, 1)
+        const clampedIndex = Math.max(0, Math.min(tracks.length, index))
+        tracks.splice(clampedIndex, 0, moved)
+        return { ...prev, tracks }
+      })
+      setIsDirty(true)
+      send({ action: 'track.reorder', trackId, index })
+    },
+    [send],
+  )
+
+  const setTrackColor = useCallback(
+    (trackId: string, color: number) => {
+      updateTrack(trackId, { color })
+      send({ action: 'track.setColor', trackId, color })
+    },
+    [send],
+  )
+
   const saveProject = useCallback(() => {
     if (project?.path) {
       send({ action: 'project.save', path: project.path })
@@ -162,6 +226,13 @@ export function ProjectProvider({
     },
     [send],
   )
+
+  const setTrackHeight = useCallback((trackId: string, height: number) => {
+    const clampedHeight = Math.max(60, height)
+    setTrackViews(prev => prev.map(tv =>
+      tv.track.id === trackId ? { ...tv, height: clampedHeight } : tv
+    ))
+  }, [])
 
   const sendMasterVolume = useCallback(
     (volume: number) => {
@@ -236,16 +307,22 @@ export function ProjectProvider({
         }
         break
       }
+      case 'track.levels': {
+        if (data.levels !== undefined) trackLevelsRef.current = data.levels
+        break
+      }
       case 'transport.play': {
         setPlaying(true)
         break
       }
       case 'transport.pause': {
         setPlaying(false)
+        trackLevelsRef.current = {}
         break
       }
       case 'transport.stop': {
         setPlaying(false)
+        trackLevelsRef.current = {}
         break
       }
       case 'audio.inputsList': {
@@ -291,6 +368,20 @@ export function ProjectProvider({
         updateTrack(data.trackId, { volume: data.volume })
         break
       }
+      case 'track.colorChanged': {
+        updateTrack(data.trackId, { color: data.color })
+        break
+      }
+      case 'track.listUpdated': {
+        setIsDirty(true)
+        if (data.tracks !== undefined) {
+          setActiveSong((prev) => {
+            if (!prev) return prev
+            return { ...prev, tracks: data.tracks }
+          })
+        }
+        break
+      }
       case 'transport.masterVolume': {
         if (data.volume !== undefined) setMasterVolume(data.volume)
         break
@@ -304,17 +395,18 @@ export function ProjectProvider({
 
   useEffect(() => {
     if (!activeSong) return
-    const trackViews = activeSong.tracks.map((t, i) => {
-      const colorIndex = (i % 8) + 1
-      const tv = {
-        track: t,
-        fillColor: `--track-${colorIndex}-fill`,
-        strokeColor: `--track-${colorIndex}-stroke`,
-        height: 100,
-      } satisfies TrackView
-      return tv
+    setTrackViews(prev => {
+      const heightMap = new Map(prev.map(tv => [tv.track.id, tv.height]))
+      return activeSong.tracks.map((t) => {
+        const colorIndex = t.color ?? 1
+        return {
+          track: t,
+          fillColor: `--track-${colorIndex}-fill`,
+          strokeColor: `--track-${colorIndex}-stroke`,
+          height: heightMap.get(t.id) ?? 100,
+        } satisfies TrackView
+      })
     })
-    setTrackViews(trackViews)
   }, [activeSong])
 
   const value = {
@@ -334,11 +426,18 @@ export function ProjectProvider({
     setTrackMute,
     setTrackSolo,
     setTrackVolume,
+    addTrack,
+    removeTrack,
+    renameTrack,
+    reorderTrack,
+    setTrackColor,
+    setTrackHeight,
     isDirty,
     saveProject,
     setTempo,
     setMetronomeMute,
     fetchAudioInputs,
+    trackLevelsRef,
   }
 
   return (
