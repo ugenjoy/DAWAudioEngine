@@ -2,33 +2,21 @@
 
 #include "commands/command.hpp"
 
-/**
- * Command to start playback.
- */
 class PlayCommand : public Command {
  public:
   void execute(AppContext& ctx) override;
 };
 
-/**
- * Command to pause playback.
- */
 class PauseCommand : public Command {
  public:
   void execute(AppContext& ctx) override;
 };
 
-/**
- * Command to stop playback and reset position.
- */
 class StopCommand : public Command {
  public:
   void execute(AppContext& ctx) override;
 };
 
-/**
- * Command to set playhead position.
- */
 class SetPlayheadPositionCommand : public Command {
  public:
   explicit SetPlayheadPositionCommand(double position);
@@ -39,9 +27,6 @@ class SetPlayheadPositionCommand : public Command {
   double position;
 };
 
-/**
- * Command to set cursor position.
- */
 class SetCursorPositionCommand : public Command {
  public:
   explicit SetCursorPositionCommand(double position);
@@ -52,10 +37,6 @@ class SetCursorPositionCommand : public Command {
   double position;
 };
 
-/**
- * Command to set master volume. Accessible in Live and Edit modes.
- * Volume must be in [0.0, 1.0].
- */
 class SetMasterVolumeCommand : public Command {
  public:
   explicit SetMasterVolumeCommand(float volume);

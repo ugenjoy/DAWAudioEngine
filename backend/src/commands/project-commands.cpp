@@ -8,7 +8,9 @@
 #include "events/event-engine.hpp"
 #include "services/project-manager.hpp"
 #include "services/songs-manager.hpp"
-#include "websocket/websocket-server.hpp"
+#include "websocket/broadcast-helpers.hpp"
+
+// ── LoadProjectCommand ───────────────────────────────────────────────────────
 
 LoadProjectCommand::LoadProjectCommand(std::string projectPath)
     : projectPath(std::move(projectPath)) {}
@@ -39,29 +41,18 @@ void LoadProjectCommand::execute(AppContext& ctx) {
     }
 
     nlohmann::json project = projectManager.getProject(projectPath);
-    nlohmann::json songs = songsManager.toJson();
 
-    // Broadcast project loaded event to all clients
-    nlohmann::json broadcast;
-    broadcast["type"] = "broadcast";
-    broadcast["event"] = "project.loaded";
-    broadcast["project"] = project;
-
-    wsServer.broadcast(broadcast.dump());
+    broadcast::send(wsServer, "project.loaded", {{"project", project}});
   } else {
     juce::Logger::writeToLog("[LoadProjectCommand] Failed to load project: " +
                              juce::String(projectManager.getLastError()));
 
-    // Broadcast error event
-    nlohmann::json broadcast;
-    broadcast["type"] = "broadcast";
-    broadcast["event"] = "project.loadFailed";
-    broadcast["path"] = projectPath;
-    broadcast["error"] = projectManager.getLastError();
-
-    wsServer.broadcast(broadcast.dump());
+    broadcast::send(wsServer, "project.loadFailed",
+                    {{"path", projectPath}, {"error", projectManager.getLastError()}});
   }
 }
+
+// ── SaveProjectCommand ───────────────────────────────────────────────────────
 
 SaveProjectCommand::SaveProjectCommand(std::string projectPath)
     : projectPath(std::move(projectPath)) {}
@@ -74,16 +65,15 @@ void SaveProjectCommand::execute(AppContext& ctx) {
     juce::Logger::writeToLog("[SaveProjectCommand] Project saved: " +
                              juce::String(projectPath));
 
-    nlohmann::json broadcast;
-    broadcast["type"] = "broadcast";
-    broadcast["event"] = "project.saved";
-    broadcast["path"] = projectPath;
-    ctx.getWebSocketServer().broadcast(broadcast.dump());
+    broadcast::send(ctx.getWebSocketServer(), "project.saved",
+                    {{"path", projectPath}});
   } else {
     juce::Logger::writeToLog("[SaveProjectCommand] Failed to save project: " +
                              juce::String(projectManager.getLastError()));
   }
 }
+
+// ── GetLoadedProjectCommand ──────────────────────────────────────────────────
 
 void GetLoadedProjectCommand::execute(AppContext& ctx) {
   auto& projectManager = ctx.getProjectManager();
@@ -119,6 +109,8 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
                        : "none"));
 }
 
+// ── ListProjectsCommand ──────────────────────────────────────────────────────
+
 void ListProjectsCommand::execute(AppContext& ctx) {
   auto& projectManager = ctx.getProjectManager();
 
@@ -144,6 +136,8 @@ void ListProjectsCommand::execute(AppContext& ctx) {
                            juce::String((int)projects.size()) +
                            " projects from " + juce::String(directory));
 }
+
+// ── LoadSongCommand ──────────────────────────────────────────────────────────
 
 LoadSongCommand::LoadSongCommand(std::string uuid) : uuid(std::move(uuid)) {}
 

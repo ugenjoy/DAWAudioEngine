@@ -24,7 +24,7 @@ class TracksManager {
   AudioTrack* findTrackById(const std::string& id) const;
   void sampleRateChanged();
 
-  /** Pre-render all freezable tracks (e.g., BeatTrack) into frozen buffers. */
+  /** Pre-render all freezable tracks into frozen buffers. */
   void freezeAll(float tempo, double sampleRate);
 
   /** Release all frozen buffers and resume live rendering. */

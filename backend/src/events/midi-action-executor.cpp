@@ -3,6 +3,7 @@
 #include "app-context.hpp"
 #include "events/action-executor.hpp"
 #include "services/midi-output-manager.hpp"
+#include "services/midi-utils.hpp"
 
 /**
  * Executes "midi.send" actions.
@@ -34,14 +35,7 @@ class MidiActionExecutor : public ActionExecutor {
       return;
     }
 
-    juce::MidiMessage message;
-    if (bytes.size() == 1) {
-      message = juce::MidiMessage(bytes[0]);
-    } else if (bytes.size() == 2) {
-      message = juce::MidiMessage(bytes[0], bytes[1]);
-    } else {
-      message = juce::MidiMessage(bytes[0], bytes[1], bytes[2]);
-    }
+    auto message = midi::fromBytes(bytes);
 
     bool ok = ctx.getMidiOutputManager().sendMessage(device, message);
     juce::Logger::writeToLog(

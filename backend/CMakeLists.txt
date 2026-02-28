@@ -152,10 +152,8 @@ if(BUILD_TESTS)
     target_sources(DAWAudioEngine_Tests PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}/test_main.cpp
         tests/test.wavetable.cpp
-        tests/test.beattrack.cpp
-        src/audio-track.cpp
-        src/audio-file-track.cpp
-        src/beat-track.cpp
+        src/audio/audio-track.cpp
+        src/audio/audio-file-track.cpp
     )
     
     target_include_directories(DAWAudioEngine_Tests PRIVATE
@@ -184,9 +182,7 @@ if(BUILD_TESTS)
     endif()
 
     # Register tests with CTest
-    add_test(NAME WaveTableTests 
-             COMMAND DAWAudioEngine_Tests)
-    add_test(NAME BeatTrackTests 
+    add_test(NAME WaveTableTests
              COMMAND DAWAudioEngine_Tests)
     
     message(STATUS "Unit tests enabled")

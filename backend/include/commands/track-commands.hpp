@@ -4,17 +4,11 @@
 
 #include "commands/command.hpp"
 
-/**
- * Command to list available audio devices.
- */
 class ListDevicesCommand : public Command {
  public:
   void execute(AppContext& ctx) override;
 };
 
-/**
- * Command to set the audio input/output device.
- */
 class SetAudioDeviceCommand : public Command {
  public:
   SetAudioDeviceCommand(std::string deviceType, std::string outputDevice,
@@ -30,17 +24,11 @@ class SetAudioDeviceCommand : public Command {
   int bufferSize;
 };
 
-/**
- * Command to list available audio input channels.
- */
 class ListInputsCommand : public Command {
  public:
   void execute(AppContext& ctx) override;
 };
 
-/**
- * Command to set the input channel for a track.
- */
 class SetTrackInputCommand : public Command {
  public:
   SetTrackInputCommand(std::string trackId, int inputChannel, bool stereo);
@@ -52,9 +40,6 @@ class SetTrackInputCommand : public Command {
   bool stereo;
 };
 
-/**
- * Command to toggle monitoring on a track.
- */
 class SetTrackMonitoringCommand : public Command {
  public:
   SetTrackMonitoringCommand(std::string trackId, bool monitoring);
@@ -65,9 +50,6 @@ class SetTrackMonitoringCommand : public Command {
   bool monitoring;
 };
 
-/**
- * Command to set the mute state of a track.
- */
 class SetTrackMuteCommand : public Command {
  public:
   SetTrackMuteCommand(std::string trackId, bool mute);
@@ -78,9 +60,6 @@ class SetTrackMuteCommand : public Command {
   bool mute;
 };
 
-/**
- * Command to set the solo state of a track.
- */
 class SetTrackSoloCommand : public Command {
  public:
   SetTrackSoloCommand(std::string trackId, bool solo);
@@ -91,9 +70,6 @@ class SetTrackSoloCommand : public Command {
   bool solo;
 };
 
-/**
- * Command to set the volume of a track.
- */
 class SetTrackVolumeCommand : public Command {
  public:
   SetTrackVolumeCommand(std::string trackId, float volume);

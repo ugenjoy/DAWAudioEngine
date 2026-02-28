@@ -34,6 +34,12 @@ const MIDI_MESSAGE_TYPES: { value: MidiMessageType; label: string }[] = [
   { value: 'noteOff', label: 'Note Off' },
 ]
 
+/**
+ * Build raw MIDI bytes from high-level parameters.
+ * Status byte encodes both message type and channel (0-indexed):
+ *   0x80 = Note Off, 0x90 = Note On, 0xB0 = CC, 0xC0 = Program Change.
+ * Program Change uses 2 bytes (no data2), all others use 3.
+ */
 function buildMidiBytes(
   type: MidiMessageType,
   channel: number,
@@ -53,6 +59,11 @@ function buildMidiBytes(
   }
 }
 
+/**
+ * Parse raw MIDI bytes back into high-level parameters.
+ * Extracts the message type from the upper nibble of the status byte
+ * and the channel from the lower nibble.
+ */
 function parseMidiBytes(bytes: number[]): {
   type: MidiMessageType
   channel: number
@@ -254,7 +265,6 @@ function EventRuleRow({
           disabled={isLiveMode}
         />
 
-        {/* Trigger */}
         <Select
           value={rule.trigger}
           onValueChange={handleTriggerChange}
@@ -294,7 +304,6 @@ function EventRuleRow({
       </div>
 
       <div className="flex flex-wrap gap-2 items-end">
-        {/* MIDI device */}
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Device</Label>
           <Select
@@ -315,7 +324,6 @@ function EventRuleRow({
           </Select>
         </div>
 
-        {/* Message type */}
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Type</Label>
           <Select
@@ -336,7 +344,6 @@ function EventRuleRow({
           </Select>
         </div>
 
-        {/* Channel */}
         <div className="flex flex-col gap-1">
           <Label className="text-xs">Channel</Label>
           <Input
