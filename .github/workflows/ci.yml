@@ -87,51 +87,6 @@ jobs:
             xargs clang-format --dry-run --Werror
         continue-on-error: true
 
-  documentation:
-    name: Generate Documentation
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install Doxygen
-        run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
-
-      - name: Generate Doxygen documentation
-        run: |
-          cd backend
-          doxygen Doxyfile
-          # Disable Jekyll processing for GitHub Pages
-          touch docs/html/.nojekyll
-
-      - name: Upload documentation artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: documentation
-          path: backend/docs/html/
-          retention-days: 30
-
-      - name: Setup Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact for Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./backend/docs/html
-
-      - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/deploy-pages@v4
-
   static-analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
@@ -165,7 +120,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [build-and-test, code-quality, documentation]
+    needs: [build-and-test, code-quality]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 

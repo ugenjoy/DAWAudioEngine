@@ -152,8 +152,6 @@ if(BUILD_TESTS)
     target_sources(DAWAudioEngine_Tests PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}/test_main.cpp
         tests/test.wavetable.cpp
-        src/audio/audio-track.cpp
-        src/audio/audio-file-track.cpp
     )
     
     target_include_directories(DAWAudioEngine_Tests PRIVATE

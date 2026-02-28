@@ -54,12 +54,6 @@ JuceLibraryCode/
 *~
 .DS_Store
 
-# Documentation
-backend/docs/html/
-backend/docs/latex/
-backend/docs/xml/
-*.doxygen.log
-
 # Test results
 Testing/
 *.gcov
