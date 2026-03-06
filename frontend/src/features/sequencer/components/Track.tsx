@@ -13,6 +13,21 @@ import {
 import { useState, useRef, useEffect, useCallback, forwardRef } from 'react'
 import { Input } from '@/shared/shadcn/components/input'
 
+const DB_MIN = -80
+const DB_MAX = 12
+const DB_RANGE = DB_MAX - DB_MIN // 92
+
+// Convert dB to visual position (0-1) using quadratic curve: more space for useful range
+function dbToPosition(db: number): number {
+  const linear = Math.max(0, Math.min(1, (db - DB_MIN) / DB_RANGE))
+  return linear * linear
+}
+
+// Convert visual position (0-1) back to dB using sqrt curve
+function positionToDb(pos: number): number {
+  return Math.sqrt(Math.max(0, pos)) * DB_RANGE + DB_MIN
+}
+
 type TrackProps = {
   id: string
   name: string
@@ -84,12 +99,17 @@ const Track = forwardRef<
       const level = trackLevelsRef.current[id] ?? 0
       if (vuMeterRef.current) {
         // Convert linear peak to dB, then map to 0-1 using same scale as graduations
-        const db = level > 0.00001 ? 20 * Math.log10(level) : -80
-        const ratio = Math.max(0, Math.min(1, (db + 80) / 92))
+        const db = level > 0.00001 ? 20 * Math.log10(level) : DB_MIN
+        const ratio = dbToPosition(db)
         vuMeterRef.current.style.height = `${ratio * 100}%`
         // Color based on dB: green < -6, yellow -6..0, red > 0
         const r = db > 0 ? 255 : db > -6 ? 255 : 34
-        const g = db > 0 ? Math.round(255 * Math.max(0, 1 - db / 12)) : db > -6 ? 200 : 197
+        const g =
+          db > 0
+            ? Math.round(255 * Math.max(0, 1 - db / 12))
+            : db > -6
+              ? 200
+              : 197
         const b = db > 0 ? 0 : db > -6 ? 0 : 94
         vuMeterRef.current.style.backgroundColor = `rgb(${r},${g},${b})`
       }
@@ -113,7 +133,7 @@ const Track = forwardRef<
           0,
           Math.min(1, 1 - (clientY - rect.top) / rect.height),
         )
-        const db = ratio * 92 - 80 // 0 → -80 dB, 1 → +12 dB
+        const db = positionToDb(ratio)
         onSetVolume(id, Math.round(db * 2) / 2) // snap to 0.5 dB
       }
 
@@ -385,7 +405,7 @@ const Track = forwardRef<
           <div
             key={db}
             className="absolute left-0 w-full pointer-events-none"
-            style={{ bottom: `${((db + 80) / 92) * 100}%` }}
+            style={{ bottom: `${dbToPosition(db) * 100}%` }}
           >
             <div
               className={cn(
@@ -397,7 +417,7 @@ const Track = forwardRef<
         ))}
         <div
           className="absolute left-0 w-full h-px bg-white opacity-0 group-hover/vu:opacity-100 pointer-events-none transition-opacity"
-          style={{ bottom: `${((volume + 80) / 92) * 100}%` }}
+          style={{ bottom: `${dbToPosition(volume) * 100}%` }}
         />
       </div>
     </div>
