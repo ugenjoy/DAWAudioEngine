@@ -27,7 +27,7 @@ type TrackCommand =
   | 'track.reorder'
   | 'track.setColor'
 
-type SongCommand = 'song.setTempo' | 'song.setMetronomeMute'
+type SongCommand = 'song.setTempo' | 'song.setMetronomeMute' | 'song.create'
 
 type ModeCommand = 'mode.setEdit' | 'mode.setLive' | 'mode.getMode'
 

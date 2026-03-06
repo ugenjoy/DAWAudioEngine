@@ -30,6 +30,7 @@ class Song {
   // Setters / Getters
   std::string getId() const { return id; }
   std::string getName() const { return name; }
+  void setName(const std::string& n) { name = n; }
 
   void sampleRateChanged();
 

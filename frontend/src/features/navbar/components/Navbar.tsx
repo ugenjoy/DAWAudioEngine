@@ -14,6 +14,7 @@ import {
 } from '@tabler/icons-react'
 import { AudioSettingsDialog } from '@/features/audio-settings/components/AudioSettingsDialog'
 import { EventsDialog } from '@/features/events/components/EventsDialog'
+import { NewSongDialog } from '@/features/songs/components/NewSongDialog'
 
 interface NavbarProps {
   onOpenProjectDialog?: () => void
@@ -70,17 +71,20 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
           {project?.name ?? 'Open project'}
         </Button>
         {!isLiveMode && (
-          <Button
-            variant="ghost"
-            onClick={saveProject}
-            title={isDirty ? 'Save project (unsaved changes)' : 'Save project'}
-            className="relative"
-          >
-            <IconDeviceFloppy size={16} />
-            {isDirty && (
-              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-400" />
-            )}
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              onClick={saveProject}
+              title={isDirty ? 'Save project (unsaved changes)' : 'Save project'}
+              className="relative"
+            >
+              <IconDeviceFloppy size={16} />
+              {isDirty && (
+                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-400" />
+              )}
+            </Button>
+            <NewSongDialog />
+          </>
         )}
       </div>
 

@@ -5,7 +5,34 @@
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
+#include "events/event-engine.hpp"
+#include "services/songs-manager.hpp"
 #include "websocket/broadcast-helpers.hpp"
+
+// ── CreateSongCommand ────────────────────────────────────────────────────────
+
+CreateSongCommand::CreateSongCommand(std::string name)
+    : name(std::move(name)) {}
+
+void CreateSongCommand::execute(AppContext& ctx) {
+  auto& songsManager = ctx.getSongsManager();
+  auto& audioEngine = ctx.getAudioEngine();
+
+  auto song = std::make_unique<Song>();
+  song->setName(name);
+  Song* raw = song.get();
+  songsManager.addSong(std::move(song));
+
+  audioEngine.stop();
+  audioEngine.loadSong(raw);
+
+  ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(),
+                                 raw->getEventRules());
+  ctx.getEventEngine().fire("song.loaded", ctx);
+
+  broadcast::send(ctx.getWebSocketServer(), "project.songsUpdated",
+                  {{"songs", songsManager.toJson()}});
+}
 
 // ── SetTempoCommand ─────────────────────────────────────────────────────────
 
@@ -52,4 +79,12 @@ REGISTER_EDIT_COMMAND_WITH_CREATOR(
     [](const nlohmann::json& payload) -> CommandPtr {
       bool mute = payload.value("mute", true);
       return std::make_unique<SetMetronomeMuteCommand>(mute);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "song.create", CreateSong,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string name = payload.value("name", "");
+      if (name.empty()) return nullptr;
+      return std::make_unique<CreateSongCommand>(name);
     });

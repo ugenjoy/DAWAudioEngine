@@ -56,6 +56,7 @@ type ProjectProviderState = {
   saveProject: () => void
   setTempo: (tempo: number) => void
   setMetronomeMute: (mute: boolean) => void
+  createSong: (name: string) => void
   fetchAudioInputs: () => void
   trackLevelsRef: React.RefObject<Record<string, number>>
 }
@@ -87,6 +88,7 @@ const initialState: ProjectProviderState = {
   saveProject: () => null,
   setTempo: () => null,
   setMetronomeMute: () => null,
+  createSong: () => null,
   fetchAudioInputs: () => null,
   trackLevelsRef: { current: {} },
 }
@@ -223,6 +225,13 @@ export function ProjectProvider({
   const setMetronomeMute = useCallback(
     (mute: boolean) => {
       send({ action: 'song.setMetronomeMute', mute })
+    },
+    [send],
+  )
+
+  const createSong = useCallback(
+    (name: string) => {
+      send({ action: 'song.create', name })
     },
     [send],
   )
@@ -386,6 +395,13 @@ export function ProjectProvider({
         if (data.volume !== undefined) setMasterVolume(data.volume)
         break
       }
+      case 'project.songsUpdated': {
+        setIsDirty(true)
+        if (data.songs !== undefined) {
+          setProject((prev) => prev ? { ...prev, songs: data.songs } : prev)
+        }
+        break
+      }
       case 'event.listUpdated': {
         setIsDirty(true)
         break
@@ -434,6 +450,7 @@ export function ProjectProvider({
     setTrackHeight,
     isDirty,
     saveProject,
+    createSong,
     setTempo,
     setMetronomeMute,
     fetchAudioInputs,
