@@ -1,8 +1,13 @@
 import { useProject, type TrackView } from '@/shared/contexts/project-provider'
-import { useCallback } from 'react'
+import { useCallback, type RefObject } from 'react'
 import { getCSSVar } from '../utils'
 import { drawClip } from '../canvas/clips'
 import { useInterpolatedPlayhead } from './useInterpolatedPlayhead'
+
+export interface GhostClip {
+  position: number
+  trackIndex: number
+}
 
 export function useSequencer(
   zoom: number,
@@ -10,6 +15,7 @@ export function useSequencer(
   scrollY: number,
   trackViewsOverride?: TrackView[],
   selectedTrackId?: string | null,
+  ghostClipRef?: RefObject<GhostClip | null>,
 ) {
   const {
     activeSong,
@@ -74,6 +80,30 @@ export function useSequencer(
           ctx.globalAlpha = 1
         }
         totalHeight += trackView.height
+      }
+
+      // Ghost clip preview during file drag
+      const ghost = ghostClipRef?.current
+      if (ghost && ghost.trackIndex >= 0 && ghost.trackIndex < trackViews.length) {
+        const tv = trackViews[ghost.trackIndex]
+        let ghostY = headerHeight - scrollY
+        for (let i = 0; i < ghost.trackIndex; i++) {
+          ghostY += trackViews[i].height
+        }
+        const offset = 1.5
+        const ghostX =
+          (ghost.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+        const ghostWidth = 4 * pixelsPerBeat // Default 4 beats wide
+        const ghostHeight = tv.height - offset * 2
+
+        ctx.globalAlpha = 0.4
+        ctx.fillStyle = getCSSVar(tv.fillColor)
+        ctx.fillRect(ghostX, ghostY + offset, ghostWidth, ghostHeight)
+        ctx.strokeStyle = getCSSVar(tv.strokeColor)
+        ctx.setLineDash([4, 4])
+        ctx.strokeRect(ghostX, ghostY + offset, ghostWidth, ghostHeight)
+        ctx.setLineDash([])
+        ctx.globalAlpha = 1
       }
 
       const pixelsPerSub = pixelsPerBeat / 4

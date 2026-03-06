@@ -12,7 +12,7 @@ class AudioClip {
   explicit AudioClip();
   ~AudioClip();
 
-  void loadAudioFile();
+  void loadAudioFile(const std::string& audioDir = "");
 
   void renderBlock(juce::AudioBuffer<float>& buffer, int startSample,
                    int numSamples, double startTime);
@@ -21,9 +21,15 @@ class AudioClip {
 
   std::string getClipType() const { return "AudioClip"; }
   std::string getId() const { return id; }
+  std::string getFileName() const { return fileName; }
+
+  void setName(const std::string& n) { name = n; }
+  void setFileName(const std::string& fn) { fileName = fn; }
+  void setPosition(double p) { position = p; }
 
   nlohmann::json toJson() const;
-  static std::unique_ptr<AudioClip> fromJson(const nlohmann::json& j);
+  static std::unique_ptr<AudioClip> fromJson(const nlohmann::json& j,
+                                               const std::string& audioDir = "");
 
  private:
   std::string id;

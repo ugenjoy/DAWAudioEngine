@@ -36,7 +36,8 @@ nlohmann::json ClipsManager::toJson() const {
   return j;
 }
 
-void ClipsManager::loadFromJson(const nlohmann::json& j) {
+void ClipsManager::loadFromJson(const nlohmann::json& j,
+                                 const std::string& audioDir) {
   clips.clear();
 
   if (!j.is_array()) {
@@ -44,6 +45,6 @@ void ClipsManager::loadFromJson(const nlohmann::json& j) {
   }
 
   for (const auto& clipJson : j) {
-    clips.push_back(AudioClip::fromJson(clipJson));
+    clips.push_back(AudioClip::fromJson(clipJson, audioDir));
   }
 }

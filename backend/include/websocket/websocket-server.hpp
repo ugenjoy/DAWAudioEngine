@@ -14,6 +14,8 @@
 #include "commands/command-queue.hpp"
 #include "services/mode-manager.hpp"
 
+class AppContext;
+
 /**
  * WebSocket server for client communication.
  * Receives JSON messages, uses CommandFactory to create commands,
@@ -49,6 +51,9 @@ class WebSocketServer {
    */
   void broadcast(const std::string& message);
 
+  /** Inject AppContext after construction (avoids circular dependency). */
+  void setAppContext(AppContext* ctx) { appContext = ctx; }
+
   bool isRunning() const { return running.load(); }
   int getPort() const { return port; }
   bool hasExited() const { return threadExited.load(); }
@@ -65,6 +70,9 @@ class WebSocketServer {
 
   std::unique_ptr<crow::SimpleApp> app;
   std::thread serverThread;
+
+  // App context (injected after construction)
+  AppContext* appContext = nullptr;
 
   // Connected clients
   std::mutex clientsMutex;

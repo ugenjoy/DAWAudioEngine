@@ -3,7 +3,7 @@ import { Transport } from '../../transport/components/Transport'
 import Track from './Track'
 import { forwardRef, useCallback, useEffect, useRef, useState } from 'react'
 import Timeline from './Timeline'
-import { useSequencer } from '../hooks/useSequencer'
+import { useSequencer, type GhostClip } from '../hooks/useSequencer'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { useMode } from '@/shared/contexts/mode-provider'
 import {
@@ -24,6 +24,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/shared/shadcn/components/button'
 import { IconPlus } from '@tabler/icons-react'
+import { uploadAudioClip } from '@/shared/services/audio-upload'
 import type { TrackView } from '@/shared/contexts/project-provider'
 import type { AudioInput } from '@/shared/models/audio-input'
 import {
@@ -161,6 +162,8 @@ function Sequencer() {
   const [scrollY, setScrollY] = useState(0)
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isDraggingFile, setIsDraggingFile] = useState(false)
+  const ghostClipRef = useRef<GhostClip | null>(null)
   const [dragTrackViews, setDragTrackViews] = useState<
     typeof trackViews | null
   >(null)
@@ -171,6 +174,7 @@ function Sequencer() {
     scrollY,
     activeTrackViews,
     selectedTrackId,
+    ghostClipRef,
   )
 
   const tracksContainer = useRef<HTMLDivElement>(null)
@@ -339,6 +343,9 @@ function Sequencer() {
     (e: KeyboardEvent) => {
       if (!activeSong) return
 
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
       switch (e.key) {
         case ' ': {
           e.preventDefault()
@@ -366,6 +373,99 @@ function Sequencer() {
     }
     setDeleteDialogOpen(false)
   }, [selectedTrackId, removeTrack])
+
+  const AUDIO_EXTENSIONS = ['.wav', '.mp3', '.flac', '.aiff', '.ogg', '.aif']
+
+  const snapPosition = useCallback(
+    (offsetX: number): number => {
+      if (!activeSong) return 0
+      const pixelsPerBeat = 20 * zoom
+      let beatsPerLine: number
+      if (pixelsPerBeat < 4) beatsPerLine = 16
+      else if (pixelsPerBeat < 16) beatsPerLine = 4
+      else if (pixelsPerBeat > 64) beatsPerLine = 0.25
+      else beatsPerLine = 1
+      const rawPos =
+        ((offsetX + scrollX) * 60) / (activeSong.tempo * 20 * zoom)
+      const snapInterval = (beatsPerLine * 60) / activeSong.tempo
+      return Math.max(0, Math.round(rawPos / snapInterval) * snapInterval)
+    },
+    [activeSong, zoom, scrollX],
+  )
+
+  const trackIndexFromY = useCallback(
+    (offsetY: number): number => {
+      const headerHeight = 20
+      const y = offsetY + scrollY - headerHeight
+      if (y < 0) return 0
+      let accHeight = 0
+      for (let i = 0; i < activeTrackViews.length; i++) {
+        accHeight += activeTrackViews[i].height
+        if (y < accHeight) return i
+      }
+      return activeTrackViews.length - 1
+    },
+    [scrollY, activeTrackViews],
+  )
+
+  const handleFileDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (isLiveMode || !e.dataTransfer.types.includes('Files')) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+
+      const rect = e.currentTarget.getBoundingClientRect()
+      const offsetX = e.clientX - rect.left
+      const offsetY = e.clientY - rect.top
+      ghostClipRef.current = {
+        position: snapPosition(offsetX),
+        trackIndex: trackIndexFromY(offsetY),
+      }
+      setIsDraggingFile(true)
+    },
+    [isLiveMode, snapPosition, trackIndexFromY],
+  )
+
+  const handleFileDragLeave = useCallback(
+    (e: React.DragEvent) => {
+      if (e.currentTarget.contains(e.relatedTarget as Node)) return
+      ghostClipRef.current = null
+      setIsDraggingFile(false)
+    },
+    [],
+  )
+
+  const handleFileDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault()
+      ghostClipRef.current = null
+      setIsDraggingFile(false)
+
+      if (!activeSong || isLiveMode) return
+
+      const files = Array.from(e.dataTransfer.files).filter((f) =>
+        AUDIO_EXTENSIONS.some((ext) => f.name.toLowerCase().endsWith(ext)),
+      )
+      if (files.length === 0) return
+
+      const rect = e.currentTarget.getBoundingClientRect()
+      const offsetX = e.clientX - rect.left
+      const offsetY = e.clientY - rect.top
+      const dropPosition = snapPosition(offsetX)
+      const tIndex = trackIndexFromY(offsetY)
+      const targetTrackId = activeTrackViews[tIndex]?.track.id
+      if (!targetTrackId) return
+
+      for (const file of files) {
+        try {
+          await uploadAudioClip(file, targetTrackId, dropPosition)
+        } catch (err) {
+          console.error('Audio upload failed:', err)
+        }
+      }
+    },
+    [activeSong, isLiveMode, snapPosition, trackIndexFromY, activeTrackViews],
+  )
 
   useEffect(() => {
     if (!tracksContainer.current) return
@@ -517,10 +617,16 @@ function Sequencer() {
             )}
           </div>
 
-          <div className="h-full flex-1">
+          <div
+            className="h-full flex-1"
+            onDragOver={handleFileDragOver}
+            onDragLeave={handleFileDragLeave}
+            onDrop={handleFileDrop}
+          >
             <Timeline
               draw={draw}
               playing={isPlaying}
+              continuousRender={isDraggingFile}
               onWheel={handleWheel}
               onClick={handleClick}
               onKeyDown={handleKeyDown}

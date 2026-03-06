@@ -33,6 +33,8 @@ type ModeCommand = 'mode.setEdit' | 'mode.setLive' | 'mode.getMode'
 
 type MidiCommand = 'midi.listOutputs' | 'midi.send'
 
+type ClipCommand = 'clip.add'
+
 type EventCommand = 'event.list' | 'event.add' | 'event.remove' | 'event.update'
 
 type Command =
@@ -44,6 +46,7 @@ type Command =
   | ModeCommand
   | MidiCommand
   | EventCommand
+  | ClipCommand
 
 export interface WebSocketMessage {
   action: Command

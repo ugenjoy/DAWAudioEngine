@@ -21,7 +21,7 @@ class ClipsManager {
 
   // Serialization
   nlohmann::json toJson() const;
-  void loadFromJson(const nlohmann::json& j);
+  void loadFromJson(const nlohmann::json& j, const std::string& audioDir = "");
 
   // Getter for clips
   const std::vector<std::unique_ptr<AudioClip>>& getClips() const {

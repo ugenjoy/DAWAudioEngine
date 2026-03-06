@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 interface TimelineProps {
   draw: (value: CanvasRenderingContext2D, width: number, height: number) => void
   playing?: boolean
+  continuousRender?: boolean
   onWheel?: (e: WheelEvent) => void
   onClick?: (e: MouseEvent) => void
   onKeyDown?: (e: KeyboardEvent) => void
@@ -11,6 +12,7 @@ interface TimelineProps {
 function Timeline({
   draw,
   playing,
+  continuousRender,
   onWheel,
   onClick,
   onKeyDown,
@@ -39,14 +41,14 @@ function Timeline({
 
       drawRef.current(ctx!, canvas!.width, canvas!.height)
 
-      if (playing) {
+      if (playing || continuousRender) {
         rafId = requestAnimationFrame(render)
       }
     }
 
     rafId = requestAnimationFrame(render)
     return () => cancelAnimationFrame(rafId)
-  }, [draw, playing])
+  }, [draw, playing, continuousRender])
 
   useEffect(() => {
     const canvas = canvasRef.current

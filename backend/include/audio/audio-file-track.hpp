@@ -23,6 +23,8 @@ class AudioFileTrack : public AudioTrack {
   std::string getTrackType() const override { return "AudioFileTrack"; }
   void sampleRateChanged() override;
 
+  ClipsManager* getClipsManager() const { return clipsManager.get(); }
+
  private:
   std::unique_ptr<ClipsManager> clipsManager;
 };

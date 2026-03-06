@@ -56,6 +56,9 @@ class AudioEngineApplication : public juce::JUCEApplication,
         *audioEngine, *songsManager, *projectManager, *wsServer, *modeManager,
         *eventEngine, *midiOutputManager);
 
+    // Inject AppContext into WebSocket server for HTTP routes
+    wsServer->setAppContext(appContext.get());
+
     // Create command processor and inject into context (avoids circular dep)
     commandProcessor =
         std::make_unique<CommandProcessor>(*commandQueue, *appContext);
