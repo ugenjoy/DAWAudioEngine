@@ -3,10 +3,8 @@ import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { cn } from '@/shared/shadcn/lib/utils'
 import { useProject } from '@/shared/contexts/project-provider'
 import { useMode } from '@/shared/contexts/mode-provider'
-import { useEffect, useState } from 'react'
-import { Song } from '@/shared/models/song'
+import { useState } from 'react'
 import {
-  IconChevronLeft,
   IconChevronRight,
   IconDeviceFloppy,
   IconPencil,
@@ -15,38 +13,24 @@ import {
 import { AudioSettingsDialog } from '@/features/audio-settings/components/AudioSettingsDialog'
 import { EventsDialog } from '@/features/events/components/EventsDialog'
 import { NewSongDialog } from '@/features/songs/components/NewSongDialog'
+import { SongManagerDialog } from '@/features/songs/components/SongManagerDialog'
 
 interface NavbarProps {
   onOpenProjectDialog?: () => void
 }
 
 function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
-  const { isConnected, send } = useWebSocket()
-  const { activeSong, project, playing, isDirty, saveProject } = useProject()
+  const { isConnected } = useWebSocket()
+  const { activeSong, project, playing, isDirty, saveProject, loadSong } =
+    useProject()
   const { isLiveMode, setEditMode, setLiveMode } = useMode()
-  const [prevSong, setPrevSong] = useState<Song>()
-  const [nextSong, setNextSong] = useState<Song>()
+  const [songManagerOpen, setSongManagerOpen] = useState(false)
 
-  function loadSong(uuid: string) {
-    send({
-      action: 'project.loadSong',
-      uuid,
-    })
-  }
-
-  useEffect(() => {
-    if (project?.songs && activeSong) {
-      const activeSongIndex = project.songs.findIndex(
-        (s) => s.id === activeSong.id,
-      )
-      if (activeSongIndex !== undefined) {
-        const prevSong = project.songs[activeSongIndex - 1]
-        setPrevSong(prevSong)
-        const nextSong = project.songs[activeSongIndex + 1]
-        setNextSong(nextSong)
-      }
-    }
-  }, [project, activeSong])
+  const nextSong = (() => {
+    if (!project?.songs || !activeSong) return undefined
+    const idx = project.songs.findIndex((s) => s.id === activeSong.id)
+    return idx >= 0 ? project.songs[idx + 1] : undefined
+  })()
 
   return (
     <div
@@ -75,7 +59,9 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
             <Button
               variant="ghost"
               onClick={saveProject}
-              title={isDirty ? 'Save project (unsaved changes)' : 'Save project'}
+              title={
+                isDirty ? 'Save project (unsaved changes)' : 'Save project'
+              }
               className="relative"
             >
               <IconDeviceFloppy size={16} />
@@ -88,35 +74,31 @@ function Navbar({ onOpenProjectDialog }: Readonly<NavbarProps>) {
         )}
       </div>
 
-      <div className="justify-self-end">
-        {prevSong && (
-          <Button
-            variant="ghost"
-            onClick={() => loadSong(prevSong.id)}
-            disabled={!prevSong}
-          >
-            {prevSong.name}
-            <IconChevronLeft />
-          </Button>
-        )}
-      </div>
+      <div />
 
-      <span className="font-bold mx-4 text-center justify-self-center text-primary">
-        {activeSong?.name}
-      </span>
+      <Button
+        variant="ghost"
+        className="font-bold text-md text-center justify-self-center text-primary hover:text-primary"
+        onClick={() => setSongManagerOpen(true)}
+        disabled={!project}
+      >
+        {activeSong?.name ?? 'No song'}
+      </Button>
 
       <div className="justify-self-start">
         {nextSong && (
-          <Button
-            variant="ghost"
-            onClick={() => loadSong(nextSong.id)}
-            disabled={!nextSong}
-          >
+          <Button variant="ghost" onClick={() => loadSong(nextSong.id)}>
             <IconChevronRight />
             {nextSong.name}
           </Button>
         )}
       </div>
+
+      <SongManagerDialog
+        open={songManagerOpen}
+        onOpenChange={setSongManagerOpen}
+        isLiveMode={isLiveMode}
+      />
 
       <div className="absolute right-4 text-xs flex items-center gap-3">
         {isLiveMode ? (

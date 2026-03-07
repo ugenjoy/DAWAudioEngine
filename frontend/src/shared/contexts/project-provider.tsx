@@ -57,6 +57,9 @@ type ProjectProviderState = {
   setTempo: (tempo: number) => void
   setMetronomeMute: (mute: boolean) => void
   createSong: (name: string) => void
+  renameSong: (uuid: string, name: string) => void
+  reorderSong: (uuid: string, index: number) => void
+  loadSong: (uuid: string) => void
   fetchAudioInputs: () => void
   trackLevelsRef: React.RefObject<Record<string, number>>
 }
@@ -89,6 +92,9 @@ const initialState: ProjectProviderState = {
   setTempo: () => null,
   setMetronomeMute: () => null,
   createSong: () => null,
+  renameSong: () => null,
+  reorderSong: () => null,
+  loadSong: () => null,
   fetchAudioInputs: () => null,
   trackLevelsRef: { current: {} },
 }
@@ -232,6 +238,51 @@ export function ProjectProvider({
   const createSong = useCallback(
     (name: string) => {
       send({ action: 'song.create', name })
+    },
+    [send],
+  )
+
+  const renameSong = useCallback(
+    (uuid: string, name: string) => {
+      setProject((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          songs: prev.songs.map((s) =>
+            s.id === uuid ? { ...s, name } : s,
+          ),
+        }
+      })
+      if (activeSong?.id === uuid) {
+        setActiveSong((prev) => (prev ? { ...prev, name } : prev))
+      }
+      setIsDirty(true)
+      send({ action: 'song.rename', uuid, name })
+    },
+    [send, activeSong],
+  )
+
+  const reorderSong = useCallback(
+    (uuid: string, index: number) => {
+      setProject((prev) => {
+        if (!prev) return prev
+        const songs = [...prev.songs]
+        const oldIndex = songs.findIndex((s) => s.id === uuid)
+        if (oldIndex < 0) return prev
+        const [moved] = songs.splice(oldIndex, 1)
+        const clamped = Math.max(0, Math.min(songs.length, index))
+        songs.splice(clamped, 0, moved)
+        return { ...prev, songs }
+      })
+      setIsDirty(true)
+      send({ action: 'song.reorder', uuid, index })
+    },
+    [send],
+  )
+
+  const loadSong = useCallback(
+    (uuid: string) => {
+      send({ action: 'project.loadSong', uuid })
     },
     [send],
   )
@@ -451,6 +502,9 @@ export function ProjectProvider({
     isDirty,
     saveProject,
     createSong,
+    renameSong,
+    reorderSong,
+    loadSong,
     setTempo,
     setMetronomeMute,
     fetchAudioInputs,

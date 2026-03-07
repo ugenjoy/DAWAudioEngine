@@ -17,6 +17,9 @@ class SongsManager {
   void removeSong();
   std::vector<Song*> getSongList();
   Song* getSong(int songId);
+  Song* getSongById(const std::string& uuid);
+  bool renameSong(const std::string& uuid, const std::string& name);
+  bool reorderSong(const std::string& uuid, int newIndex);
 
   // Serialization
   nlohmann::json toJson() const;

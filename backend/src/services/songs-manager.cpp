@@ -30,6 +30,38 @@ Song* SongsManager::getSong(int songId) {
   return songs[songId].get();
 }
 
+Song* SongsManager::getSongById(const std::string& uuid) {
+  for (auto& song : songs) {
+    if (song->getId() == uuid) return song.get();
+  }
+  return nullptr;
+}
+
+bool SongsManager::renameSong(const std::string& uuid,
+                              const std::string& name) {
+  auto* song = getSongById(uuid);
+  if (!song) return false;
+  song->setName(name);
+  return true;
+}
+
+bool SongsManager::reorderSong(const std::string& uuid, int newIndex) {
+  int oldIndex = -1;
+  for (int i = 0; i < static_cast<int>(songs.size()); i++) {
+    if (songs[i]->getId() == uuid) {
+      oldIndex = i;
+      break;
+    }
+  }
+  if (oldIndex < 0) return false;
+
+  auto moved = std::move(songs[oldIndex]);
+  songs.erase(songs.begin() + oldIndex);
+  int clamped = std::max(0, std::min(static_cast<int>(songs.size()), newIndex));
+  songs.insert(songs.begin() + clamped, std::move(moved));
+  return true;
+}
+
 nlohmann::json SongsManager::toJson() const {
   nlohmann::json j = nlohmann::json::array();
 

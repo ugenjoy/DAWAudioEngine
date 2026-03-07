@@ -20,6 +20,26 @@ class CreateSongCommand : public Command {
   std::string name;
 };
 
+class RenameSongCommand : public Command {
+ public:
+  RenameSongCommand(std::string uuid, std::string name);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string uuid;
+  std::string name;
+};
+
+class ReorderSongCommand : public Command {
+ public:
+  ReorderSongCommand(std::string uuid, int index);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string uuid;
+  int index;
+};
+
 class SetMetronomeMuteCommand : public Command {
  public:
   explicit SetMetronomeMuteCommand(bool mute);

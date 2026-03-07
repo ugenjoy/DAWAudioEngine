@@ -65,6 +65,39 @@ void SetMetronomeMuteCommand::execute(AppContext& ctx) {
                   {{"mute", mute}});
 }
 
+// ── RenameSongCommand ───────────────────────────────────────────────────────
+
+RenameSongCommand::RenameSongCommand(std::string uuid, std::string name)
+    : uuid(std::move(uuid)), name(std::move(name)) {}
+
+void RenameSongCommand::execute(AppContext& ctx) {
+  auto& songsManager = ctx.getSongsManager();
+  if (!songsManager.renameSong(uuid, name)) return;
+
+  // If the renamed song is the active song, broadcast song update too
+  auto* activeSong = ctx.getAudioEngine().getActiveSong();
+  if (activeSong && activeSong->getId() == uuid) {
+    broadcast::send(ctx.getWebSocketServer(), "song.loaded",
+                    {{"song", activeSong->toJson()}});
+  }
+
+  broadcast::send(ctx.getWebSocketServer(), "project.songsUpdated",
+                  {{"songs", songsManager.toJson()}});
+}
+
+// ── ReorderSongCommand ─────────────────────────────────────────────────────
+
+ReorderSongCommand::ReorderSongCommand(std::string uuid, int index)
+    : uuid(std::move(uuid)), index(index) {}
+
+void ReorderSongCommand::execute(AppContext& ctx) {
+  auto& songsManager = ctx.getSongsManager();
+  if (!songsManager.reorderSong(uuid, index)) return;
+
+  broadcast::send(ctx.getWebSocketServer(), "project.songsUpdated",
+                  {{"songs", songsManager.toJson()}});
+}
+
 // Auto-registration
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
     "song.setTempo", SetTempo,
@@ -87,4 +120,22 @@ REGISTER_EDIT_COMMAND_WITH_CREATOR(
       std::string name = payload.value("name", "");
       if (name.empty()) return nullptr;
       return std::make_unique<CreateSongCommand>(name);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "song.rename", RenameSong,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string uuid = payload.value("uuid", "");
+      std::string name = payload.value("name", "");
+      if (uuid.empty() || name.empty()) return nullptr;
+      return std::make_unique<RenameSongCommand>(uuid, name);
+    });
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "song.reorder", ReorderSong,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string uuid = payload.value("uuid", "");
+      if (uuid.empty() || !payload.contains("index")) return nullptr;
+      int index = payload.value("index", 0);
+      return std::make_unique<ReorderSongCommand>(uuid, index);
     });
