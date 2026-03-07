@@ -9,6 +9,17 @@ export interface GhostClip {
   trackIndex: number
 }
 
+export interface SelectedClip {
+  trackId: string
+  clipId: string
+}
+
+export interface DraggingClip {
+  trackId: string
+  clipId: string
+  position: number
+}
+
 export function useSequencer(
   zoom: number,
   scrollX: number,
@@ -16,6 +27,8 @@ export function useSequencer(
   trackViewsOverride?: TrackView[],
   selectedTrackId?: string | null,
   ghostClipRef?: RefObject<GhostClip | null>,
+  selectedClip?: SelectedClip | null,
+  draggingClipRef?: RefObject<DraggingClip | null>,
 ) {
   const {
     activeSong,
@@ -60,22 +73,41 @@ export function useSequencer(
           else ctx.globalAlpha = 0.7
 
           for (const clip of trackView.track.clips) {
-            const offset = 1.5
+            const isClipSelected =
+              selectedClip?.trackId === trackView.track.id &&
+              selectedClip?.clipId === clip.id
+            const isDragging =
+              draggingClipRef?.current?.clipId === clip.id &&
+              draggingClipRef?.current?.trackId === trackView.track.id
+
+            const clipPosition = isDragging
+              ? draggingClipRef!.current!.position
+              : clip.position
+
+            const clipOffset = 1.5
             const x =
-              (clip.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
-            const y = totalHeight + headerHeight + offset - scrollY
-            const width =
+              (clipPosition / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+            const y = totalHeight + headerHeight + clipOffset - scrollY
+            const w =
               (clip.duration / 60) * activeSong.tempo * pixelsPerBeat
-            const height = trackView.height - offset * 2
+            const h = trackView.height - clipOffset * 2
             const waveform =
               clip.type === 'AudioClip' ? clip.waveform : undefined
+
+            if (isDragging) ctx.globalAlpha = 0.5
+
             drawClip(
-              { x, y, width, height },
+              { x, y, width: w, height: h },
               trackView.fillColor,
               trackView.strokeColor,
               waveform,
               ctx,
+              isClipSelected,
             )
+
+            if (isDragging) {
+              ctx.globalAlpha = isSelected ? 1 : 0.7
+            }
           }
           ctx.globalAlpha = 1
         }
@@ -224,6 +256,7 @@ export function useSequencer(
       scrollX,
       scrollY,
       selectedTrackId,
+      selectedClip,
     ],
   )
   return { draw, playing }

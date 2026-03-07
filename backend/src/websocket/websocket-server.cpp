@@ -207,9 +207,23 @@ void WebSocketServer::run() {
           return res;
         }
 
+        // Create clip first to get its unique ID
+        auto clip = std::make_unique<AudioClip>();
+        clip->setPosition(position);
+        clip->setName(fileName);
+
+        // Generate unique filename using clip UUID to prevent overwrites
+        std::string extension;
+        auto dotPos = fileName.rfind('.');
+        if (dotPos != std::string::npos) {
+          extension = fileName.substr(dotPos);
+        }
+        std::string uniqueFileName = clip->getId() + extension;
+        clip->setFileName(uniqueFileName);
+
         // Write file to project audio directory
         std::string audioDir = appContext->getProjectManager().getCurrentProjectPath() + "/audio";
-        std::string filePath = audioDir + "/" + fileName;
+        std::string filePath = audioDir + "/" + uniqueFileName;
 
         {
           std::ofstream ofs(filePath, std::ios::binary);
@@ -220,12 +234,6 @@ void WebSocketServer::run() {
           }
           ofs.write(fileBody.data(), static_cast<std::streamsize>(fileBody.size()));
         }
-
-        // Create and load clip
-        auto clip = std::make_unique<AudioClip>();
-        clip->setFileName(fileName);
-        clip->setPosition(position);
-        clip->setName(fileName);
         clip->loadAudioFile(audioDir);
 
         json clipJson = clip->toJson();

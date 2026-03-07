@@ -6,6 +6,9 @@ interface TimelineProps {
   continuousRender?: boolean
   onWheel?: (e: WheelEvent) => void
   onClick?: (e: MouseEvent) => void
+  onMouseMove?: (e: MouseEvent) => void
+  onMouseUp?: (e: MouseEvent) => void
+  onContextMenu?: (e: MouseEvent) => void
   onKeyDown?: (e: KeyboardEvent) => void
 }
 
@@ -15,6 +18,9 @@ function Timeline({
   continuousRender,
   onWheel,
   onClick,
+  onMouseMove,
+  onMouseUp,
+  onContextMenu,
   onKeyDown,
 }: Readonly<TimelineProps>) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -63,6 +69,27 @@ function Timeline({
     canvas.addEventListener('mousedown', onClick)
     return () => canvas.removeEventListener('mousedown', onClick)
   }, [onClick])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !onMouseMove) return
+    canvas.addEventListener('mousemove', onMouseMove)
+    return () => canvas.removeEventListener('mousemove', onMouseMove)
+  }, [onMouseMove])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !onMouseUp) return
+    canvas.addEventListener('mouseup', onMouseUp)
+    return () => canvas.removeEventListener('mouseup', onMouseUp)
+  }, [onMouseUp])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !onContextMenu) return
+    canvas.addEventListener('contextmenu', onContextMenu)
+    return () => canvas.removeEventListener('contextmenu', onContextMenu)
+  }, [onContextMenu])
 
   useEffect(() => {
     const canvas = canvasRef.current

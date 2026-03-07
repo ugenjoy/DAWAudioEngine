@@ -12,7 +12,8 @@ class ClipsManager {
   ~ClipsManager();
 
   void addClip(std::unique_ptr<AudioClip>);
-  void removeClip();
+  bool removeClip(const std::string& clipId);
+  bool moveClip(const std::string& clipId, double newPosition);
   void getClipList();
 
   void renderClips(juce::AudioBuffer<float>& clipBuffer, int numSamples,

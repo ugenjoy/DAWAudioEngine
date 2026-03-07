@@ -13,6 +13,7 @@ export function drawClip(
   strokeColor: string,
   waveform: number[] | undefined,
   ctx: CanvasRenderingContext2D,
+  selected?: boolean,
 ) {
   ctx.fillStyle = getCSSVar(fillColor)
   ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
@@ -22,7 +23,12 @@ export function drawClip(
   }
 
   ctx.strokeStyle = getCSSVar(strokeColor)
+  if (selected) {
+    ctx.lineWidth = 2
+    ctx.strokeStyle = 'white'
+  }
   ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
+  ctx.lineWidth = 1
 }
 
 function drawWaveform(

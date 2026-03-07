@@ -9,8 +9,20 @@ void ClipsManager::addClip(std::unique_ptr<AudioClip> clip) {
   clips.push_back(std::move(clip));
 }
 
-void ClipsManager::removeClip() {
-  // To implement
+bool ClipsManager::removeClip(const std::string& clipId) {
+  auto it = std::find_if(clips.begin(), clips.end(),
+                         [&](const auto& c) { return c->getId() == clipId; });
+  if (it == clips.end()) return false;
+  clips.erase(it);
+  return true;
+}
+
+bool ClipsManager::moveClip(const std::string& clipId, double newPosition) {
+  auto it = std::find_if(clips.begin(), clips.end(),
+                         [&](const auto& c) { return c->getId() == clipId; });
+  if (it == clips.end()) return false;
+  (*it)->setPosition(newPosition);
+  return true;
 }
 
 void ClipsManager::renderClips(juce::AudioBuffer<float>& clipBuffer,

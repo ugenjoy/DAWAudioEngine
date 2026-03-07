@@ -3,7 +3,12 @@ import { Transport } from '../../transport/components/Transport'
 import Track from './Track'
 import { forwardRef, useCallback, useEffect, useRef, useState } from 'react'
 import Timeline from './Timeline'
-import { useSequencer, type GhostClip } from '../hooks/useSequencer'
+import {
+  useSequencer,
+  type GhostClip,
+  type SelectedClip,
+  type DraggingClip,
+} from '../hooks/useSequencer'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { useMode } from '@/shared/contexts/mode-provider'
 import {
@@ -164,6 +169,14 @@ function Sequencer() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [isDraggingFile, setIsDraggingFile] = useState(false)
   const ghostClipRef = useRef<GhostClip | null>(null)
+  const [selectedClip, setSelectedClip] = useState<SelectedClip | null>(null)
+  const draggingClipRef = useRef<DraggingClip | null>(null)
+  const [isDraggingClip, setIsDraggingClip] = useState(false)
+  const dragStartRef = useRef<{ x: number; originPos: number } | null>(null)
+  const [clipContextMenu, setClipContextMenu] = useState<{
+    x: number
+    y: number
+  } | null>(null)
   const [dragTrackViews, setDragTrackViews] = useState<
     typeof trackViews | null
   >(null)
@@ -175,6 +188,8 @@ function Sequencer() {
     activeTrackViews,
     selectedTrackId,
     ghostClipRef,
+    selectedClip,
+    draggingClipRef,
   )
 
   const tracksContainer = useRef<HTMLDivElement>(null)
@@ -295,10 +310,68 @@ function Sequencer() {
     [cursorPos, activeSong, startScrollAnimation],
   )
 
+  const hitTestClip = useCallback(
+    (
+      offsetX: number,
+      offsetY: number,
+    ): { trackId: string; clipId: string; clipPosition: number } | null => {
+      if (!activeSong) return null
+      const pixelsPerBeat = 20 * zoom
+      const headerHeight = 20
+      const y = offsetY + scrollY - headerHeight
+      if (y < 0) return null
+
+      let accHeight = 0
+      for (const tv of activeTrackViews) {
+        if (
+          y >= accHeight &&
+          y < accHeight + tv.height &&
+          tv.track.type === 'AudioFileTrack'
+        ) {
+          for (const clip of tv.track.clips) {
+            const clipX =
+              (clip.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+            const clipW =
+              (clip.duration / 60) * activeSong.tempo * pixelsPerBeat
+            if (offsetX >= clipX && offsetX <= clipX + clipW) {
+              return {
+                trackId: tv.track.id,
+                clipId: clip.id,
+                clipPosition: clip.position,
+              }
+            }
+          }
+          break
+        }
+        accHeight += tv.height
+      }
+      return null
+    },
+    [activeSong, zoom, scrollX, scrollY, activeTrackViews],
+  )
+
   const handleClick = useCallback(
     (e: MouseEvent) => {
       if (!activeSong) return
+      if (e.button === 2) return // Ignore right-click
+
       e.preventDefault()
+
+      // Hit-test clips first
+      const hit = hitTestClip(e.offsetX, e.offsetY)
+      if (hit && !isLiveMode) {
+        setSelectedClip({ trackId: hit.trackId, clipId: hit.clipId })
+        dragStartRef.current = {
+          x: e.offsetX,
+          originPos: hit.clipPosition,
+        }
+        // Also select the track
+        setSelectedTrackId(hit.trackId)
+        return
+      }
+
+      // No clip hit — deselect clip and set cursor position
+      setSelectedClip(null)
 
       const pixelsPerBeat = 20 * zoom
       let beatsPerLine: number
@@ -336,8 +409,84 @@ function Sequencer() {
         }
       }
     },
-    [zoom, scrollX, scrollY, activeSong, activeTrackViews],
+    [zoom, scrollX, scrollY, activeSong, activeTrackViews, hitTestClip, isLiveMode],
   )
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!activeSong || !selectedClip || !dragStartRef.current) return
+      if (isLiveMode) return
+
+      const dx = Math.abs(e.offsetX - dragStartRef.current.x)
+      if (dx < 3 && !isDraggingClip) return // Dead zone
+
+      const pixelsPerBeat = 20 * zoom
+      const deltaPx = e.offsetX - dragStartRef.current.x
+      const deltaSeconds = (deltaPx * 60) / (activeSong.tempo * pixelsPerBeat)
+      const rawPos = dragStartRef.current.originPos + deltaSeconds
+
+      // Snap to grid
+      let beatsPerLine: number
+      if (pixelsPerBeat < 4) beatsPerLine = 16
+      else if (pixelsPerBeat < 16) beatsPerLine = 4
+      else if (pixelsPerBeat > 64) beatsPerLine = 0.25
+      else beatsPerLine = 1
+      const snapInterval = (beatsPerLine * 60) / activeSong.tempo
+      const snappedPos = Math.max(
+        0,
+        Math.round(rawPos / snapInterval) * snapInterval,
+      )
+
+      draggingClipRef.current = {
+        trackId: selectedClip.trackId,
+        clipId: selectedClip.clipId,
+        position: snappedPos,
+      }
+      setIsDraggingClip(true)
+    },
+    [activeSong, selectedClip, zoom, isLiveMode, isDraggingClip],
+  )
+
+  const handleMouseUp = useCallback(
+    (_e: MouseEvent) => {
+      if (draggingClipRef.current && isDraggingClip) {
+        send({
+          action: 'clip.move',
+          trackId: draggingClipRef.current.trackId,
+          clipId: draggingClipRef.current.clipId,
+          position: draggingClipRef.current.position,
+        })
+      }
+      draggingClipRef.current = null
+      dragStartRef.current = null
+      setIsDraggingClip(false)
+    },
+    [isDraggingClip, send],
+  )
+
+  const handleContextMenu = useCallback(
+    (e: MouseEvent) => {
+      if (!activeSong || isLiveMode) return
+
+      const hit = hitTestClip(e.offsetX, e.offsetY)
+      if (hit) {
+        e.preventDefault()
+        setSelectedClip({ trackId: hit.trackId, clipId: hit.clipId })
+        setClipContextMenu({ x: e.clientX, y: e.clientY })
+      }
+    },
+    [activeSong, isLiveMode, hitTestClip],
+  )
+
+  const removeSelectedClip = useCallback(() => {
+    if (!selectedClip) return
+    send({
+      action: 'clip.remove',
+      trackId: selectedClip.trackId,
+      clipId: selectedClip.clipId,
+    })
+    setSelectedClip(null)
+  }, [selectedClip, send])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -355,15 +504,17 @@ function Sequencer() {
           break
         }
         case 'Delete': {
-          if (!isLiveMode && selectedTrackId) {
-            e.preventDefault()
+          e.preventDefault()
+          if (!isLiveMode && selectedClip) {
+            removeSelectedClip()
+          } else if (!isLiveMode && selectedTrackId) {
             setDeleteDialogOpen(true)
           }
           break
         }
       }
     },
-    [activeSong, playing, isLiveMode, selectedTrackId],
+    [activeSong, playing, isLiveMode, selectedTrackId, selectedClip, removeSelectedClip],
   )
 
   const confirmDelete = useCallback(() => {
@@ -626,13 +777,43 @@ function Sequencer() {
             <Timeline
               draw={draw}
               playing={isPlaying}
-              continuousRender={isDraggingFile}
+              continuousRender={isDraggingFile || isDraggingClip}
               onWheel={handleWheel}
               onClick={handleClick}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onContextMenu={handleContextMenu}
               onKeyDown={handleKeyDown}
             />
           </div>
         </div>
+
+        {clipContextMenu && (
+          <div
+            className="fixed inset-0 z-50"
+            onClick={() => setClipContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setClipContextMenu(null)
+            }}
+          >
+            <div
+              className="absolute bg-popover border rounded-md shadow-md py-1 min-w-[160px]"
+              style={{ left: clipContextMenu.x, top: clipContextMenu.y }}
+            >
+              <button
+                className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-accent cursor-default"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeSelectedClip()
+                  setClipContextMenu(null)
+                }}
+              >
+                Remove clip
+              </button>
+            </div>
+          </div>
+        )}
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
