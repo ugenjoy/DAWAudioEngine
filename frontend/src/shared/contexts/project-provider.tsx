@@ -29,8 +29,9 @@ type ProjectProviderState = {
   project: Project | null
   loadProject: (path: string) => void
   isLoading: boolean
-  playheadPos: number
-  cursorPos: number
+  playheadPosRef: React.RefObject<number>
+  cursorPosRef: React.RefObject<number>
+  playheadUpdateRef: React.RefObject<number>
   playing: boolean
   masterVolume: number
   setMasterVolume: (volume: number) => void
@@ -68,8 +69,9 @@ const initialState: ProjectProviderState = {
   project: null,
   loadProject: () => null,
   isLoading: false,
-  playheadPos: 0,
-  cursorPos: 0,
+  playheadPosRef: { current: 0 },
+  cursorPosRef: { current: 0 },
+  playheadUpdateRef: { current: 0 },
   playing: false,
   masterVolume: 1,
   setMasterVolume: () => null,
@@ -109,8 +111,9 @@ export function ProjectProvider({
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [activeSong, setActiveSong] = useState<Song>()
-  const [playheadPos, setPlayheadPos] = useState<number>(0)
-  const [cursorPos, setCursorPos] = useState<number>(0)
+  const playheadPosRef = useRef<number>(0)
+  const cursorPosRef = useRef<number>(0)
+  const playheadUpdateRef = useRef<number>(0)
   const [playing, setPlaying] = useState<boolean>(false)
   const [trackViews, setTrackViews] = useState<TrackView[]>([])
   const [availableInputs, setAvailableInputs] = useState<AudioInput[]>([])
@@ -335,9 +338,11 @@ export function ProjectProvider({
       case 'project.currentLoaded': {
         if (data.project !== undefined) setProject(data.project)
         if (data.activeSong !== undefined) setActiveSong(data.activeSong)
-        if (data.playheadPosition !== undefined)
-          setPlayheadPos(data.playheadPosition)
-        if (data.cursorPosition !== undefined) setCursorPos(data.cursorPosition)
+        if (data.playheadPosition !== undefined) {
+          playheadPosRef.current = data.playheadPosition
+          playheadUpdateRef.current++
+        }
+        if (data.cursorPosition !== undefined) cursorPosRef.current = data.cursorPosition
         if (data.isPlaying !== undefined) setPlaying(data.isPlaying)
         if (data.masterVolume !== undefined) setMasterVolume(data.masterVolume)
         break
@@ -357,13 +362,15 @@ export function ProjectProvider({
         break
       }
       case 'transport.playheadPosition': {
-        if (data.position !== undefined)
-          setPlayheadPos(Number(data.position.toFixed(2)))
+        if (data.position !== undefined) {
+          playheadPosRef.current = Number(data.position.toFixed(2))
+          playheadUpdateRef.current++
+        }
         break
       }
       case 'transport.cursorPosition': {
         if (data.position !== undefined) {
-          setCursorPos(Number(data.position.toFixed(2)))
+          cursorPosRef.current = Number(data.position.toFixed(2))
         }
         break
       }
@@ -480,8 +487,9 @@ export function ProjectProvider({
     project,
     loadProject,
     isLoading,
-    playheadPos,
-    cursorPos,
+    playheadPosRef,
+    cursorPosRef,
+    playheadUpdateRef,
     playing,
     masterVolume,
     setMasterVolume: sendMasterVolume,

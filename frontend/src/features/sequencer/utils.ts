@@ -1,7 +1,10 @@
-export function getCSSVar(value: string): string {
-  const element = document.getElementById('root')
-  if (!element) return ''
+let cachedStyles: CSSStyleDeclaration | null = null
 
-  const styles = globalThis.getComputedStyle(element)
-  return styles.getPropertyValue(value)
+export function getCSSVar(value: string): string {
+  if (!cachedStyles) {
+    const element = document.getElementById('root')
+    if (!element) return ''
+    cachedStyles = globalThis.getComputedStyle(element)
+  }
+  return cachedStyles.getPropertyValue(value)
 }

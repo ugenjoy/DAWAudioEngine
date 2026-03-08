@@ -14,14 +14,14 @@ import {
   IconPlayerPauseFilled,
   IconVolume,
 } from '@tabler/icons-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export function Transport() {
   const [bpm, setBpm] = useState<number | string>(120)
   const { send } = useWebSocket()
   const {
     activeSong,
-    playheadPos: transportPos,
+    playheadPosRef,
     playing,
     masterVolume,
     setMasterVolume,
@@ -29,6 +29,7 @@ export function Transport() {
     setMetronomeMute,
   } = useProject()
   const { isLiveMode } = useMode()
+  const displayRef = useRef<HTMLSpanElement>(null)
 
   function transport(action: 'play' | 'pause' | 'stop') {
     send({
@@ -54,20 +55,31 @@ export function Transport() {
     setTempo(clamped)
   }
 
-  function getBarPosition() {
-    const b = Number(bpm) || 120
-    return Math.floor(((transportPos / 60) * b) / 4) + 1
-  }
+  // RAF-based playhead display — updates DOM directly, no React re-renders
+  useEffect(() => {
+    const tempo = activeSong?.tempo || 120
+    const updateDisplay = () => {
+      const pos = playheadPosRef.current
+      const totalBeats = (pos / 60) * tempo
+      const bar = Math.floor(totalBeats / 4) + 1
+      const beat = Math.floor(totalBeats % 4) + 1
+      const sub = Math.floor((totalBeats % 1) * 4) + 1
+      if (displayRef.current) {
+        displayRef.current.textContent = `${bar}.${beat}.${sub}`
+      }
+    }
 
-  function getBeatPosition() {
-    const b = Number(bpm) || 120
-    return Math.floor(((transportPos / 60) * b) % 4) + 1
-  }
+    updateDisplay()
+    if (!playing) return
 
-  function getSubPosition() {
-    const b = Number(bpm) || 120
-    return Math.floor((((transportPos / 60) * b) % 1) * 4) + 1
-  }
+    let rafId: number
+    const tick = () => {
+      updateDisplay()
+      rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [playing, playheadPosRef, activeSong?.tempo])
 
   useEffect(() => {
     if (activeSong) {
@@ -130,8 +142,8 @@ export function Transport() {
         </Button>
 
         <div className="flex items-center gap-2 bg-background/50 px-3 py-1 font-mono text-sm border border-border">
-          <span className="font-medium tabular-nums">
-            {getBarPosition()}.{getBeatPosition()}.{getSubPosition()}
+          <span ref={displayRef} className="font-medium tabular-nums">
+            1.1.1
           </span>
         </div>
 

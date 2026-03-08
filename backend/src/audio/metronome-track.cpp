@@ -7,10 +7,10 @@
 WaveTable MetronomeTrack::waveTable(WaveTable::WaveType::SINE, 2048);
 
 MetronomeTrack::MetronomeTrack(float frequency)
-    : AudioTrack(), frequency(frequency), duration(0.15f) {
+    : AudioTrack(), frequency(frequency), duration(0.05f) {
   att = 0.01f;
   dec = 0.02f;
-  sus = 0.8f;
+  sus = 0.2f;
   rel = 0.02f;
   name = "Metronome";
 }

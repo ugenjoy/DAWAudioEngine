@@ -21,9 +21,9 @@ export interface DraggingClip {
 }
 
 export function useSequencer(
-  zoom: number,
-  scrollX: number,
-  scrollY: number,
+  zoomRef: RefObject<number>,
+  scrollXRef: RefObject<number>,
+  scrollYRef: RefObject<number>,
   trackViewsOverride?: TrackView[],
   selectedTrackId?: string | null,
   ghostClipRef?: RefObject<GhostClip | null>,
@@ -32,17 +32,24 @@ export function useSequencer(
 ) {
   const {
     activeSong,
-    playheadPos,
-    cursorPos,
+    playheadPosRef,
+    playheadUpdateRef,
+    cursorPosRef,
     trackViews: contextTrackViews,
     playing,
   } = useProject()
   const trackViews = trackViewsOverride ?? contextTrackViews
-  const interpolatedPlayheadPos = useInterpolatedPlayhead(playheadPos, playing)
+  const interpolatedPlayheadPos = useInterpolatedPlayhead(playheadPosRef, playheadUpdateRef, playing)
 
   const draw = useCallback(
     (ctx: CanvasRenderingContext2D, width: number, height: number) => {
       if (!activeSong) return
+
+      // Read refs once at the start of each frame
+      const zoom = zoomRef.current
+      const scrollX = scrollXRef.current
+      const scrollY = scrollYRef.current
+
       ctx.clearRect(0, 0, width, height)
 
       const basePixelsPerBeat = 20
@@ -51,10 +58,17 @@ export function useSequencer(
       const headerHeight = 22
       let totalHeight = 0
 
-      // Clips
+      // Tracks & clips with viewport culling
       for (const [index, trackView] of trackViews.entries()) {
-        const isSelected = trackView.track.id === selectedTrackId
         const trackY = totalHeight + headerHeight - scrollY
+
+        // Skip tracks fully off-screen vertically
+        if (trackY + trackView.height < 0 || trackY > height) {
+          totalHeight += trackView.height
+          continue
+        }
+
+        const isSelected = trackView.track.id === selectedTrackId
 
         if (index % 2) {
           ctx.fillStyle = getCSSVar('--track-background-1')
@@ -87,9 +101,13 @@ export function useSequencer(
             const clipOffset = 1.5
             const x =
               (clipPosition / 60) * activeSong.tempo * pixelsPerBeat - scrollX
-            const y = totalHeight + headerHeight + clipOffset - scrollY
             const w =
               (clip.duration / 60) * activeSong.tempo * pixelsPerBeat
+
+            // Skip clips fully off-screen horizontally
+            if (x + w < 0 || x > width) continue
+
+            const y = totalHeight + headerHeight + clipOffset - scrollY
             const h = trackView.height - clipOffset * 2
             const waveform =
               clip.type === 'AudioClip' ? clip.waveform : undefined
@@ -125,7 +143,7 @@ export function useSequencer(
         const offset = 1.5
         const ghostX =
           (ghost.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
-        const ghostWidth = 4 * pixelsPerBeat // Default 4 beats wide
+        const ghostWidth = 4 * pixelsPerBeat
         const ghostHeight = tv.height - offset * 2
 
         ctx.globalAlpha = 0.4
@@ -203,19 +221,18 @@ export function useSequencer(
           text = `${i * 4 + 1}`
         }
 
-        // Line
         ctx.beginPath()
         ctx.moveTo(x, 0)
         ctx.lineTo(x, height)
         ctx.stroke()
         ctx.lineWidth = 1
 
-        // Marker
         ctx.font = '10px Arial'
         ctx.fillText(text, x + 4, 13)
       }
 
       // Cursor
+      const cursorPos = cursorPosRef.current
       const cursorPosPx =
         (cursorPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
 
@@ -248,16 +265,7 @@ export function useSequencer(
       ctx.lineTo(playheadPosPx, height)
       ctx.stroke()
     },
-    [
-      cursorPos,
-      activeSong,
-      trackViews,
-      zoom,
-      scrollX,
-      scrollY,
-      selectedTrackId,
-      selectedClip,
-    ],
+    [activeSong, trackViews, selectedTrackId, selectedClip],
   )
-  return { draw, playing }
+  return { draw }
 }

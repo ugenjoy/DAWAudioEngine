@@ -3,39 +3,39 @@ import { useRef, useEffect } from 'react'
 /**
  * Interpolates the playhead position between WebSocket updates (10Hz)
  * using requestAnimationFrame for smooth 60fps canvas rendering.
- * Returns a ref (not state) to avoid triggering React re-renders.
+ * Accepts refs to avoid triggering React re-renders on position updates.
  */
 export function useInterpolatedPlayhead(
-  serverPos: number,
+  playheadPosRef: React.RefObject<number>,
+  playheadUpdateRef: React.RefObject<number>,
   playing: boolean,
 ): React.RefObject<number> {
-  const interpolatedPos = useRef(serverPos)
-  const lastServerPos = useRef(serverPos)
+  const interpolatedPos = useRef(playheadPosRef.current)
+  const lastCount = useRef(playheadUpdateRef.current)
   const lastServerTime = useRef(0)
 
   useEffect(() => {
-    lastServerPos.current = serverPos
-    lastServerTime.current = performance.now()
     if (!playing) {
-      interpolatedPos.current = serverPos
-    }
-  }, [serverPos, playing])
-
-  useEffect(() => {
-    if (!playing) {
-      interpolatedPos.current = lastServerPos.current
+      interpolatedPos.current = playheadPosRef.current
       return
     }
 
+    lastCount.current = playheadUpdateRef.current
+    lastServerTime.current = performance.now()
+
     let rafId: number
     function tick() {
+      if (playheadUpdateRef.current !== lastCount.current) {
+        lastCount.current = playheadUpdateRef.current
+        lastServerTime.current = performance.now()
+      }
       const elapsedSec = (performance.now() - lastServerTime.current) / 1000
-      interpolatedPos.current = lastServerPos.current + elapsedSec
+      interpolatedPos.current = playheadPosRef.current + elapsedSec
       rafId = requestAnimationFrame(tick)
     }
     rafId = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafId)
-  }, [playing])
+  }, [playing, playheadPosRef, playheadUpdateRef])
 
   return interpolatedPos
 }

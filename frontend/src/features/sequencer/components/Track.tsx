@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/shadcn/components/select'
-import { useState, useRef, useEffect, useCallback, forwardRef } from 'react'
+import { useState, useRef, useEffect, useCallback, forwardRef, memo } from 'react'
 import { Input } from '@/shared/shadcn/components/input'
 
 const DB_MIN = -80
@@ -53,7 +53,7 @@ type TrackProps = {
   onTrackSelect?: (trackId: string) => void
 }
 
-const Track = forwardRef<
+const Track = memo(forwardRef<
   HTMLDivElement,
   TrackProps & React.HTMLAttributes<HTMLDivElement>
 >(function Track(
@@ -422,6 +422,6 @@ const Track = forwardRef<
       </div>
     </div>
   )
-})
+}))
 
 export default Track

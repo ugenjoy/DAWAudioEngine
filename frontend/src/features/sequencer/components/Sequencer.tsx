@@ -1,7 +1,7 @@
 import { useProject } from '@/shared/contexts/project-provider'
 import { Transport } from '../../transport/components/Transport'
 import Track from './Track'
-import { forwardRef, useCallback, useEffect, useRef, useState } from 'react'
+import { forwardRef, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Timeline from './Timeline'
 import {
   useSequencer,
@@ -66,7 +66,7 @@ type SortableTrackProps = {
   onResize: (trackId: string, height: number) => void
 }
 
-const SortableTrack = forwardRef<
+const SortableTrack = memo(forwardRef<
   HTMLDivElement,
   SortableTrackProps & React.HTMLAttributes<HTMLDivElement>
 >(function SortableTrack(
@@ -137,14 +137,14 @@ const SortableTrack = forwardRef<
       onResize={onResize}
     />
   )
-})
+}))
 
 function Sequencer() {
   const {
     project,
     playing,
     activeSong,
-    cursorPos,
+    cursorPosRef,
     trackViews,
     availableInputs,
     setTrackInput,
@@ -162,12 +162,14 @@ function Sequencer() {
   } = useProject()
   const { isLiveMode } = useMode()
   const { send } = useWebSocket()
-  const [zoom, setZoom] = useState(1)
-  const [scrollX, setScrollX] = useState(0)
-  const [scrollY, setScrollY] = useState(0)
+
+  // Canvas-only values as refs — no React re-renders on zoom/scroll
+  const zoomRef = useRef(1)
+  const scrollXRef = useRef(0)
+  const scrollYRef = useRef(0)
+
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [isDraggingFile, setIsDraggingFile] = useState(false)
   const ghostClipRef = useRef<GhostClip | null>(null)
   const [selectedClip, setSelectedClip] = useState<SelectedClip | null>(null)
   const draggingClipRef = useRef<DraggingClip | null>(null)
@@ -181,10 +183,10 @@ function Sequencer() {
     typeof trackViews | null
   >(null)
   const activeTrackViews = dragTrackViews ?? trackViews
-  const { draw, playing: isPlaying } = useSequencer(
-    zoom,
-    scrollX,
-    scrollY,
+  const { draw } = useSequencer(
+    zoomRef,
+    scrollXRef,
+    scrollYRef,
     activeTrackViews,
     selectedTrackId,
     ghostClipRef,
@@ -200,6 +202,14 @@ function Sequencer() {
   const currentScrollX = useRef(0)
   const currentScrollY = useRef(0)
   const animFrameId = useRef(0)
+
+  const syncScrollY = useCallback((value: number) => {
+    scrollYRef.current = value
+    if (tracksContainer.current) {
+      isProgrammaticScroll.current = true
+      tracksContainer.current.scrollTo({ top: value, behavior: 'instant' })
+    }
+  }, [])
 
   const animateScroll = useCallback(() => {
     const lerpFactor = 0.15
@@ -222,15 +232,15 @@ function Sequencer() {
       needsUpdate = true
     }
 
-    setScrollX(currentScrollX.current)
-    setScrollY(currentScrollY.current)
+    scrollXRef.current = currentScrollX.current
+    syncScrollY(currentScrollY.current)
 
     if (needsUpdate) {
       animFrameId.current = requestAnimationFrame(animateScroll)
     } else {
       animFrameId.current = 0
     }
-  }, [])
+  }, [syncScrollY])
 
   const startScrollAnimation = useCallback(() => {
     if (!animFrameId.current) {
@@ -248,7 +258,6 @@ function Sequencer() {
     (e: WheelEvent) => {
       e.preventDefault()
 
-      // Normalize delta to pixels: deltaMode 1 = lines, 2 = pages
       const linePx = 20
       const pagePx = 400
       const modeMultiplier =
@@ -259,27 +268,24 @@ function Sequencer() {
         const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1
         const canvasWidth = (e.target as HTMLElement).getBoundingClientRect()
           .width
-        setZoom((prevZoom) => {
-          const newZoom = Math.max(0.02, Math.min(100, prevZoom * zoomFactor))
-          setScrollX((prevScrollX) => {
-            const cursorPosRawPx = (cursorPos / 60) * activeSong!.tempo * 20
-            const cursorPosScreenX = cursorPosRawPx * prevZoom - prevScrollX
-            const offset = 100
-            const anchorScreenX = Math.max(
-              offset,
-              Math.min(canvasWidth - offset, cursorPosScreenX),
-            )
+        const prevZoom = zoomRef.current
+        const newZoom = Math.max(0.02, Math.min(100, prevZoom * zoomFactor))
+        zoomRef.current = newZoom
 
-            const newScrollX = Math.max(
-              0,
-              cursorPosRawPx * newZoom - anchorScreenX,
-            )
-            targetScrollX.current = newScrollX
-            currentScrollX.current = newScrollX
-            return newScrollX
-          })
-          return newZoom
-        })
+        const cursorPosRawPx = (cursorPosRef.current / 60) * activeSong!.tempo * 20
+        const cursorPosScreenX = cursorPosRawPx * prevZoom - scrollXRef.current
+        const offset = 100
+        const anchorScreenX = Math.max(
+          offset,
+          Math.min(canvasWidth - offset, cursorPosScreenX),
+        )
+        const newScrollX = Math.max(
+          0,
+          cursorPosRawPx * newZoom - anchorScreenX,
+        )
+        scrollXRef.current = newScrollX
+        targetScrollX.current = newScrollX
+        currentScrollX.current = newScrollX
       } else {
         const rawDeltaX = e.deltaX * modeMultiplier
         const rawDeltaY = e.deltaY * modeMultiplier
@@ -307,7 +313,7 @@ function Sequencer() {
         startScrollAnimation()
       }
     },
-    [cursorPos, activeSong, startScrollAnimation],
+    [activeSong, startScrollAnimation],
   )
 
   const hitTestClip = useCallback(
@@ -316,9 +322,9 @@ function Sequencer() {
       offsetY: number,
     ): { trackId: string; clipId: string; clipPosition: number } | null => {
       if (!activeSong) return null
-      const pixelsPerBeat = 20 * zoom
+      const pixelsPerBeat = 20 * zoomRef.current
       const headerHeight = 20
-      const y = offsetY + scrollY - headerHeight
+      const y = offsetY + scrollYRef.current - headerHeight
       if (y < 0) return null
 
       let accHeight = 0
@@ -330,7 +336,7 @@ function Sequencer() {
         ) {
           for (const clip of tv.track.clips) {
             const clipX =
-              (clip.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+              (clip.position / 60) * activeSong.tempo * pixelsPerBeat - scrollXRef.current
             const clipW =
               (clip.duration / 60) * activeSong.tempo * pixelsPerBeat
             if (offsetX >= clipX && offsetX <= clipX + clipW) {
@@ -347,17 +353,16 @@ function Sequencer() {
       }
       return null
     },
-    [activeSong, zoom, scrollX, scrollY, activeTrackViews],
+    [activeSong, activeTrackViews],
   )
 
   const handleClick = useCallback(
     (e: MouseEvent) => {
       if (!activeSong) return
-      if (e.button === 2) return // Ignore right-click
+      if (e.button === 2) return
 
       e.preventDefault()
 
-      // Hit-test clips first
       const hit = hitTestClip(e.offsetX, e.offsetY)
       if (hit && !isLiveMode) {
         setSelectedClip({ trackId: hit.trackId, clipId: hit.clipId })
@@ -365,14 +370,13 @@ function Sequencer() {
           x: e.offsetX,
           originPos: hit.clipPosition,
         }
-        // Also select the track
         setSelectedTrackId(hit.trackId)
         return
       }
 
-      // No clip hit — deselect clip and set cursor position
       setSelectedClip(null)
 
+      const zoom = zoomRef.current
       const pixelsPerBeat = 20 * zoom
       let beatsPerLine: number
       if (pixelsPerBeat < 4) {
@@ -386,7 +390,7 @@ function Sequencer() {
       }
 
       const rawPos =
-        ((e.offsetX + scrollX) * 60) / (activeSong.tempo * 20 * zoom)
+        ((e.offsetX + scrollXRef.current) * 60) / (activeSong.tempo * 20 * zoom)
       const snapInterval = (beatsPerLine * 60) / activeSong.tempo
       const cursorPos = Math.round(rawPos / snapInterval) * snapInterval
 
@@ -395,9 +399,8 @@ function Sequencer() {
         position: cursorPos,
       })
 
-      // Select track based on Y position
       const headerHeight = 20
-      const clickY = e.offsetY + scrollY - headerHeight
+      const clickY = e.offsetY + scrollYRef.current - headerHeight
       if (clickY >= 0) {
         let accHeight = 0
         for (const tv of activeTrackViews) {
@@ -409,7 +412,7 @@ function Sequencer() {
         }
       }
     },
-    [zoom, scrollX, scrollY, activeSong, activeTrackViews, hitTestClip, isLiveMode],
+    [activeSong, activeTrackViews, hitTestClip, isLiveMode, send],
   )
 
   const handleMouseMove = useCallback(
@@ -418,14 +421,14 @@ function Sequencer() {
       if (isLiveMode) return
 
       const dx = Math.abs(e.offsetX - dragStartRef.current.x)
-      if (dx < 3 && !isDraggingClip) return // Dead zone
+      if (dx < 3 && !isDraggingClip) return
 
+      const zoom = zoomRef.current
       const pixelsPerBeat = 20 * zoom
       const deltaPx = e.offsetX - dragStartRef.current.x
       const deltaSeconds = (deltaPx * 60) / (activeSong.tempo * pixelsPerBeat)
       const rawPos = dragStartRef.current.originPos + deltaSeconds
 
-      // Snap to grid
       let beatsPerLine: number
       if (pixelsPerBeat < 4) beatsPerLine = 16
       else if (pixelsPerBeat < 16) beatsPerLine = 4
@@ -444,7 +447,7 @@ function Sequencer() {
       }
       setIsDraggingClip(true)
     },
-    [activeSong, selectedClip, zoom, isLiveMode, isDraggingClip],
+    [activeSong, selectedClip, isLiveMode, isDraggingClip],
   )
 
   const handleMouseUp = useCallback(
@@ -514,7 +517,7 @@ function Sequencer() {
         }
       }
     },
-    [activeSong, playing, isLiveMode, selectedTrackId, selectedClip, removeSelectedClip],
+    [activeSong, playing, isLiveMode, selectedTrackId, selectedClip, removeSelectedClip, send],
   )
 
   const confirmDelete = useCallback(() => {
@@ -530,6 +533,7 @@ function Sequencer() {
   const snapPosition = useCallback(
     (offsetX: number): number => {
       if (!activeSong) return 0
+      const zoom = zoomRef.current
       const pixelsPerBeat = 20 * zoom
       let beatsPerLine: number
       if (pixelsPerBeat < 4) beatsPerLine = 16
@@ -537,17 +541,17 @@ function Sequencer() {
       else if (pixelsPerBeat > 64) beatsPerLine = 0.25
       else beatsPerLine = 1
       const rawPos =
-        ((offsetX + scrollX) * 60) / (activeSong.tempo * 20 * zoom)
+        ((offsetX + scrollXRef.current) * 60) / (activeSong.tempo * 20 * zoom)
       const snapInterval = (beatsPerLine * 60) / activeSong.tempo
       return Math.max(0, Math.round(rawPos / snapInterval) * snapInterval)
     },
-    [activeSong, zoom, scrollX],
+    [activeSong],
   )
 
   const trackIndexFromY = useCallback(
     (offsetY: number): number => {
       const headerHeight = 20
-      const y = offsetY + scrollY - headerHeight
+      const y = offsetY + scrollYRef.current - headerHeight
       if (y < 0) return 0
       let accHeight = 0
       for (let i = 0; i < activeTrackViews.length; i++) {
@@ -556,7 +560,7 @@ function Sequencer() {
       }
       return activeTrackViews.length - 1
     },
-    [scrollY, activeTrackViews],
+    [activeTrackViews],
   )
 
   const handleFileDragOver = useCallback(
@@ -572,7 +576,7 @@ function Sequencer() {
         position: snapPosition(offsetX),
         trackIndex: trackIndexFromY(offsetY),
       }
-      setIsDraggingFile(true)
+
     },
     [isLiveMode, snapPosition, trackIndexFromY],
   )
@@ -581,7 +585,7 @@ function Sequencer() {
     (e: React.DragEvent) => {
       if (e.currentTarget.contains(e.relatedTarget as Node)) return
       ghostClipRef.current = null
-      setIsDraggingFile(false)
+
     },
     [],
   )
@@ -590,7 +594,7 @@ function Sequencer() {
     async (e: React.DragEvent) => {
       e.preventDefault()
       ghostClipRef.current = null
-      setIsDraggingFile(false)
+
 
       if (!activeSong || isLiveMode) return
 
@@ -618,12 +622,7 @@ function Sequencer() {
     [activeSong, isLiveMode, snapPosition, trackIndexFromY, activeTrackViews],
   )
 
-  useEffect(() => {
-    if (!tracksContainer.current) return
-    isProgrammaticScroll.current = true
-    tracksContainer.current.scrollTo({ top: scrollY, behavior: 'instant' })
-  }, [scrollY])
-
+  // Sync native scroll of tracks container → scrollYRef
   useEffect(() => {
     if (!tracksContainer.current) return
     const container = tracksContainer.current
@@ -634,7 +633,7 @@ function Sequencer() {
       }
       targetScrollY.current = container.scrollTop
       currentScrollY.current = container.scrollTop
-      setScrollY(container.scrollTop)
+      scrollYRef.current = container.scrollTop
     }
     container.addEventListener('scroll', handleContainerScroll)
     return () => container.removeEventListener('scroll', handleContainerScroll)
@@ -675,15 +674,17 @@ function Sequencer() {
     [trackViews, reorderTrack],
   )
 
+  const sortableItems = useMemo(() => trackViews.map((t) => t.track.id), [trackViews])
+
   const activeSongId = activeSong?.id
   useEffect(() => {
     if (!activeSong) return
-    const cursorPosRawPx = (cursorPos / 60) * activeSong.tempo * 20
+    const cursorPosRawPx = (cursorPosRef.current / 60) * activeSong.tempo * 20
     const newScrollX = Math.max(0, cursorPosRawPx - 100)
     targetScrollX.current = newScrollX
     currentScrollX.current = newScrollX
-    setScrollX(newScrollX)
-    setZoom(1)
+    scrollXRef.current = newScrollX
+    zoomRef.current = 1
   }, [activeSongId])
 
   return (
@@ -707,7 +708,7 @@ function Sequencer() {
               onDragCancel={() => setDragTrackViews(null)}
             >
               <SortableContext
-                items={trackViews.map((t) => t.track.id)}
+                items={sortableItems}
                 strategy={verticalListSortingStrategy}
               >
                 {trackViews.map((t) => {
@@ -776,8 +777,6 @@ function Sequencer() {
           >
             <Timeline
               draw={draw}
-              playing={isPlaying}
-              continuousRender={isDraggingFile || isDraggingClip}
               onWheel={handleWheel}
               onClick={handleClick}
               onMouseMove={handleMouseMove}
