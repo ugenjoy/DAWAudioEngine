@@ -69,6 +69,12 @@ class ProjectManager {
   std::string getCurrentProjectId() const { return currentProjectId; }
 
   /**
+   * @brief Get the audio directory for the currently loaded project
+   * @return Absolute path to the audio/ subdirectory
+   */
+  std::string getAudioDir() const { return currentProjectPath + "/audio"; }
+
+  /**
    * @brief Get the default projects directory path (~/daw/projects/)
    * @return Absolute path to the default projects directory
    */

@@ -31,9 +31,13 @@ class TracksManager {
   /** Release all frozen buffers and resume live rendering. */
   void unfreezeAll();
 
+  void loadAudio(const std::string& audioDir);
+  void unloadAudio();
+
   // Serialization
   nlohmann::json toJson() const;
-  void loadFromJson(const nlohmann::json& j);
+  void loadFromJson(const nlohmann::json& j, const std::string& audioDir,
+                    bool loadAudio = true);
 
   // Getter for tracks
   const std::vector<std::unique_ptr<AudioTrack>>& getTracks() const {

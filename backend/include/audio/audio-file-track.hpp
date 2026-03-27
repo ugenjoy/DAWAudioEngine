@@ -16,9 +16,14 @@ class AudioFileTrack : public AudioTrack {
   void renderBlock(juce::AudioBuffer<float>& buffer, int startSample,
                    int numSamples, double startTime, float tempo) override;
 
+  void loadAudio(const std::string& audioDir);
+  void unloadAudio();
+
   // Serialization
   nlohmann::json toJson() const override;
-  static std::unique_ptr<AudioFileTrack> fromJson(const nlohmann::json& j);
+  static std::unique_ptr<AudioFileTrack> fromJson(const nlohmann::json& j,
+                                                   const std::string& audioDir,
+                                                   bool loadAudio = true);
 
   std::string getTrackType() const override { return "AudioFileTrack"; }
   void sampleRateChanged() override;

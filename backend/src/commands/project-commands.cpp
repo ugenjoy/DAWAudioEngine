@@ -6,7 +6,10 @@
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
 #include "events/event-engine.hpp"
+#include "model/song.hpp"
+#include "services/mode-manager.hpp"
 #include "services/project-manager.hpp"
+#include "services/song-preloader.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
@@ -25,19 +28,30 @@ void LoadProjectCommand::execute(AppContext& ctx) {
   audioEngine.stop();
   audioEngine.unloadSong();
 
-  // Load the project
+  // Load the project (metadata only — audio loaded on demand)
   if (projectManager.loadProject(projectPath, songsManager)) {
     juce::Logger::writeToLog("[LoadProjectCommand] Project loaded: " +
                              juce::String(projectPath));
 
     // Load first song into audio engine if available
     if (auto* firstSong = songsManager.getSong(0)) {
+      const std::string audioDir = projectManager.getAudioDir();
+
+      broadcast::send(wsServer, "song.loading", {{"songId", firstSong->getId()}});
+      firstSong->loadAudio(audioDir);
+
       audioEngine.loadSong(firstSong);
 
       // Load event rules and fire song.loaded trigger
       ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(),
                                      firstSong->getEventRules());
       ctx.getEventEngine().fire("song.loaded", ctx);
+
+      // Preload next song if in live mode (default mode is Live)
+      if (ctx.getModeManager().isLiveMode()) {
+        auto songs = songsManager.getSongList();
+        ctx.getSongPreloader().onSongChanged(firstSong, songs, audioDir);
+      }
     }
 
     nlohmann::json project = projectManager.getProject(projectPath);
@@ -144,25 +158,42 @@ LoadSongCommand::LoadSongCommand(std::string uuid) : uuid(std::move(uuid)) {}
 void LoadSongCommand::execute(AppContext& ctx) {
   auto& songsManager = ctx.getSongsManager();
   auto& audioEngine = ctx.getAudioEngine();
+  auto& projectManager = ctx.getProjectManager();
+  auto& wsServer = ctx.getWebSocketServer();
 
   Song* activeSong = audioEngine.getActiveSong();
 
-  if (activeSong == nullptr) {
-    juce::Logger::writeToLog("[LoadSongCommand] activeSong is null");
-    return;
-  }
   std::vector<Song*> songs = songsManager.getSongList();
   Song* nextSong = nullptr;
 
-  for (int i = 0; i < songs.size(); i++) {
+  for (int i = 0; i < static_cast<int>(songs.size()); i++) {
     if (uuid == songs[i]->getId() && songs[i] != activeSong) {
       nextSong = songs[i];
     }
   }
 
   if (nextSong == nullptr) {
-    juce::Logger::writeToLog("[LoadSongCommand] nextSong is null");
+    juce::Logger::writeToLog("[LoadSongCommand] nextSong not found or already active");
     return;
+  }
+
+  // Stop playback and reset position before swapping songs
+  audioEngine.stop();
+  audioEngine.setPlayheadPosition(0.0);
+  audioEngine.setCursorPosition(0.0);
+
+  const std::string audioDir = projectManager.getAudioDir();
+
+  // Load audio for the new song if not already loaded
+  if (nextSong->getLoadState() != SongLoadState::Loaded) {
+    broadcast::send(wsServer, "song.loading", {{"songId", nextSong->getId()}});
+    nextSong->loadAudio(audioDir);
+  }
+
+  // Unload audio from the previous song
+  if (activeSong != nullptr) {
+    activeSong->unloadAudio();
+    broadcast::send(wsServer, "song.unloaded", {{"songId", activeSong->getId()}});
   }
 
   audioEngine.loadSong(nextSong);
@@ -171,6 +202,12 @@ void LoadSongCommand::execute(AppContext& ctx) {
   ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(),
                                  nextSong->getEventRules());
   ctx.getEventEngine().fire("song.loaded", ctx);
+
+  // Preload next song if in live mode
+  if (ctx.getModeManager().isLiveMode()) {
+    auto songs = ctx.getSongsManager().getSongList();
+    ctx.getSongPreloader().onSongChanged(nextSong, songs, audioDir);
+  }
 }
 
 // Auto-registration

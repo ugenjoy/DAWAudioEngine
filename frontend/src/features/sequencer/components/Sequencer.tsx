@@ -1,7 +1,15 @@
 import { useProject } from '@/shared/contexts/project-provider'
 import { Transport } from '../../transport/components/Transport'
 import Track from './Track'
-import { forwardRef, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import Timeline from './Timeline'
 import {
   useSequencer,
@@ -66,78 +74,80 @@ type SortableTrackProps = {
   onResize: (trackId: string, height: number) => void
 }
 
-const SortableTrack = memo(forwardRef<
-  HTMLDivElement,
-  SortableTrackProps & React.HTMLAttributes<HTMLDivElement>
->(function SortableTrack(
-  {
-    trackView,
-    availableInputs,
-    trackLevelsRef,
-    selected,
-    sortDisabled,
-    onTrackSelect,
-    onSetInput,
-    onSetMonitoring,
-    onSetMute,
-    onSetSolo,
-    onSetVolume,
-    onRename,
-    onSetColor,
-    onResize,
-    ...restProps
-  },
-  externalRef,
-) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: trackView.track.id, disabled: sortDisabled })
+const SortableTrack = memo(
+  forwardRef<
+    HTMLDivElement,
+    SortableTrackProps & React.HTMLAttributes<HTMLDivElement>
+  >(function SortableTrack(
+    {
+      trackView,
+      availableInputs,
+      trackLevelsRef,
+      selected,
+      sortDisabled,
+      onTrackSelect,
+      onSetInput,
+      onSetMonitoring,
+      onSetMute,
+      onSetSolo,
+      onSetVolume,
+      onRename,
+      onSetColor,
+      onResize,
+      ...restProps
+    },
+    externalRef,
+  ) {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+      useSortable({ id: trackView.track.id, disabled: sortDisabled })
 
-  const restrictedTransform = transform
-    ? { ...transform, x: 0, scaleX: 1, scaleY: 1 }
-    : transform
-  const style = {
-    transform: CSS.Transform.toString(restrictedTransform),
-    transition,
-  }
+    const restrictedTransform = transform
+      ? { ...transform, x: 0, scaleX: 1, scaleY: 1 }
+      : transform
+    const style = {
+      transform: CSS.Transform.toString(restrictedTransform),
+      transition,
+    }
 
-  const mergedRef = (node: HTMLDivElement | null) => {
-    setNodeRef(node)
-    if (typeof externalRef === 'function') externalRef(node)
-    else if (externalRef) externalRef.current = node
-  }
+    const mergedRef = (node: HTMLDivElement | null) => {
+      setNodeRef(node)
+      if (typeof externalRef === 'function') externalRef(node)
+      else if (externalRef) externalRef.current = node
+    }
 
-  return (
-    <Track
-      ref={mergedRef}
-      {...restProps}
-      style={{ ...style, ...restProps.style }}
-      {...attributes}
-      {...listeners}
-      id={trackView.track.id}
-      name={trackView.track.name}
-      mute={trackView.track.mute}
-      solo={trackView.track.solo}
-      volume={trackView.track.volume}
-      color={trackView.strokeColor}
-      height={trackView.height}
-      inputChannel={trackView.track.inputChannel ?? -1}
-      inputStereo={trackView.track.inputStereo ?? false}
-      monitoring={trackView.track.monitoring ?? false}
-      availableInputs={availableInputs}
-      trackLevelsRef={trackLevelsRef}
-      selected={selected}
-      onTrackSelect={onTrackSelect}
-      onSetInput={onSetInput}
-      onSetMonitoring={onSetMonitoring}
-      onSetMute={onSetMute}
-      onSetSolo={onSetSolo}
-      onSetVolume={onSetVolume}
-      onRename={onRename}
-      onSetColor={onSetColor}
-      onResize={onResize}
-    />
-  )
-}))
+    return (
+      <Track
+        ref={mergedRef}
+        {...restProps}
+        style={{ ...style, ...restProps.style }}
+        {...attributes}
+        {...listeners}
+        id={trackView.track.id}
+        name={trackView.track.name}
+        mute={trackView.track.mute}
+        solo={trackView.track.solo}
+        volume={trackView.track.volume}
+        color={trackView.strokeColor}
+        height={trackView.height}
+        inputChannel={trackView.track.inputChannel ?? -1}
+        inputStereo={trackView.track.inputStereo ?? false}
+        monitoring={trackView.track.monitoring ?? false}
+        availableInputs={availableInputs}
+        trackLevelsRef={trackLevelsRef}
+        selected={selected}
+        onTrackSelect={onTrackSelect}
+        onSetInput={onSetInput}
+        onSetMonitoring={onSetMonitoring}
+        onSetMute={onSetMute}
+        onSetSolo={onSetSolo}
+        onSetVolume={onSetVolume}
+        onRename={onRename}
+        onSetColor={onSetColor}
+        onResize={onResize}
+      />
+    )
+  }),
+)
 
 function Sequencer() {
   const {
@@ -159,6 +169,7 @@ function Sequencer() {
     renameTrack,
     reorderTrack,
     trackLevelsRef,
+    songLoading,
   } = useProject()
   const { isLiveMode } = useMode()
   const { send } = useWebSocket()
@@ -272,17 +283,15 @@ function Sequencer() {
         const newZoom = Math.max(0.02, Math.min(100, prevZoom * zoomFactor))
         zoomRef.current = newZoom
 
-        const cursorPosRawPx = (cursorPosRef.current / 60) * activeSong!.tempo * 20
+        const cursorPosRawPx =
+          (cursorPosRef.current / 60) * activeSong!.tempo * 20
         const cursorPosScreenX = cursorPosRawPx * prevZoom - scrollXRef.current
         const offset = 100
         const anchorScreenX = Math.max(
           offset,
           Math.min(canvasWidth - offset, cursorPosScreenX),
         )
-        const newScrollX = Math.max(
-          0,
-          cursorPosRawPx * newZoom - anchorScreenX,
-        )
+        const newScrollX = Math.max(0, cursorPosRawPx * newZoom - anchorScreenX)
         scrollXRef.current = newScrollX
         targetScrollX.current = newScrollX
         currentScrollX.current = newScrollX
@@ -336,7 +345,8 @@ function Sequencer() {
         ) {
           for (const clip of tv.track.clips) {
             const clipX =
-              (clip.position / 60) * activeSong.tempo * pixelsPerBeat - scrollXRef.current
+              (clip.position / 60) * activeSong.tempo * pixelsPerBeat -
+              scrollXRef.current
             const clipW =
               (clip.duration / 60) * activeSong.tempo * pixelsPerBeat
             if (offsetX >= clipX && offsetX <= clipX + clipW) {
@@ -450,22 +460,19 @@ function Sequencer() {
     [activeSong, selectedClip, isLiveMode, isDraggingClip],
   )
 
-  const handleMouseUp = useCallback(
-    (_e: MouseEvent) => {
-      if (draggingClipRef.current && isDraggingClip) {
-        send({
-          action: 'clip.move',
-          trackId: draggingClipRef.current.trackId,
-          clipId: draggingClipRef.current.clipId,
-          position: draggingClipRef.current.position,
-        })
-      }
-      draggingClipRef.current = null
-      dragStartRef.current = null
-      setIsDraggingClip(false)
-    },
-    [isDraggingClip, send],
-  )
+  const handleMouseUp = useCallback(() => {
+    if (draggingClipRef.current && isDraggingClip) {
+      send({
+        action: 'clip.move',
+        trackId: draggingClipRef.current.trackId,
+        clipId: draggingClipRef.current.clipId,
+        position: draggingClipRef.current.position,
+      })
+    }
+    draggingClipRef.current = null
+    dragStartRef.current = null
+    setIsDraggingClip(false)
+  }, [isDraggingClip, send])
 
   const handleContextMenu = useCallback(
     (e: MouseEvent) => {
@@ -517,7 +524,15 @@ function Sequencer() {
         }
       }
     },
-    [activeSong, playing, isLiveMode, selectedTrackId, selectedClip, removeSelectedClip, send],
+    [
+      activeSong,
+      playing,
+      isLiveMode,
+      selectedTrackId,
+      selectedClip,
+      removeSelectedClip,
+      send,
+    ],
   )
 
   const confirmDelete = useCallback(() => {
@@ -576,25 +591,19 @@ function Sequencer() {
         position: snapPosition(offsetX),
         trackIndex: trackIndexFromY(offsetY),
       }
-
     },
     [isLiveMode, snapPosition, trackIndexFromY],
   )
 
-  const handleFileDragLeave = useCallback(
-    (e: React.DragEvent) => {
-      if (e.currentTarget.contains(e.relatedTarget as Node)) return
-      ghostClipRef.current = null
-
-    },
-    [],
-  )
+  const handleFileDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return
+    ghostClipRef.current = null
+  }, [])
 
   const handleFileDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault()
       ghostClipRef.current = null
-
 
       if (!activeSong || isLiveMode) return
 
@@ -674,7 +683,10 @@ function Sequencer() {
     [trackViews, reorderTrack],
   )
 
-  const sortableItems = useMemo(() => trackViews.map((t) => t.track.id), [trackViews])
+  const sortableItems = useMemo(
+    () => trackViews.map((t) => t.track.id),
+    [trackViews],
+  )
 
   const activeSongId = activeSong?.id
   useEffect(() => {
@@ -690,7 +702,15 @@ function Sequencer() {
   return (
     project &&
     activeSong && (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full relative">
+        {songLoading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Loading...
+            </div>
+          </div>
+        )}
         <Transport />
         <div className="flex flex-row h-full overflow-hidden">
           <div

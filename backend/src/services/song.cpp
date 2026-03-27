@@ -1,6 +1,7 @@
 #include "model/song.hpp"
 
 #include <algorithm>
+#include <thread>
 
 #include "audio/audio-context.hpp"
 
@@ -70,7 +71,27 @@ nlohmann::json Song::toJson() const {
   return j;
 }
 
-std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j) {
+void Song::loadAudio(const std::string& audioDir) {
+  SongLoadState expected = SongLoadState::MetadataOnly;
+  if (!loadState.compare_exchange_strong(expected, SongLoadState::Loading)) {
+    // Already Loading or Loaded
+    while (loadState.load() == SongLoadState::Loading) {
+      std::this_thread::yield();
+    }
+    return;
+  }
+  tracksManager->loadAudio(audioDir);
+  loadState.store(SongLoadState::Loaded);
+}
+
+void Song::unloadAudio() {
+  tracksManager->unloadAudio();
+  loadState.store(SongLoadState::MetadataOnly);
+}
+
+std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j,
+                                      const std::string& audioDir,
+                                      bool loadAudio) {
   auto song = std::make_unique<Song>();
 
   if (j.contains("id")) {
@@ -87,7 +108,7 @@ std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j) {
 
   // Load tracks
   if (j.contains("tracks")) {
-    song->tracksManager->loadFromJson(j["tracks"]);
+    song->tracksManager->loadFromJson(j["tracks"], audioDir, loadAudio);
   }
 
   // Load song-level event rules
@@ -95,6 +116,10 @@ std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j) {
     for (const auto& ruleJson : j["events"]) {
       song->eventRules.push_back(EventRule::fromJson(ruleJson));
     }
+  }
+
+  if (loadAudio) {
+    song->loadState.store(SongLoadState::Loaded);
   }
 
   return song;

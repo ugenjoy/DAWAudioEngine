@@ -29,6 +29,7 @@ type ProjectProviderState = {
   project: Project | null
   loadProject: (path: string) => void
   isLoading: boolean
+  songLoading: boolean
   playheadPosRef: React.RefObject<number>
   cursorPosRef: React.RefObject<number>
   playheadUpdateRef: React.RefObject<number>
@@ -69,6 +70,7 @@ const initialState: ProjectProviderState = {
   project: null,
   loadProject: () => null,
   isLoading: false,
+  songLoading: false,
   playheadPosRef: { current: 0 },
   cursorPosRef: { current: 0 },
   playheadUpdateRef: { current: 0 },
@@ -119,6 +121,7 @@ export function ProjectProvider({
   const [availableInputs, setAvailableInputs] = useState<AudioInput[]>([])
   const [isDirty, setIsDirty] = useState<boolean>(false)
   const [masterVolume, setMasterVolume] = useState<number>(1)
+  const [songLoading, setSongLoading] = useState<boolean>(false)
   const trackLevelsRef = useRef<Record<string, number>>({})
 
   const fetchAudioInputs = useCallback(() => {
@@ -357,8 +360,16 @@ export function ProjectProvider({
         setIsDirty(false)
         break
       }
+      case 'song.loading': {
+        setSongLoading(true)
+        break
+      }
       case 'song.loaded': {
+        setSongLoading(false)
         if (data.song !== undefined) setActiveSong(data.song)
+        break
+      }
+      case 'song.unloaded': {
         break
       }
       case 'transport.playheadPosition': {
@@ -487,6 +498,7 @@ export function ProjectProvider({
     project,
     loadProject,
     isLoading,
+    songLoading,
     playheadPosRef,
     cursorPosRef,
     playheadUpdateRef,

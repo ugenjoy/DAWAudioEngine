@@ -15,10 +15,14 @@ AudioClip::AudioClip()
 
 AudioClip::~AudioClip() = default;
 
+void AudioClip::unloadAudio() {
+  audioData.setSize(0, 0);
+  waveformPeaks.clear();
+  loaded = false;
+}
+
 void AudioClip::loadAudioFile(const std::string& audioDir) {
-  const juce::File file(audioDir.empty()
-      ? ("~/daw/projects/test.dawproj/audio/" + fileName)
-      : (audioDir + "/" + fileName));
+  const juce::File file(audioDir + "/" + fileName);
 
   std::unique_ptr<juce::AudioFormatReader> reader(
       formatManager.createReaderFor(file));
@@ -160,7 +164,8 @@ nlohmann::json AudioClip::toJson() const {
 }
 
 std::unique_ptr<AudioClip> AudioClip::fromJson(const nlohmann::json& j,
-                                                const std::string& audioDir) {
+                                                const std::string& audioDir,
+                                                bool loadAudio) {
   auto clip = std::make_unique<AudioClip>();
 
   clip->id = j["id"].get<std::string>();
@@ -171,7 +176,7 @@ std::unique_ptr<AudioClip> AudioClip::fromJson(const nlohmann::json& j,
   clip->duration = j.value("duration", 0.0f);
   clip->offset = j.value("offset", 0.0f);
 
-  if (!clip->fileName.empty()) {
+  if (loadAudio && !clip->fileName.empty()) {
     clip->loadAudioFile(audioDir);
   }
 

@@ -179,7 +179,25 @@ nlohmann::json TracksManager::toJson() const {
   return j;
 }
 
-void TracksManager::loadFromJson(const nlohmann::json& j) {
+void TracksManager::loadAudio(const std::string& audioDir) {
+  for (auto& track : tracks) {
+    if (auto* aft = dynamic_cast<AudioFileTrack*>(track.get())) {
+      aft->loadAudio(audioDir);
+    }
+  }
+}
+
+void TracksManager::unloadAudio() {
+  for (auto& track : tracks) {
+    if (auto* aft = dynamic_cast<AudioFileTrack*>(track.get())) {
+      aft->unloadAudio();
+    }
+  }
+}
+
+void TracksManager::loadFromJson(const nlohmann::json& j,
+                                  const std::string& audioDir,
+                                  bool loadAudio) {
   tracks.clear();
 
   if (!j.is_array()) {
@@ -194,7 +212,7 @@ void TracksManager::loadFromJson(const nlohmann::json& j) {
     std::string type = trackJson["type"];
 
     if (type == "AudioFileTrack") {
-      tracks.push_back(AudioFileTrack::fromJson(trackJson));
+      tracks.push_back(AudioFileTrack::fromJson(trackJson, audioDir, loadAudio));
     }
   }
 }

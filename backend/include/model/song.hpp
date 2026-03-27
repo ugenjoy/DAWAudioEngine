@@ -10,6 +10,8 @@
 #include "events/event-rule.hpp"
 #include "tracks-manager.hpp"
 
+enum class SongLoadState { MetadataOnly, Loading, Loaded };
+
 class Song {
  public:
   Song();
@@ -23,9 +25,15 @@ class Song {
               const juce::AudioBuffer<float>& inputBuffer, int numSamples,
               double position, bool isPlaying);
 
+  void loadAudio(const std::string& audioDir);
+  void unloadAudio();
+  SongLoadState getLoadState() const { return loadState.load(); }
+
   // Serialization
   nlohmann::json toJson() const;
-  static std::unique_ptr<Song> fromJson(const nlohmann::json& j);
+  static std::unique_ptr<Song> fromJson(const nlohmann::json& j,
+                                        const std::string& audioDir,
+                                        bool loadAudio = true);
 
   // Setters / Getters
   std::string getId() const { return id; }
@@ -60,4 +68,6 @@ class Song {
   std::unique_ptr<TracksManager> tracksManager;
   std::unique_ptr<MetronomeTrack> metronomeTrack;
   std::vector<EventRule> eventRules;
+
+  std::atomic<SongLoadState> loadState{SongLoadState::MetadataOnly};
 };

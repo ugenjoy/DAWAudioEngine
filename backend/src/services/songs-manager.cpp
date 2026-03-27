@@ -80,7 +80,8 @@ void SongsManager::loadFromJson(const nlohmann::json& j) {
   }
 
   for (const auto& songJson : j) {
-    songs.push_back(Song::fromJson(songJson));
+    // Load metadata only — audio is loaded on demand when a song is activated
+    songs.push_back(Song::fromJson(songJson, "", false));
   }
 }
 

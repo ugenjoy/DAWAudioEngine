@@ -34,6 +34,14 @@ void AudioFileTrack::renderBlock(juce::AudioBuffer<float>& buffer,
   }
 }
 
+void AudioFileTrack::loadAudio(const std::string& audioDir) {
+  clipsManager->loadAudio(audioDir);
+}
+
+void AudioFileTrack::unloadAudio() {
+  clipsManager->unloadAudio();
+}
+
 void AudioFileTrack::sampleRateChanged() {
   clipsManager->sampleRateChanged();
 }
@@ -56,7 +64,9 @@ nlohmann::json AudioFileTrack::toJson() const {
 }
 
 std::unique_ptr<AudioFileTrack> AudioFileTrack::fromJson(
-    const nlohmann::json& j) {
+    const nlohmann::json& j,
+    const std::string& audioDir,
+    bool loadAudio) {
   auto track = std::make_unique<AudioFileTrack>();
 
   // Restore ID if present, otherwise keep the auto-generated one
@@ -76,7 +86,7 @@ std::unique_ptr<AudioFileTrack> AudioFileTrack::fromJson(
 
   // Load clips
   if (j.contains("clips")) {
-    track->clipsManager->loadFromJson(j["clips"]);
+    track->clipsManager->loadFromJson(j["clips"], audioDir, loadAudio);
   }
 
   return track;

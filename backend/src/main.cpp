@@ -7,6 +7,7 @@
 #include "events/midi-action-executor.hpp"
 #include "services/midi-output-manager.hpp"
 #include "services/mode-manager.hpp"
+#include "services/song-preloader.hpp"
 #include "services/project-manager.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/websocket-server.hpp"
@@ -30,6 +31,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     projectManager = std::make_unique<ProjectManager>();
     modeManager = std::make_unique<ModeManager>();
     midiOutputManager = std::make_unique<MidiOutputManager>();
+    songPreloader = std::make_unique<SongPreloader>();
 
     // Create and configure event engine
     eventEngine = std::make_unique<EventEngine>();
@@ -54,7 +56,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     // Create application context
     appContext = std::make_unique<AppContext>(
         *audioEngine, *songsManager, *projectManager, *wsServer, *modeManager,
-        *eventEngine, *midiOutputManager);
+        *eventEngine, *midiOutputManager, *songPreloader);
 
     // Inject AppContext into WebSocket server for HTTP routes
     wsServer->setAppContext(appContext.get());
@@ -94,6 +96,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     projectManager.reset();
     modeManager.reset();
     midiOutputManager.reset();
+    songPreloader.reset();
     eventEngine.reset();
     commandFactory.reset();
   }
@@ -113,6 +116,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
   std::unique_ptr<ProjectManager> projectManager;
   std::unique_ptr<ModeManager> modeManager;
   std::unique_ptr<MidiOutputManager> midiOutputManager;
+  std::unique_ptr<SongPreloader> songPreloader;
   std::unique_ptr<EventEngine> eventEngine;
   std::unique_ptr<AppContext> appContext;
   std::unique_ptr<CommandFactory> commandFactory;

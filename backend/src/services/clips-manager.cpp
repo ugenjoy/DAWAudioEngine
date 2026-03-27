@@ -32,9 +32,26 @@ void ClipsManager::renderClips(juce::AudioBuffer<float>& clipBuffer,
   }
 }
 
+void ClipsManager::loadAudio(const std::string& dir) {
+  audioDir = dir;
+  for (auto& clip : clips) {
+    if (!clip->isLoaded() && !clip->getFileName().empty()) {
+      clip->loadAudioFile(audioDir);
+    }
+  }
+}
+
+void ClipsManager::unloadAudio() {
+  for (auto& clip : clips) {
+    clip->unloadAudio();
+  }
+}
+
 void ClipsManager::sampleRateChanged() {
   for (auto& clip : clips) {
-    clip->loadAudioFile();
+    if (clip->isLoaded() && !audioDir.empty()) {
+      clip->loadAudioFile(audioDir);
+    }
   }
 }
 
@@ -49,14 +66,16 @@ nlohmann::json ClipsManager::toJson() const {
 }
 
 void ClipsManager::loadFromJson(const nlohmann::json& j,
-                                 const std::string& audioDir) {
+                                 const std::string& dir,
+                                 bool loadAudio) {
   clips.clear();
+  audioDir = dir;
 
   if (!j.is_array()) {
     return;
   }
 
   for (const auto& clipJson : j) {
-    clips.push_back(AudioClip::fromJson(clipJson, audioDir));
+    clips.push_back(AudioClip::fromJson(clipJson, audioDir, loadAudio));
   }
 }

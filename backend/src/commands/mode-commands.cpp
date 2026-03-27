@@ -7,6 +7,9 @@
 #include "commands/command-factory.hpp"
 #include "commands/command-processor.hpp"
 #include "services/mode-manager.hpp"
+#include "services/project-manager.hpp"
+#include "services/song-preloader.hpp"
+#include "services/songs-manager.hpp"
 #include "websocket/websocket-server.hpp"
 
 static constexpr int kEditPollIntervalMs = 1;
@@ -30,6 +33,9 @@ void SetEditModeCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().rebuildMonitoredChannelMask();
   ctx.getAudioEngine().unfreezeTracks();
 
+  // Cancel any pending preload
+  ctx.getSongPreloader().onLiveModeExited();
+
   nlohmann::json broadcast = {{"type", "broadcast"},
                               {"event", "mode.changed"},
                               {"mode", "edit"}};
@@ -45,6 +51,14 @@ void SetLiveModeCommand::execute(AppContext& ctx) {
     proc->setPollInterval(kLivePollIntervalMs);
   }
   ctx.getAudioEngine().freezeTracks();
+
+  // Preload next song
+  auto* activeSong = ctx.getAudioEngine().getActiveSong();
+  if (activeSong) {
+    auto songs = ctx.getSongsManager().getSongList();
+    ctx.getSongPreloader().onLiveModeEntered(
+        activeSong, songs, ctx.getProjectManager().getAudioDir());
+  }
 
   nlohmann::json broadcast = {{"type", "broadcast"},
                               {"event", "mode.changed"},

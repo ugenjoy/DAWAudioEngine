@@ -20,9 +20,13 @@ class ClipsManager {
                    double currentPosition);
   void sampleRateChanged();
 
+  void loadAudio(const std::string& audioDir);
+  void unloadAudio();
+
   // Serialization
   nlohmann::json toJson() const;
-  void loadFromJson(const nlohmann::json& j, const std::string& audioDir = "");
+  void loadFromJson(const nlohmann::json& j, const std::string& audioDir,
+                    bool loadAudio = true);
 
   // Getter for clips
   const std::vector<std::unique_ptr<AudioClip>>& getClips() const {
@@ -31,4 +35,5 @@ class ClipsManager {
 
  private:
   std::vector<std::unique_ptr<AudioClip>> clips;
+  std::string audioDir;
 };

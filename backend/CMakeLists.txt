@@ -89,6 +89,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/events/event-rule.cpp
     src/events/event-engine.cpp
     src/events/midi-action-executor.cpp
+    src/services/song-preloader.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE
