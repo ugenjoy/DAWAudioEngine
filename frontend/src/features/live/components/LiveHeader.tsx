@@ -1,5 +1,10 @@
 import { Button } from '@/shared/shadcn/components/button'
-import { IconChevronLeft, IconChevronRight, IconArrowLeft, IconEdit } from '@tabler/icons-react'
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconArrowLeft,
+  IconEdit,
+} from '@tabler/icons-react'
 import { Setlist } from '@/shared/models/setlist'
 import { Song } from '@/shared/models/song'
 import { ConfirmStopDialog } from '@/shared/components/ConfirmStopDialog'
@@ -13,8 +18,15 @@ interface Props {
   onNext: () => void
 }
 
-export function LiveHeader({ setlist, currentSong, currentIndex, onPrevious, onNext }: Props) {
-  const { guardedNavigate, confirmStop, cancelStop, showConfirm } = useNavigateGuarded()
+export function LiveHeader({
+  setlist,
+  currentSong,
+  currentIndex,
+  onPrevious,
+  onNext,
+}: Readonly<Props>) {
+  const { guardedNavigate, confirmStop, cancelStop, showConfirm } =
+    useNavigateGuarded()
   const total = setlist.entries.length
   const nextEntry = setlist.entries[currentIndex + 1]
 
@@ -24,34 +36,56 @@ export function LiveHeader({ setlist, currentSong, currentIndex, onPrevious, onN
         <Button variant="ghost" size="sm" onClick={() => guardedNavigate('/')}>
           <IconArrowLeft className="size-4 mr-1" /> Home
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => guardedNavigate(`/edit/${currentSong.id}`)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => guardedNavigate(`/edit/${currentSong.id}`)}
+        >
           <IconEdit className="size-4 mr-1" /> Edit
         </Button>
       </div>
+      <div className="flex-1" />
 
-      <div className="flex flex-col items-center">
-        <span className="font-semibold">{setlist.name}</span>
-        <span className="text-sm text-muted-foreground">{currentSong.name}</span>
-        <span className="text-xs text-muted-foreground">
-          {currentIndex + 1}/{total} · {currentSong.tempo} BPM
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" disabled={currentIndex === 0} onClick={onPrevious}>
-          <IconChevronLeft className="size-4" />
-        </Button>
-        <div className="text-xs text-muted-foreground text-right min-w-24">
-          {nextEntry
-            ? <span>Next: {nextEntry.transition === 'continue' ? '→' : '■'}</span>
-            : <span>End of setlist</span>}
+      <div className="flex gap-16 items-center">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground text-right">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={currentIndex === 0}
+            onClick={onPrevious}
+          >
+            <IconChevronLeft className="size-4" />
+          </Button>
+          {<span>Prev</span>}
         </div>
-        <Button size="sm" variant="outline" disabled={currentIndex >= total - 1} onClick={onNext}>
-          <IconChevronRight className="size-4" />
-        </Button>
+        <div className="flex flex-col items-center">
+          <span className="font-semibold">{currentSong.name}</span>
+          <span className="text-sm text-muted-foreground">{setlist.name}</span>
+          <span className="text-xs text-muted-foreground">
+            {currentIndex + 1}/{total} · {currentSong.tempo} BPM
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground text-right">
+          {nextEntry ? <span>Next</span> : <span>End of setlist</span>}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={currentIndex >= total - 1}
+            onClick={onNext}
+          >
+            <IconChevronRight className="size-4" />
+          </Button>
+        </div>
       </div>
 
-      <ConfirmStopDialog open={showConfirm} onConfirm={confirmStop} onCancel={cancelStop} />
+      <div className="flex-1" />
+
+      <ConfirmStopDialog
+        open={showConfirm}
+        onConfirm={confirmStop}
+        onCancel={cancelStop}
+      />
     </header>
   )
 }

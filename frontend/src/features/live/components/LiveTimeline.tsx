@@ -30,6 +30,8 @@ export function LiveTimeline({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const interpolatedPos = useInterpolatedPlayhead(positionRef, playheadUpdateRef, playing)
+  const playingRef = useRef(playing)
+  playingRef.current = playing
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -55,23 +57,58 @@ export function LiveTimeline({
       const dpr = window.devicePixelRatio ?? 1
       const { width, height } = canvas!
 
-      const position = interpolatedPos.current ?? 0
+      const position = playingRef.current
+        ? (interpolatedPos.current ?? 0)
+        : (positionRef.current ?? 0)
       const center = width / 2
       const trackHeight = 20 * dpr
+      const pps = pixelsPerSecond * dpr
 
       ctx.clearRect(0, 0, width, height)
-      ctx.fillStyle = '#0f0f0f'
+      ctx.fillStyle = '#000000'
       ctx.fillRect(0, 0, width, height)
+
+      // Active zone background and grid, bounded to [0, endPosition]
+      {
+        const beatDuration = 60 / song.tempo
+        const visibleStart = position - center / pps
+        const visibleEnd = position + (width - center) / pps
+        const gridEnd = song.endPosition ?? visibleEnd
+
+        const xStart = Math.max(0, center + (0 - position) * pps)
+        const xEnd = Math.min(width, center + (gridEnd - position) * pps)
+
+        if (xEnd > xStart) {
+          ctx.fillStyle = '#0f0f0f'
+          ctx.fillRect(xStart, 0, xEnd - xStart, height)
+        }
+
+        const firstBeat = Math.max(0, Math.floor(visibleStart / beatDuration))
+        const lastBeat = Math.floor(Math.min(gridEnd, visibleEnd) / beatDuration)
+        ctx.lineWidth = 1 * dpr
+        for (let i = firstBeat; i <= lastBeat; i++) {
+          const t = i * beatDuration
+          const x = center + (t - position) * pps
+          const isBar = i % 4 === 0
+          ctx.strokeStyle = isBar ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, height)
+          ctx.stroke()
+        }
+      }
 
       song.tracks.forEach((track, trackIndex) => {
         const y = 20 * dpr + trackIndex * trackHeight
         const color = TRACK_COLORS[trackIndex % TRACK_COLORS.length]
 
         track.clips.forEach((clip) => {
-          const clipX =
-            center + (clip.position - position) * pixelsPerSecond * dpr
-          const clipW = clip.duration * pixelsPerSecond * dpr
-          if (clipX + clipW < 0 || clipX > width) return
+          const clipEnd = song.endPosition !== undefined
+            ? Math.min(clip.position + clip.duration, song.endPosition)
+            : clip.position + clip.duration
+          const clipX = center + (clip.position - position) * pps
+          const clipW = (clipEnd - clip.position) * pps
+          if (clipW <= 0 || clipX + clipW < 0 || clipX > width) return
 
           ctx.fillStyle = color
           ctx.globalAlpha = 0.85
@@ -82,31 +119,6 @@ export function LiveTimeline({
           ctx.fillText(clip.name, clipX + 4, y + trackHeight / 2 + 4)
         })
       })
-
-      // End position marker
-      if (song.endPosition !== undefined) {
-        const endX =
-          center + (song.endPosition - position) * pixelsPerSecond * dpr
-        if (endX >= 0 && endX <= width) {
-          ctx.strokeStyle = '#f97316'
-          ctx.lineWidth = 1.5 * dpr
-          ctx.setLineDash([5 * dpr, 3 * dpr])
-          ctx.beginPath()
-          ctx.moveTo(endX, 0)
-          ctx.lineTo(endX, height)
-          ctx.stroke()
-          ctx.setLineDash([])
-
-          // Small triangle flag at top
-          ctx.fillStyle = '#f97316'
-          ctx.beginPath()
-          ctx.moveTo(endX - 6 * dpr, 0)
-          ctx.lineTo(endX + 6 * dpr, 0)
-          ctx.lineTo(endX, 10 * dpr)
-          ctx.closePath()
-          ctx.fill()
-        }
-      }
 
       ctx.globalAlpha = 1
       ctx.strokeStyle = '#ffffff'
