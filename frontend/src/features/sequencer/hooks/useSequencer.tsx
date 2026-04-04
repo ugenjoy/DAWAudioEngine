@@ -29,6 +29,7 @@ export function useSequencer(
   ghostClipRef?: RefObject<GhostClip | null>,
   selectedClip?: SelectedClip | null,
   draggingClipRef?: RefObject<DraggingClip | null>,
+  endPositionDragRef?: RefObject<number | null>,
 ) {
   const {
     activeSong,
@@ -264,8 +265,33 @@ export function useSequencer(
       ctx.moveTo(playheadPosPx, 0)
       ctx.lineTo(playheadPosPx, height)
       ctx.stroke()
+
+      // End position marker
+      const displayEndPos = endPositionDragRef?.current ?? activeSong.endPosition
+      if (displayEndPos !== undefined && displayEndPos !== null) {
+        const endPosPx =
+          (displayEndPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+
+        ctx.strokeStyle = '#f97316'
+        ctx.lineWidth = 1.5
+        ctx.setLineDash([5, 3])
+        ctx.beginPath()
+        ctx.moveTo(endPosPx, 0)
+        ctx.lineTo(endPosPx, height)
+        ctx.stroke()
+        ctx.setLineDash([])
+
+        // Triangle handle at top (pointing down into timeline)
+        ctx.fillStyle = '#f97316'
+        ctx.beginPath()
+        ctx.moveTo(endPosPx - 6, 0)
+        ctx.lineTo(endPosPx + 6, 0)
+        ctx.lineTo(endPosPx, headerHeight - 2)
+        ctx.closePath()
+        ctx.fill()
+      }
     },
-    [activeSong, trackViews, selectedTrackId, selectedClip],
+    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef],
   )
   return { draw }
 }

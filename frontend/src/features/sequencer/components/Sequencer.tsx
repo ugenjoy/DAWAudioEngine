@@ -174,6 +174,8 @@ function Sequencer() {
   const { isLiveMode } = useMode()
   const { send } = useWebSocket()
 
+  const HEADER_HEIGHT = 22
+
   // Canvas-only values as refs — no React re-renders on zoom/scroll
   const zoomRef = useRef(1)
   const scrollXRef = useRef(0)
@@ -186,9 +188,16 @@ function Sequencer() {
   const draggingClipRef = useRef<DraggingClip | null>(null)
   const [isDraggingClip, setIsDraggingClip] = useState(false)
   const dragStartRef = useRef<{ x: number; originPos: number } | null>(null)
+  const endPositionDragRef = useRef<number | null>(null)
+  const isDraggingEndPosition = useRef(false)
   const [clipContextMenu, setClipContextMenu] = useState<{
     x: number
     y: number
+  } | null>(null)
+  const [endPositionContextMenu, setEndPositionContextMenu] = useState<{
+    x: number
+    y: number
+    position: number
   } | null>(null)
   const [dragTrackViews, setDragTrackViews] = useState<
     typeof trackViews | null
@@ -203,6 +212,7 @@ function Sequencer() {
     ghostClipRef,
     selectedClip,
     draggingClipRef,
+    endPositionDragRef,
   )
 
   const tracksContainer = useRef<HTMLDivElement>(null)
@@ -373,6 +383,19 @@ function Sequencer() {
 
       e.preventDefault()
 
+      // Hit-test end position handle in header
+      if (e.offsetY < HEADER_HEIGHT && activeSong.endPosition !== undefined) {
+        const pixelsPerBeat = 20 * zoomRef.current
+        const endPosPx =
+          (activeSong.endPosition / 60) * activeSong.tempo * pixelsPerBeat -
+          scrollXRef.current
+        if (Math.abs(e.offsetX - endPosPx) < 8) {
+          isDraggingEndPosition.current = true
+          endPositionDragRef.current = activeSong.endPosition
+          return
+        }
+      }
+
       const hit = hitTestClip(e.offsetX, e.offsetY)
       if (hit && !isLiveMode) {
         setSelectedClip({ trackId: hit.trackId, clipId: hit.clipId })
@@ -409,8 +432,7 @@ function Sequencer() {
         position: cursorPos,
       })
 
-      const headerHeight = 20
-      const clickY = e.offsetY + scrollYRef.current - headerHeight
+      const clickY = e.offsetY + scrollYRef.current - HEADER_HEIGHT
       if (clickY >= 0) {
         let accHeight = 0
         for (const tv of activeTrackViews) {
@@ -427,8 +449,15 @@ function Sequencer() {
 
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!activeSong || !selectedClip || !dragStartRef.current) return
+      if (!activeSong) return
       if (isLiveMode) return
+
+      if (isDraggingEndPosition.current) {
+        endPositionDragRef.current = snapPosition(e.offsetX)
+        return
+      }
+
+      if (!selectedClip || !dragStartRef.current) return
 
       const dx = Math.abs(e.offsetX - dragStartRef.current.x)
       if (dx < 3 && !isDraggingClip) return
@@ -461,6 +490,18 @@ function Sequencer() {
   )
 
   const handleMouseUp = useCallback(() => {
+    if (isDraggingEndPosition.current) {
+      if (endPositionDragRef.current !== null && activeSong) {
+        send({
+          action: 'song.setEndPosition',
+          songId: activeSong.id,
+          endPosition: endPositionDragRef.current,
+        })
+      }
+      endPositionDragRef.current = null
+      isDraggingEndPosition.current = false
+      return
+    }
     if (draggingClipRef.current && isDraggingClip) {
       send({
         action: 'clip.move',
@@ -472,11 +513,40 @@ function Sequencer() {
     draggingClipRef.current = null
     dragStartRef.current = null
     setIsDraggingClip(false)
-  }, [isDraggingClip, send])
+  }, [activeSong, isDraggingClip, send])
+
+  const snapPosition = useCallback(
+    (offsetX: number): number => {
+      if (!activeSong) return 0
+      const zoom = zoomRef.current
+      const pixelsPerBeat = 20 * zoom
+      let beatsPerLine: number
+      if (pixelsPerBeat < 4) beatsPerLine = 16
+      else if (pixelsPerBeat < 16) beatsPerLine = 4
+      else if (pixelsPerBeat > 64) beatsPerLine = 0.25
+      else beatsPerLine = 1
+      const rawPos =
+        ((offsetX + scrollXRef.current) * 60) / (activeSong.tempo * 20 * zoom)
+      const snapInterval = (beatsPerLine * 60) / activeSong.tempo
+      return Math.max(0, Math.round(rawPos / snapInterval) * snapInterval)
+    },
+    [activeSong],
+  )
 
   const handleContextMenu = useCallback(
     (e: MouseEvent) => {
       if (!activeSong || isLiveMode) return
+
+      const headerHeight = HEADER_HEIGHT
+      if (e.offsetY < headerHeight) {
+        e.preventDefault()
+        setEndPositionContextMenu({
+          x: e.clientX,
+          y: e.clientY,
+          position: snapPosition(e.offsetX),
+        })
+        return
+      }
 
       const hit = hitTestClip(e.offsetX, e.offsetY)
       if (hit) {
@@ -485,7 +555,7 @@ function Sequencer() {
         setClipContextMenu({ x: e.clientX, y: e.clientY })
       }
     },
-    [activeSong, isLiveMode, hitTestClip],
+    [activeSong, isLiveMode, hitTestClip, snapPosition],
   )
 
   const removeSelectedClip = useCallback(() => {
@@ -544,24 +614,6 @@ function Sequencer() {
   }, [selectedTrackId, removeTrack])
 
   const AUDIO_EXTENSIONS = ['.wav', '.mp3', '.flac', '.aiff', '.ogg', '.aif']
-
-  const snapPosition = useCallback(
-    (offsetX: number): number => {
-      if (!activeSong) return 0
-      const zoom = zoomRef.current
-      const pixelsPerBeat = 20 * zoom
-      let beatsPerLine: number
-      if (pixelsPerBeat < 4) beatsPerLine = 16
-      else if (pixelsPerBeat < 16) beatsPerLine = 4
-      else if (pixelsPerBeat > 64) beatsPerLine = 0.25
-      else beatsPerLine = 1
-      const rawPos =
-        ((offsetX + scrollXRef.current) * 60) / (activeSong.tempo * 20 * zoom)
-      const snapInterval = (beatsPerLine * 60) / activeSong.tempo
-      return Math.max(0, Math.round(rawPos / snapInterval) * snapInterval)
-    },
-    [activeSong],
-  )
 
   const trackIndexFromY = useCallback(
     (offsetY: number): number => {
@@ -806,6 +858,58 @@ function Sequencer() {
             />
           </div>
         </div>
+
+        {endPositionContextMenu && (
+          <div
+            className="fixed inset-0 z-50"
+            onClick={() => setEndPositionContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setEndPositionContextMenu(null)
+            }}
+          >
+            <div
+              className="absolute bg-popover border rounded-md shadow-md py-1 min-w-[180px]"
+              style={{
+                left: endPositionContextMenu.x,
+                top: endPositionContextMenu.y,
+              }}
+            >
+              <button
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-default"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  send({
+                    action: 'song.setEndPosition',
+                    songId: activeSong!.id,
+                    endPosition: endPositionContextMenu.position,
+                  })
+                  setEndPositionContextMenu(null)
+                }}
+              >
+                {activeSong?.endPosition !== undefined
+                  ? 'Move end position here'
+                  : 'Set end position here'}
+              </button>
+              {activeSong?.endPosition !== undefined && (
+                <button
+                  className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-accent cursor-default"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    send({
+                      action: 'song.setEndPosition',
+                      songId: activeSong!.id,
+                      endPosition: null,
+                    })
+                    setEndPositionContextMenu(null)
+                  }}
+                >
+                  Remove end position
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {clipContextMenu && (
           <div

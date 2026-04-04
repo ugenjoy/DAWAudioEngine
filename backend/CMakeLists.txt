@@ -84,12 +84,16 @@ target_sources(DAWAudioEngine PRIVATE
     src/commands/midi-commands.cpp
     src/commands/event-commands.cpp
     src/commands/clip-commands.cpp
+    src/commands/setlist-commands.cpp
     src/services/mode-manager.cpp
     src/services/midi-output-manager.cpp
     src/events/event-rule.cpp
     src/events/event-engine.cpp
     src/events/midi-action-executor.cpp
     src/services/song-preloader.cpp
+    src/model/setlist.cpp
+    src/services/setlist-manager.cpp
+    src/services/live-setlist-manager.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE

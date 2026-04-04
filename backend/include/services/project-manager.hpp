@@ -6,6 +6,7 @@
 #include <string>
 
 #include "songs-manager.hpp"
+#include "services/setlist-manager.hpp"
 
 /**
  * @file project-manager.hpp
@@ -34,7 +35,8 @@ class ProjectManager {
    * @return true if save was successful, false otherwise
    */
   bool saveProject(const std::string& projectPath,
-                   const SongsManager& songsManager);
+                   const SongsManager& songsManager,
+                   const SetlistManager* setlistManager = nullptr);
 
   /**
    * @brief Load a project from disk
@@ -42,7 +44,9 @@ class ProjectManager {
    * @param songsManager Reference to SongsManager to populate with loaded data
    * @return true if load was successful, false otherwise
    */
-  bool loadProject(const std::string& projectPath, SongsManager& songsManager);
+  bool loadProject(const std::string& projectPath,
+                   SongsManager& songsManager,
+                   SetlistManager* setlistManager = nullptr);
 
   /**
    * @brief Get the last error message
@@ -109,15 +113,18 @@ class ProjectManager {
    * @param songsManager The SongsManager to serialize
    * @return JSON object representing the project
    */
-  nlohmann::json serializeProject(const SongsManager& songsManager) const;
+  nlohmann::json serializeProject(const SongsManager& songsManager,
+                                  const SetlistManager* setlistManager = nullptr) const;
 
   /**
    * @brief Deserialize project from JSON
    * @param projectJson The JSON object to deserialize
    * @param songsManager The SongsManager to populate
+   * @param setlistManager Optional SetlistManager to populate with setlists
    */
   void deserializeProject(const nlohmann::json& projectJson,
-                          SongsManager& songsManager);
+                          SongsManager& songsManager,
+                          SetlistManager* setlistManager = nullptr);
 
   std::string lastError;
   std::string currentProjectPath;

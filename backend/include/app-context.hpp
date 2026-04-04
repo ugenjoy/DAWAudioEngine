@@ -1,5 +1,8 @@
 #pragma once
 
+#include "services/setlist-manager.hpp"
+#include "services/live-setlist-manager.hpp"
+
 class AudioEngineCore;
 class SongsManager;
 class ProjectManager;
@@ -26,7 +29,9 @@ class AppContext {
              ModeManager& modeManager,
              EventEngine& eventEngine,
              MidiOutputManager& midiOutputManager,
-             SongPreloader& songPreloader)
+             SongPreloader& songPreloader,
+             SetlistManager& setlistManager,
+             LiveSetlistManager& liveSetlistManager)
       : audioEngine(audioEngine),
         songsManager(songsManager),
         projectManager(projectManager),
@@ -34,7 +39,9 @@ class AppContext {
         modeManager(modeManager),
         eventEngine(eventEngine),
         midiOutputManager(midiOutputManager),
-        songPreloader(songPreloader) {}
+        songPreloader(songPreloader),
+        setlistManager(setlistManager),
+        liveSetlistManager(liveSetlistManager) {}
 
   AudioEngineCore& getAudioEngine() { return audioEngine; }
   SongsManager& getSongsManager() { return songsManager; }
@@ -44,6 +51,8 @@ class AppContext {
   EventEngine& getEventEngine() { return eventEngine; }
   MidiOutputManager& getMidiOutputManager() { return midiOutputManager; }
   SongPreloader& getSongPreloader() { return songPreloader; }
+  SetlistManager& getSetlistManager() { return setlistManager; }
+  LiveSetlistManager& getLiveSetlistManager() { return liveSetlistManager; }
 
   /** Injected after construction to avoid circular dependency. */
   void setCommandProcessor(CommandProcessor* processor) {
@@ -60,5 +69,7 @@ class AppContext {
   EventEngine& eventEngine;
   MidiOutputManager& midiOutputManager;
   SongPreloader& songPreloader;
+  SetlistManager& setlistManager;
+  LiveSetlistManager& liveSetlistManager;
   CommandProcessor* commandProcessor = nullptr;
 };

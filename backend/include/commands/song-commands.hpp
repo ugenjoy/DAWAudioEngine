@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "commands/command.hpp"
 
 class SetTempoCommand : public Command {
@@ -47,4 +49,23 @@ class SetMetronomeMuteCommand : public Command {
 
  private:
   bool mute;
+};
+
+class SetEndPositionCommand : public Command {
+ public:
+  SetEndPositionCommand(std::string uuid, std::optional<double> pos);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string uuid;
+  std::optional<double> pos;
+};
+
+class DeleteSongCommand : public Command {
+ public:
+  explicit DeleteSongCommand(std::string uuid);
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string uuid;
 };

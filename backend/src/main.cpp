@@ -8,6 +8,8 @@
 #include "services/midi-output-manager.hpp"
 #include "services/mode-manager.hpp"
 #include "services/song-preloader.hpp"
+#include "services/setlist-manager.hpp"
+#include "services/live-setlist-manager.hpp"
 #include "services/project-manager.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/websocket-server.hpp"
@@ -32,6 +34,8 @@ class AudioEngineApplication : public juce::JUCEApplication,
     modeManager = std::make_unique<ModeManager>();
     midiOutputManager = std::make_unique<MidiOutputManager>();
     songPreloader = std::make_unique<SongPreloader>();
+    setlistManager = std::make_unique<SetlistManager>();
+    liveSetlistManager = std::make_unique<LiveSetlistManager>();
 
     // Create and configure event engine
     eventEngine = std::make_unique<EventEngine>();
@@ -56,7 +60,13 @@ class AudioEngineApplication : public juce::JUCEApplication,
     // Create application context
     appContext = std::make_unique<AppContext>(
         *audioEngine, *songsManager, *projectManager, *wsServer, *modeManager,
-        *eventEngine, *midiOutputManager, *songPreloader);
+        *eventEngine, *midiOutputManager, *songPreloader,
+        *setlistManager, *liveSetlistManager);
+
+    // Wire end position callback for automatic song transitions
+    audioEngine->setEndPositionCallback([this]() {
+      liveSetlistManager->onSongEndReached(*appContext);
+    });
 
     // Inject AppContext into WebSocket server for HTTP routes
     wsServer->setAppContext(appContext.get());
@@ -97,6 +107,8 @@ class AudioEngineApplication : public juce::JUCEApplication,
     modeManager.reset();
     midiOutputManager.reset();
     songPreloader.reset();
+    setlistManager.reset();
+    liveSetlistManager.reset();
     eventEngine.reset();
     commandFactory.reset();
   }
@@ -117,6 +129,8 @@ class AudioEngineApplication : public juce::JUCEApplication,
   std::unique_ptr<ModeManager> modeManager;
   std::unique_ptr<MidiOutputManager> midiOutputManager;
   std::unique_ptr<SongPreloader> songPreloader;
+  std::unique_ptr<SetlistManager> setlistManager;
+  std::unique_ptr<LiveSetlistManager> liveSetlistManager;
   std::unique_ptr<EventEngine> eventEngine;
   std::unique_ptr<AppContext> appContext;
   std::unique_ptr<CommandFactory> commandFactory;

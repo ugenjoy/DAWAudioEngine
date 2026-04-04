@@ -93,6 +93,10 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   // WS
   void setWebSocketServer(WebSocketServer* server) { wsServer = server; }
 
+  // End position callback
+  using EndPositionCallback = std::function<void()>;
+  void setEndPositionCallback(EndPositionCallback cb);
+
  private:
   juce::AudioDeviceManager deviceManager;
 
@@ -114,6 +118,9 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   std::atomic<double> cursorPosition;
 
   WebSocketServer* wsServer = nullptr;
+
+  EndPositionCallback endPositionCallback;
+  std::atomic<bool> endPositionFired{false};
 
   // Audio settings persistence
   void saveSettings();

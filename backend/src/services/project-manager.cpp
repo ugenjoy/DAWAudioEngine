@@ -11,7 +11,8 @@ ProjectManager::ProjectManager()
 ProjectManager::~ProjectManager() = default;
 
 bool ProjectManager::saveProject(const std::string& projectPath,
-                                 const SongsManager& songsManager) {
+                                 const SongsManager& songsManager,
+                                 const SetlistManager* setlistManager) {
   lastError = "";
 
   // Create JUCE File object for the project folder
@@ -34,7 +35,7 @@ bool ProjectManager::saveProject(const std::string& projectPath,
   }
 
   // Serialize the project to JSON
-  nlohmann::json projectJson = serializeProject(songsManager);
+  nlohmann::json projectJson = serializeProject(songsManager, setlistManager);
 
   // Write JSON to project.json file
   juce::File projectFile = projectFolder.getChildFile("project.json");
@@ -57,7 +58,8 @@ bool ProjectManager::saveProject(const std::string& projectPath,
 }
 
 bool ProjectManager::loadProject(const std::string& projectPath,
-                                 SongsManager& songsManager) {
+                                 SongsManager& songsManager,
+                                 SetlistManager* setlistManager) {
   lastError = "";
 
   // Create JUCE File object for the project folder
@@ -82,7 +84,7 @@ bool ProjectManager::loadProject(const std::string& projectPath,
     nlohmann::json projectJson = nlohmann::json::parse(jsonString);
 
     // Deserialize the project
-    deserializeProject(projectJson, songsManager);
+    deserializeProject(projectJson, songsManager, setlistManager);
 
   } catch (const nlohmann::json::parse_error& e) {
     lastError = std::string("JSON parse error: ") + e.what();
@@ -140,7 +142,8 @@ bool ProjectManager::createProjectStructure(const juce::File& projectFolder) {
 }
 
 nlohmann::json ProjectManager::serializeProject(
-    const SongsManager& songsManager) const {
+    const SongsManager& songsManager,
+    const SetlistManager* setlistManager) const {
   nlohmann::json projectJson;
 
   // Project metadata
@@ -166,6 +169,10 @@ nlohmann::json ProjectManager::serializeProject(
 
   // Serialize project-level events
   projectJson["events"] = songsManager.projectEventsToJson();
+
+  if (setlistManager) {
+    projectJson["setlists"] = setlistManager->toJson();
+  }
 
   return projectJson;
 }
@@ -250,7 +257,8 @@ nlohmann::json ProjectManager::getProject(const std::string& path) {
 }
 
 void ProjectManager::deserializeProject(const nlohmann::json& projectJson,
-                                        SongsManager& songsManager) {
+                                        SongsManager& songsManager,
+                                        SetlistManager* setlistManager) {
   // Load project UUID, or generate one if missing (backward compatibility)
   if (projectJson.contains("id") && projectJson["id"].is_string()) {
     currentProjectId = projectJson["id"].get<std::string>();
@@ -279,5 +287,10 @@ void ProjectManager::deserializeProject(const nlohmann::json& projectJson,
   // Load project-level events
   if (projectJson.contains("events")) {
     songsManager.loadProjectEventsFromJson(projectJson["events"]);
+  }
+
+  if (setlistManager) {
+    setlistManager->loadFromJson(
+        projectJson.value("setlists", nlohmann::json::array()));
   }
 }

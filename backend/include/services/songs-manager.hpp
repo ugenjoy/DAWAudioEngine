@@ -3,6 +3,7 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 
 #include <nlohmann/json.hpp>
+#include <optional>
 
 #include "audio/audio-track.hpp"
 #include "events/event-rule.hpp"
@@ -14,12 +15,13 @@ class SongsManager {
   ~SongsManager();
 
   void addSong(std::unique_ptr<Song>);
-  void removeSong();
+  bool removeSong(const std::string& uuid);
   std::vector<Song*> getSongList();
   Song* getSong(int songId);
   Song* getSongById(const std::string& uuid);
   bool renameSong(const std::string& uuid, const std::string& name);
   bool reorderSong(const std::string& uuid, int newIndex);
+  bool setEndPosition(const std::string& uuid, std::optional<double> pos);
 
   // Serialization
   nlohmann::json toJson() const;

@@ -8,15 +8,18 @@ void EventEngine::registerExecutor(std::unique_ptr<ActionExecutor> executor) {
 }
 
 void EventEngine::loadRules(const std::vector<EventRule>& projectRules,
+                            const std::vector<EventRule>& setlistRules,
                             const std::vector<EventRule>& songRules) {
   rules.clear();
   rules.insert(rules.end(), projectRules.begin(), projectRules.end());
+  rules.insert(rules.end(), setlistRules.begin(), setlistRules.end());
   rules.insert(rules.end(), songRules.begin(), songRules.end());
 
   juce::Logger::writeToLog(
       "[EventEngine] Loaded " + juce::String((int)rules.size()) +
-      " rule(s) (" + juce::String((int)projectRules.size()) +
-      " project, " + juce::String((int)songRules.size()) + " song)");
+      " rule(s) (" + juce::String((int)projectRules.size()) + " project, " +
+      juce::String((int)setlistRules.size()) + " setlist, " +
+      juce::String((int)songRules.size()) + " song)");
 }
 
 void EventEngine::clearRules() {

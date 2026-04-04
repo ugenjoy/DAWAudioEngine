@@ -30,9 +30,11 @@ class EventEngine {
    * Load rules for the current context.
    * Replaces any previously loaded rules.
    * @param projectRules Rules defined at the project level
+   * @param setlistRules Rules defined at the active setlist level
    * @param songRules Rules defined at the current song level
    */
   void loadRules(const std::vector<EventRule>& projectRules,
+                 const std::vector<EventRule>& setlistRules,
                  const std::vector<EventRule>& songRules);
 
   /**
@@ -49,5 +51,5 @@ class EventEngine {
 
  private:
   std::unordered_map<std::string, std::unique_ptr<ActionExecutor>> executors;
-  std::vector<EventRule> rules;  // Combined project + song rules
+  std::vector<EventRule> rules;  // Combined project + setlist + song rules
 };

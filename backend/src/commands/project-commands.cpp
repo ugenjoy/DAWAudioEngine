@@ -29,7 +29,7 @@ void LoadProjectCommand::execute(AppContext& ctx) {
   audioEngine.unloadSong();
 
   // Load the project (metadata only — audio loaded on demand)
-  if (projectManager.loadProject(projectPath, songsManager)) {
+  if (projectManager.loadProject(projectPath, songsManager, &ctx.getSetlistManager())) {
     juce::Logger::writeToLog("[LoadProjectCommand] Project loaded: " +
                              juce::String(projectPath));
 
@@ -43,7 +43,7 @@ void LoadProjectCommand::execute(AppContext& ctx) {
       audioEngine.loadSong(firstSong);
 
       // Load event rules and fire song.loaded trigger
-      ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(),
+      ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(), {},
                                      firstSong->getEventRules());
       ctx.getEventEngine().fire("song.loaded", ctx);
 
@@ -56,7 +56,9 @@ void LoadProjectCommand::execute(AppContext& ctx) {
 
     nlohmann::json project = projectManager.getProject(projectPath);
 
-    broadcast::send(wsServer, "project.loaded", {{"project", project}});
+    broadcast::send(wsServer, "project.loaded",
+                    {{"project", project},
+                     {"setlists", ctx.getSetlistManager().toJson()}});
   } else {
     juce::Logger::writeToLog("[LoadProjectCommand] Failed to load project: " +
                              juce::String(projectManager.getLastError()));
@@ -75,7 +77,7 @@ void SaveProjectCommand::execute(AppContext& ctx) {
   auto& projectManager = ctx.getProjectManager();
   auto& songsManager = ctx.getSongsManager();
 
-  if (projectManager.saveProject(projectPath, songsManager)) {
+  if (projectManager.saveProject(projectPath, songsManager, &ctx.getSetlistManager())) {
     juce::Logger::writeToLog("[SaveProjectCommand] Project saved: " +
                              juce::String(projectPath));
 
@@ -96,23 +98,33 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
   nlohmann::json project =
       projectManager.getProject(projectManager.getCurrentProjectPath());
 
-  Song* activeSong = audioEngine.getActiveSong();
-  nlohmann::json songJson = "";
+  // Include active song in edit mode (for route restore) or during a live session
+  auto& liveSetlist = ctx.getLiveSetlistManager();
+  bool isLive = liveSetlist.isActive();
+  bool includeActiveSong = isLive || ctx.getModeManager().isEditMode();
+  Song* activeSong = includeActiveSong ? audioEngine.getActiveSong() : nullptr;
+  nlohmann::json songJson = nullptr;
+  if (activeSong != nullptr) songJson = activeSong->toJson();
 
-  if (activeSong != nullptr) {
-    songJson = activeSong->toJson();
-  }
+  std::string mode = ctx.getModeManager().isLiveMode() ? "live" : "edit";
 
   nlohmann::json response;
   response["type"] = "response";
   response["event"] = "project.currentLoaded";
   response["hasProject"] = projectManager.hasLoadedProject();
   response["project"] = project;
+  response["mode"] = mode;
   response["activeSong"] = songJson;
   response["playheadPosition"] = audioEngine.getPlayheadPosition();
   response["cursorPosition"] = audioEngine.getCursorPosition();
   response["isPlaying"] = audioEngine.isPlaying();
   response["masterVolume"] = audioEngine.getMasterVolume();
+
+  // Live session state — allows frontend to restore the /live route after refresh
+  if (isLive) {
+    response["setlist"] = liveSetlist.getSetlist().toJson();
+    response["currentIndex"] = liveSetlist.getCurrentIndex();
+  }
 
   reply(response.dump());
 
@@ -199,7 +211,7 @@ void LoadSongCommand::execute(AppContext& ctx) {
   audioEngine.loadSong(nextSong);
 
   // Load event rules and fire song.loaded trigger
-  ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(),
+  ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(), {},
                                  nextSong->getEventRules());
   ctx.getEventEngine().fire("song.loaded", ctx);
 

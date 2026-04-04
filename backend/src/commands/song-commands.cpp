@@ -6,6 +6,8 @@
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
 #include "events/event-engine.hpp"
+#include "services/project-manager.hpp"
+#include "services/setlist-manager.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
@@ -26,7 +28,7 @@ void CreateSongCommand::execute(AppContext& ctx) {
   audioEngine.stop();
   audioEngine.loadSong(raw);
 
-  ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(),
+  ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(), {},
                                  raw->getEventRules());
   ctx.getEventEngine().fire("song.loaded", ctx);
 
@@ -138,4 +140,69 @@ REGISTER_EDIT_COMMAND_WITH_CREATOR(
       if (uuid.empty() || !payload.contains("index")) return nullptr;
       int index = payload.value("index", 0);
       return std::make_unique<ReorderSongCommand>(uuid, index);
+    });
+
+// ── SetEndPositionCommand ─────────────────────────────────────────────────
+
+SetEndPositionCommand::SetEndPositionCommand(std::string uuid,
+                                             std::optional<double> pos)
+    : uuid(std::move(uuid)), pos(pos) {}
+
+void SetEndPositionCommand::execute(AppContext& ctx) {
+  auto& sm = ctx.getSongsManager();
+  if (!sm.setEndPosition(uuid, pos)) return;
+
+  ctx.getProjectManager().saveProject(
+      ctx.getProjectManager().getCurrentProjectPath(), sm, nullptr);
+
+  broadcast::send(ctx.getWebSocketServer(), "song.endPositionUpdated",
+                  {{"songId", uuid},
+                   {"endPosition", pos.has_value()
+                       ? nlohmann::json(pos.value())
+                       : nlohmann::json(nullptr)}});
+}
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "song.setEndPosition", SetEndPosition,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string uuid = payload.value("songId", "");
+      if (uuid.empty()) return nullptr;
+      std::optional<double> pos;
+      if (payload.contains("endPosition") && !payload["endPosition"].is_null())
+        pos = payload["endPosition"].get<double>();
+      return std::make_unique<SetEndPositionCommand>(uuid, pos);
+    });
+
+// ── DeleteSongCommand ─────────────────────────────────────────────────────
+
+DeleteSongCommand::DeleteSongCommand(std::string uuid)
+    : uuid(std::move(uuid)) {}
+
+void DeleteSongCommand::execute(AppContext& ctx) {
+  auto& sm = ctx.getSongsManager();
+  auto* active = ctx.getAudioEngine().getActiveSong();
+  // Don't delete the active song
+  if (active && active->getId() == uuid) return;
+  if (!sm.removeSong(uuid)) return;
+
+  // Purge deleted song from all setlists and persist
+  auto& setlistManager = ctx.getSetlistManager();
+  setlistManager.purgeSong(uuid);
+  ctx.getProjectManager().saveProject(
+      ctx.getProjectManager().getCurrentProjectPath(), sm, &setlistManager);
+
+  broadcast::send(ctx.getWebSocketServer(), "song.deleted",
+                  {{"songId", uuid}});
+  broadcast::send(ctx.getWebSocketServer(), "project.songsUpdated",
+                  {{"songs", sm.toJson()}});
+  broadcast::send(ctx.getWebSocketServer(), "setlist.listUpdated",
+                  {{"setlists", setlistManager.toJson()}});
+}
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "song.delete", DeleteSong,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string uuid = payload.value("songId", "");
+      if (uuid.empty()) return nullptr;
+      return std::make_unique<DeleteSongCommand>(uuid);
     });

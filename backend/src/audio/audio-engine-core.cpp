@@ -74,8 +74,13 @@ void AudioEngineCore::unloadSong() {
   monitoredChannelMask.store(0, std::memory_order_relaxed);
 }
 
+void AudioEngineCore::setEndPositionCallback(EndPositionCallback cb) {
+  endPositionCallback = std::move(cb);
+}
+
 void AudioEngineCore::loadSong(Song* newSong) {
   activeSong = newSong;
+  endPositionFired = false;
   playheadPosition.store(0, std::memory_order_relaxed);
   cursorPosition.store(0, std::memory_order_relaxed);
 
@@ -125,6 +130,7 @@ void AudioEngineCore::pause() {
 
 void AudioEngineCore::stop() {
   if (activeSong) {
+    endPositionFired = false;
     // Two-phase stop: first press returns to cursor position,
     // second press (already paused) resets everything to zero.
     if (playing) {
@@ -235,6 +241,21 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
     playheadPosition.store(
         playheadPosition + (double)numSamples / ctx.sampleRate,
         std::memory_order_relaxed);
+
+    if (!endPositionFired && endPositionCallback) {
+      auto endPos = activeSong->getEndPosition();
+      if (endPos.has_value() &&
+          playheadPosition.load(std::memory_order_relaxed) >= *endPos) {
+        endPositionFired = true;
+        // Clamp playhead at end position to prevent overshoot while the async
+        // callback is pending. playing is kept as-is: "continue" transitions
+        // keep audio running into the next song; "stop" transitions call
+        // stop() from the message thread via the callback.
+        playheadPosition.store(*endPos, std::memory_order_relaxed);
+        auto cb = endPositionCallback;
+        juce::MessageManager::callAsync([cb]() { cb(); });
+      }
+    }
   }
 
   // Apply master volume to mixed buffer

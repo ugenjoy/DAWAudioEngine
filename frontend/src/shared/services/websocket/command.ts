@@ -27,7 +27,7 @@ type TrackCommand =
   | 'track.reorder'
   | 'track.setColor'
 
-type SongCommand = 'song.setTempo' | 'song.setMetronomeMute' | 'song.create' | 'song.rename' | 'song.reorder'
+type SongCommand = 'song.setTempo' | 'song.setMetronomeMute' | 'song.create' | 'song.rename' | 'song.reorder' | 'song.setEndPosition' | 'song.delete'
 
 type ModeCommand = 'mode.setEdit' | 'mode.setLive' | 'mode.getMode'
 
@@ -36,6 +36,18 @@ type MidiCommand = 'midi.listOutputs' | 'midi.send'
 type ClipCommand = 'clip.add' | 'clip.move' | 'clip.remove'
 
 type EventCommand = 'event.list' | 'event.add' | 'event.remove' | 'event.update'
+
+type SetlistCommand =
+  | 'setlist.list'
+  | 'setlist.create'
+  | 'setlist.update'
+  | 'setlist.delete'
+  | 'setlist.load'
+  | 'setlist.loadSingle'
+  | 'setlist.unload'
+  | 'setlist.advance'
+  | 'setlist.previous'
+  | 'setlist.goTo'
 
 type Command =
   | ProjectCommand
@@ -47,6 +59,7 @@ type Command =
   | MidiCommand
   | EventCommand
   | ClipCommand
+  | SetlistCommand
 
 export interface WebSocketMessage {
   action: Command

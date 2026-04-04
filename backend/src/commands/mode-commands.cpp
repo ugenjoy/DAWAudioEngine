@@ -35,6 +35,7 @@ void SetEditModeCommand::execute(AppContext& ctx) {
 
   // Cancel any pending preload
   ctx.getSongPreloader().onLiveModeExited();
+  ctx.getLiveSetlistManager().unload(ctx);
 
   nlohmann::json broadcast = {{"type", "broadcast"},
                               {"event", "mode.changed"},

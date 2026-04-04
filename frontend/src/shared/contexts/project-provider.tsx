@@ -6,6 +6,7 @@ import {
   useCallback,
   useRef,
 } from 'react'
+import { useNavigate } from 'react-router'
 import { Project } from '../models/project'
 import { useWebSocket } from './websocket-provider'
 import { Song } from '../models/song'
@@ -110,6 +111,8 @@ export function ProjectProvider({
   ...props
 }: Readonly<ProjectProviderProps>) {
   const { ws, isConnected, send } = useWebSocket()
+  const navigate = useNavigate()
+  const hasRestoredRef = useRef(false)
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [activeSong, setActiveSong] = useState<Song>()
@@ -254,9 +257,7 @@ export function ProjectProvider({
         if (!prev) return prev
         return {
           ...prev,
-          songs: prev.songs.map((s) =>
-            s.id === uuid ? { ...s, name } : s,
-          ),
+          songs: prev.songs.map((s) => (s.id === uuid ? { ...s, name } : s)),
         }
       })
       if (activeSong?.id === uuid) {
@@ -295,9 +296,11 @@ export function ProjectProvider({
 
   const setTrackHeight = useCallback((trackId: string, height: number) => {
     const clampedHeight = Math.max(60, height)
-    setTrackViews(prev => prev.map(tv =>
-      tv.track.id === trackId ? { ...tv, height: clampedHeight } : tv
-    ))
+    setTrackViews((prev) =>
+      prev.map((tv) =>
+        tv.track.id === trackId ? { ...tv, height: clampedHeight } : tv,
+      ),
+    )
   }, [])
 
   const sendMasterVolume = useCallback(
@@ -345,9 +348,20 @@ export function ProjectProvider({
           playheadPosRef.current = data.playheadPosition
           playheadUpdateRef.current++
         }
-        if (data.cursorPosition !== undefined) cursorPosRef.current = data.cursorPosition
+        if (data.cursorPosition !== undefined)
+          cursorPosRef.current = data.cursorPosition
         if (data.isPlaying !== undefined) setPlaying(data.isPlaying)
         if (data.masterVolume !== undefined) setMasterVolume(data.masterVolume)
+
+        // Restore route on first load after refresh
+        if (!hasRestoredRef.current && data.hasProject) {
+          hasRestoredRef.current = true
+          if (data.mode === 'live' && data.setlist) {
+            navigate('/live')
+          } else if (data.mode === 'edit' && data.activeSong?.id) {
+            navigate(`/edit/${data.activeSong.id}`)
+          }
+        }
         break
       }
       case 'project.loaded': {
@@ -370,6 +384,15 @@ export function ProjectProvider({
         break
       }
       case 'song.unloaded': {
+        break
+      }
+      case 'song.endPositionUpdated': {
+        if (data.songId) {
+          setActiveSong((prev) => {
+            if (!prev || prev.id !== data.songId) return prev
+            return { ...prev, endPosition: data.endPosition ?? undefined }
+          })
+        }
         break
       }
       case 'transport.playheadPosition': {
@@ -467,7 +490,7 @@ export function ProjectProvider({
       case 'project.songsUpdated': {
         setIsDirty(true)
         if (data.songs !== undefined) {
-          setProject((prev) => prev ? { ...prev, songs: data.songs } : prev)
+          setProject((prev) => (prev ? { ...prev, songs: data.songs } : prev))
         }
         break
       }
@@ -480,8 +503,8 @@ export function ProjectProvider({
 
   useEffect(() => {
     if (!activeSong) return
-    setTrackViews(prev => {
-      const heightMap = new Map(prev.map(tv => [tv.track.id, tv.height]))
+    setTrackViews((prev) => {
+      const heightMap = new Map(prev.map((tv) => [tv.track.id, tv.height]))
       return activeSong.tracks.map((t) => {
         const colorIndex = t.color ?? 1
         return {

@@ -49,6 +49,12 @@ class SongPreloader {
    */
   void cancelPending();
 
+  /**
+   * Returns the currently preloaded song, or nullptr if none.
+   * Thread-safe (acquires mutex).
+   */
+  Song* getPreloadedSong();
+
  private:
   void preloadNext(Song* current, const std::vector<Song*>& songs,
                    const std::string& audioDir);

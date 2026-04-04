@@ -9,8 +9,20 @@ void SongsManager::addSong(std::unique_ptr<Song> song) {
   songs.push_back(std::move(song));
 }
 
-void SongsManager::removeSong() {
-  // To implement
+bool SongsManager::removeSong(const std::string& uuid) {
+  auto it = std::find_if(songs.begin(), songs.end(),
+                         [&](const auto& s) { return s->getId() == uuid; });
+  if (it == songs.end()) return false;
+  songs.erase(it);
+  return true;
+}
+
+bool SongsManager::setEndPosition(const std::string& uuid,
+                                   std::optional<double> pos) {
+  auto* song = getSongById(uuid);
+  if (!song) return false;
+  song->setEndPosition(pos);
+  return true;
 }
 
 std::vector<Song*> SongsManager::getSongList() {

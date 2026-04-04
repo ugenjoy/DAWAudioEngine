@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { useLocation } from 'react-router'
 import { useWebSocket } from './websocket-provider'
-import { useProject } from './project-provider'
 
 type AppMode = 'live' | 'edit'
 
@@ -8,16 +8,12 @@ type ModeProviderState = {
   mode: AppMode
   isLiveMode: boolean
   isEditMode: boolean
-  setEditMode: () => void
-  setLiveMode: () => void
 }
 
 const initialState: ModeProviderState = {
   mode: 'live',
   isLiveMode: true,
   isEditMode: false,
-  setEditMode: () => null,
-  setLiveMode: () => null,
 }
 
 const ModeProviderContext = createContext<ModeProviderState>(initialState)
@@ -26,8 +22,18 @@ export function ModeProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const { ws, isConnected, send } = useWebSocket()
-  const { playing } = useProject()
+  const location = useLocation()
   const [mode, setMode] = useState<AppMode>('live')
+
+  useEffect(() => {
+    if (!ws || !isConnected) return
+
+    if (location.pathname === '/' || location.pathname.startsWith('/edit')) {
+      send({ action: 'mode.setEdit' })
+    } else if (location.pathname.startsWith('/live')) {
+      send({ action: 'mode.setLive' })
+    }
+  }, [location.pathname, ws, isConnected])
 
   useEffect(() => {
     if (!ws || !isConnected) return
@@ -49,21 +55,10 @@ export function ModeProvider({
     }
   }
 
-  function setEditMode() {
-    if (playing) return
-    send({ action: 'mode.setEdit' })
-  }
-
-  function setLiveMode() {
-    send({ action: 'mode.setLive' })
-  }
-
   const value: ModeProviderState = {
     mode,
     isLiveMode: mode === 'live',
     isEditMode: mode === 'edit',
-    setEditMode,
-    setLiveMode,
   }
 
   return (

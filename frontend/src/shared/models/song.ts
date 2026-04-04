@@ -8,4 +8,5 @@ export interface Song {
   metronomeMute: boolean
   tracks: Track[]
   events?: EventRule[]
+  endPosition?: number
 }

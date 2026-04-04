@@ -4,6 +4,7 @@
 
 #include <atomic>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <vector>
 
 #include "audio/metronome-track.hpp"
@@ -48,6 +49,9 @@ class Song {
   float getTempo() const { return tempo; }
   void setTempo(float newTempo) { tempo = newTempo; }
 
+  std::optional<double> getEndPosition() const { return endPosition; }
+  void setEndPosition(std::optional<double> pos) { endPosition = pos; }
+
   TracksManager* getTracksManager() const { return tracksManager.get(); }
   MetronomeTrack* getMetronomeTrack() const { return metronomeTrack.get(); }
 
@@ -64,6 +68,7 @@ class Song {
   std::string id;
   std::string name;
   float tempo;
+  std::optional<double> endPosition;  // seconds; nullopt = end of last clip
 
   std::unique_ptr<TracksManager> tracksManager;
   std::unique_ptr<MetronomeTrack> metronomeTrack;

@@ -58,6 +58,9 @@ nlohmann::json Song::toJson() const {
   j["id"] = id;
   j["name"] = name;
   j["tempo"] = tempo;
+  if (endPosition.has_value()) {
+    j["endPosition"] = endPosition.value();
+  }
   j["metronomeMute"] = metronomeTrack->mute;
   j["metronome"] = metronomeTrack->toJson();
   j["tracks"] = tracksManager->toJson();
@@ -100,6 +103,10 @@ std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j,
 
   song->name = j["name"].get<std::string>();
   song->tempo = j.value("tempo", 120.0f);
+
+  if (j.contains("endPosition") && !j["endPosition"].is_null()) {
+    song->endPosition = j["endPosition"].get<double>();
+  }
 
   // Load metronome settings
   if (j.contains("metronome")) {

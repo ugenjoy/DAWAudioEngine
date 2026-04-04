@@ -37,6 +37,11 @@ void SongPreloader::cancelPending() {
   cancelPendingLocked();
 }
 
+Song* SongPreloader::getPreloadedSong() {
+  std::lock_guard<std::mutex> lock(mutex);
+  return preloadedSong;
+}
+
 void SongPreloader::cancelPendingLocked() {
   if (pendingFuture.valid()) {
     pendingFuture.get();
@@ -49,6 +54,14 @@ void SongPreloader::preloadNext(Song* current,
   std::lock_guard<std::mutex> lock(mutex);
 
   cancelPendingLocked();  // Wait for any in-progress preload
+
+  // Unload old preloaded song if it is no longer needed (not the new current)
+  if (preloadedSong && preloadedSong != current &&
+      preloadedSong->getLoadState() == SongLoadState::Loaded) {
+    juce::Logger::writeToLog("[SongPreloader] Unloading stale preloaded song: " +
+                             juce::String(preloadedSong->getName()));
+    preloadedSong->unloadAudio();
+  }
   preloadedSong = nullptr;
 
   // Find current song index
