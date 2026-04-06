@@ -71,6 +71,12 @@ nlohmann::json Song::toJson() const {
   }
   j["events"] = eventsJson;
 
+  nlohmann::json loopsJson = nlohmann::json::array();
+  for (const auto& loop : loops) {
+    loopsJson.push_back({{"id", loop.id}, {"start", loop.start}, {"end", loop.end}});
+  }
+  j["loops"] = loopsJson;
+
   return j;
 }
 
@@ -125,6 +131,16 @@ std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j,
     }
   }
 
+  if (j.contains("loops") && j["loops"].is_array()) {
+    for (const auto& lj : j["loops"]) {
+      Loop loop;
+      loop.id = lj.value("id", juce::Uuid().toDashedString().toStdString());
+      loop.start = lj.value("start", 0.0);
+      loop.end = lj.value("end", 0.0);
+      song->loops.push_back(loop);
+    }
+  }
+
   if (loadAudio) {
     song->loadState.store(SongLoadState::Loaded);
   }
@@ -146,5 +162,31 @@ bool Song::updateEventRule(const std::string& ruleId,
                          [&](const EventRule& r) { return r.id == ruleId; });
   if (it == eventRules.end()) return false;
   *it = updated;
+  return true;
+}
+
+Loop Song::addLoop(double start, double end) {
+  Loop loop;
+  loop.id = juce::Uuid().toDashedString().toStdString();
+  loop.start = start;
+  loop.end = end;
+  loops.push_back(loop);
+  return loop;
+}
+
+bool Song::removeLoop(const std::string& loopId) {
+  auto it = std::find_if(loops.begin(), loops.end(),
+                         [&](const Loop& l) { return l.id == loopId; });
+  if (it == loops.end()) return false;
+  loops.erase(it);
+  return true;
+}
+
+bool Song::updateLoop(const std::string& loopId, double start, double end) {
+  auto it = std::find_if(loops.begin(), loops.end(),
+                         [&](const Loop& l) { return l.id == loopId; });
+  if (it == loops.end()) return false;
+  it->start = start;
+  it->end = end;
   return true;
 }

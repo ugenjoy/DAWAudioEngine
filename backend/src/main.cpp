@@ -5,12 +5,13 @@
 #include "commands/command-queue.hpp"
 #include "events/event-engine.hpp"
 #include "events/midi-action-executor.hpp"
+#include "services/live-setlist-manager.hpp"
+#include "services/loop-manager.hpp"
 #include "services/midi-output-manager.hpp"
 #include "services/mode-manager.hpp"
-#include "services/song-preloader.hpp"
-#include "services/setlist-manager.hpp"
-#include "services/live-setlist-manager.hpp"
 #include "services/project-manager.hpp"
+#include "services/setlist-manager.hpp"
+#include "services/song-preloader.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/websocket-server.hpp"
 
@@ -36,6 +37,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     songPreloader = std::make_unique<SongPreloader>();
     setlistManager = std::make_unique<SetlistManager>();
     liveSetlistManager = std::make_unique<LiveSetlistManager>();
+    loopManager = std::make_unique<LoopManager>();
 
     // Create and configure event engine
     eventEngine = std::make_unique<EventEngine>();
@@ -61,11 +63,17 @@ class AudioEngineApplication : public juce::JUCEApplication,
     appContext = std::make_unique<AppContext>(
         *audioEngine, *songsManager, *projectManager, *wsServer, *modeManager,
         *eventEngine, *midiOutputManager, *songPreloader,
-        *setlistManager, *liveSetlistManager);
+        *setlistManager, *liveSetlistManager, *loopManager);
 
-    // Wire end position callback for automatic song transitions
+    audioEngine->setLoopManager(loopManager.get());
+
+    // Wire end position callback: stop in edit mode, handle transitions in live mode
     audioEngine->setEndPositionCallback([this]() {
-      liveSetlistManager->onSongEndReached(*appContext);
+      if (liveSetlistManager->isActive()) {
+        liveSetlistManager->onSongEndReached(*appContext);
+      } else {
+        audioEngine->stop();
+      }
     });
 
     // Inject AppContext into WebSocket server for HTTP routes
@@ -109,6 +117,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     songPreloader.reset();
     setlistManager.reset();
     liveSetlistManager.reset();
+    loopManager.reset();
     eventEngine.reset();
     commandFactory.reset();
   }
@@ -131,6 +140,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
   std::unique_ptr<SongPreloader> songPreloader;
   std::unique_ptr<SetlistManager> setlistManager;
   std::unique_ptr<LiveSetlistManager> liveSetlistManager;
+  std::unique_ptr<LoopManager> loopManager;
   std::unique_ptr<EventEngine> eventEngine;
   std::unique_ptr<AppContext> appContext;
   std::unique_ptr<CommandFactory> commandFactory;

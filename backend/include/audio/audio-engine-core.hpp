@@ -15,6 +15,7 @@
 #include "audio/audio-track.hpp"
 #include "audio/metronome-track.hpp"
 #include "model/song.hpp"
+#include "services/loop-manager.hpp"
 #include "websocket/websocket-server.hpp"
 
 // TODO: [MEDIUM] Add error callback system:
@@ -96,6 +97,7 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   // End position callback
   using EndPositionCallback = std::function<void()>;
   void setEndPositionCallback(EndPositionCallback cb);
+  void setLoopManager(LoopManager* lm);
 
  private:
   juce::AudioDeviceManager deviceManager;
@@ -121,6 +123,7 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
 
   EndPositionCallback endPositionCallback;
   std::atomic<bool> endPositionFired{false};
+  LoopManager* loopManager = nullptr;
 
   // Audio settings persistence
   void saveSettings();

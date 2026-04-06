@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Song } from '@/shared/models/song'
+import { Loop } from '@/shared/models/loop'
 import { useInterpolatedPlayhead } from '@/features/sequencer/hooks/useInterpolatedPlayhead'
 
 const TRACK_COLORS = [
@@ -18,6 +19,8 @@ interface Props {
   positionRef: React.RefObject<number>
   playheadUpdateRef: React.RefObject<number>
   playing: boolean
+  loops: Loop[]
+  activeLoop: Loop | null
   pixelsPerSecond?: number
 }
 
@@ -26,6 +29,8 @@ export function LiveTimeline({
   positionRef,
   playheadUpdateRef,
   playing,
+  loops,
+  activeLoop,
   pixelsPerSecond = 50,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -120,7 +125,32 @@ export function LiveTimeline({
         })
       })
 
+      // Draw loop regions
+      loops.forEach((loop) => {
+        const isActive = activeLoop?.id === loop.id
+        const loopStartX = center + (loop.start - position) * pps
+        const loopEndX = center + (loop.end - position) * pps
+        const loopW = loopEndX - loopStartX
+        if (loopW <= 0 || loopEndX < 0 || loopStartX > width) return
+
+        ctx.globalAlpha = isActive ? 0.25 : 0.12
+        ctx.fillStyle = isActive ? '#f59e0b' : '#6366f1'
+        ctx.fillRect(loopStartX, 0, loopW, height)
+
+        ctx.globalAlpha = isActive ? 0.9 : 0.5
+        ctx.strokeStyle = isActive ? '#f59e0b' : '#6366f1'
+        ctx.lineWidth = 2 * dpr
+        ctx.beginPath()
+        ctx.moveTo(loopStartX, 0)
+        ctx.lineTo(loopStartX, height)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(loopEndX, 0)
+        ctx.lineTo(loopEndX, height)
+        ctx.stroke()
+      })
       ctx.globalAlpha = 1
+
       ctx.strokeStyle = '#ffffff'
       ctx.lineWidth = 2 * dpr
       ctx.beginPath()
@@ -136,7 +166,7 @@ export function LiveTimeline({
       cancelAnimationFrame(rafId)
       resizeObserver.disconnect()
     }
-  }, [song, pixelsPerSecond])
+  }, [song, pixelsPerSecond, loops, activeLoop])
 
   return <canvas ref={canvasRef} className="w-full h-full" />
 }

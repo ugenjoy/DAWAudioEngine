@@ -30,6 +30,8 @@ export function useSequencer(
   selectedClip?: SelectedClip | null,
   draggingClipRef?: RefObject<DraggingClip | null>,
   endPositionDragRef?: RefObject<number | null>,
+  loopPreviewRef?: RefObject<{ loopId: string | null; start: number; end: number } | null>,
+  selectedLoopId?: string | null,
 ) {
   const {
     activeSong,
@@ -38,6 +40,8 @@ export function useSequencer(
     cursorPosRef,
     trackViews: contextTrackViews,
     playing,
+    loops,
+    activeLoop,
   } = useProject()
   const trackViews = trackViewsOverride ?? contextTrackViews
   const interpolatedPlayheadPos = useInterpolatedPlayhead(playheadPosRef, playheadUpdateRef, playing)
@@ -51,10 +55,16 @@ export function useSequencer(
       const scrollX = scrollXRef.current
       const scrollY = scrollYRef.current
 
-      ctx.clearRect(0, 0, width, height)
-
       const basePixelsPerBeat = 20
       const pixelsPerBeat = basePixelsPerBeat * zoom
+
+      const displayEndPos = endPositionDragRef?.current ?? activeSong.endPosition
+      const endPosPx =
+        displayEndPos !== undefined && displayEndPos !== null
+          ? (displayEndPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+          : null
+
+      ctx.clearRect(0, 0, width, height)
 
       const headerHeight = 22
       let totalHeight = 0
@@ -157,6 +167,15 @@ export function useSequencer(
         ctx.globalAlpha = 1
       }
 
+      // Inactive zone overlay — darken track area beyond end position
+      if (endPosPx !== null) {
+        const overlayX = Math.max(0, endPosPx)
+        if (overlayX < width) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.38)'
+          ctx.fillRect(overlayX, headerHeight, width - overlayX, height - headerHeight)
+        }
+      }
+
       const pixelsPerSub = pixelsPerBeat / 4
       const pixelsPerBar = pixelsPerBeat * 4
       const pixelsPer4Bar = pixelsPerBeat * 16
@@ -175,12 +194,85 @@ export function useSequencer(
       ctx.fillStyle = getCSSVar('--background')
       ctx.fillRect(0, 0, width, headerHeight)
 
+      // Draw loop regions in header
+      loops.forEach((loop) => {
+        const isActive = activeLoop?.id === loop.id
+        const isSelected = selectedLoopId === loop.id
+        const preview =
+          loopPreviewRef?.current?.loopId === loop.id ? loopPreviewRef.current : null
+        const displayStart = preview ? preview.start : loop.start
+        const displayEnd = preview ? preview.end : loop.end
+
+        const loopStartPx =
+          (displayStart / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+        const loopEndPx =
+          (displayEnd / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+        const loopW = loopEndPx - loopStartPx
+        if (loopW <= 0 || loopEndPx < 0 || loopStartPx > width) return
+
+        ctx.globalAlpha = isActive ? 0.35 : 0.18
+        ctx.fillStyle = isActive ? '#f59e0b' : '#6366f1'
+        ctx.fillRect(loopStartPx, 0, loopW, headerHeight)
+
+        ctx.globalAlpha = isActive ? 0.9 : isSelected ? 0.9 : 0.5
+        ctx.strokeStyle = isActive ? '#f59e0b' : '#6366f1'
+        ctx.lineWidth = isSelected ? 2.5 : 1.5
+        ctx.beginPath()
+        ctx.moveTo(loopStartPx, 0)
+        ctx.lineTo(loopStartPx, headerHeight)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(loopEndPx, 0)
+        ctx.lineTo(loopEndPx, headerHeight)
+        ctx.stroke()
+      })
+      ctx.globalAlpha = 1
+
+      // Draw loop creation preview
+      if (loopPreviewRef?.current && loopPreviewRef.current.loopId === null) {
+        const preview = loopPreviewRef.current
+        const previewStart = Math.min(preview.start, preview.end)
+        const previewEnd = Math.max(preview.start, preview.end)
+        const startPx =
+          (previewStart / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+        const endPx =
+          (previewEnd / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+        const w = endPx - startPx
+        if (w > 0) {
+          ctx.globalAlpha = 0.3
+          ctx.fillStyle = '#6366f1'
+          ctx.fillRect(startPx, 0, w, headerHeight)
+          ctx.globalAlpha = 0.8
+          ctx.strokeStyle = '#6366f1'
+          ctx.lineWidth = 1.5
+          ctx.strokeRect(startPx, 0, w, headerHeight)
+          ctx.globalAlpha = 1
+        }
+      }
+
+      // End position handle in header
+      if (endPosPx !== null) {
+        ctx.strokeStyle = '#f97316'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(endPosPx, 0)
+        ctx.lineTo(endPosPx, headerHeight)
+        ctx.stroke()
+
+        // Small drag handle rectangle
+        const handleW = 6
+        const handleH = 10
+        ctx.fillStyle = '#f97316'
+        ctx.fillRect(endPosPx - handleW / 2, (headerHeight - handleH) / 2, handleW, handleH)
+      }
+
       // Grid
       const firstVisibleLine = Math.floor(scrollX / pixelsPerLine)
       const lastVisibleLine = Math.ceil((scrollX + width) / pixelsPerLine)
 
       for (let i = firstVisibleLine; i <= lastVisibleLine; i++) {
         const x = i * pixelsPerLine - scrollX
+        if (endPosPx !== null && x > endPosPx) break
 
         if (i % 4 === 0) {
           ctx.strokeStyle = getCSSVar('--grid-accent')
@@ -266,32 +358,8 @@ export function useSequencer(
       ctx.lineTo(playheadPosPx, height)
       ctx.stroke()
 
-      // End position marker
-      const displayEndPos = endPositionDragRef?.current ?? activeSong.endPosition
-      if (displayEndPos !== undefined && displayEndPos !== null) {
-        const endPosPx =
-          (displayEndPos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
-
-        ctx.strokeStyle = '#f97316'
-        ctx.lineWidth = 1.5
-        ctx.setLineDash([5, 3])
-        ctx.beginPath()
-        ctx.moveTo(endPosPx, 0)
-        ctx.lineTo(endPosPx, height)
-        ctx.stroke()
-        ctx.setLineDash([])
-
-        // Triangle handle at top (pointing down into timeline)
-        ctx.fillStyle = '#f97316'
-        ctx.beginPath()
-        ctx.moveTo(endPosPx - 6, 0)
-        ctx.lineTo(endPosPx + 6, 0)
-        ctx.lineTo(endPosPx, headerHeight - 2)
-        ctx.closePath()
-        ctx.fill()
-      }
     },
-    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef],
+    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef, loops, activeLoop, loopPreviewRef, selectedLoopId],
   )
   return { draw }
 }

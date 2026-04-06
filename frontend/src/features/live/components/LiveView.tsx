@@ -11,7 +11,7 @@ import { LiveTransport } from './LiveTransport'
 export function LiveView() {
   const { activeSetlist, currentSong, currentIndex, advance, previous } =
     useSetlist()
-  const { playheadPosRef, playheadUpdateRef, playing } = useProject()
+  const { playheadPosRef, playheadUpdateRef, playing, loops, activeLoop } = useProject()
   const { send } = useWebSocket()
   const navigate = useNavigate()
 
@@ -56,6 +56,8 @@ export function LiveView() {
           positionRef={playheadPosRef}
           playheadUpdateRef={playheadUpdateRef}
           playing={playing}
+          loops={loops}
+          activeLoop={activeLoop}
         />
       </div>
       <LiveTransport />

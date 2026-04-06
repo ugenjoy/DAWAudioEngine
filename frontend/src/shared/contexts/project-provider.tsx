@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router'
 import { Project } from '../models/project'
 import { useWebSocket } from './websocket-provider'
 import { Song } from '../models/song'
+import { Loop } from '../models/loop'
 import { Track } from '../models/track'
 import { AudioInput } from '../models/audio-input'
 
@@ -65,6 +66,13 @@ type ProjectProviderState = {
   loadSong: (uuid: string) => void
   fetchAudioInputs: () => void
   trackLevelsRef: React.RefObject<Record<string, number>>
+  loops: Loop[]
+  activeLoop: Loop | null
+  addLoop: (start: number, end: number) => void
+  removeLoop: (loopId: string) => void
+  updateLoop: (loopId: string, start: number, end: number) => void
+  cancelLoop: () => void
+  exitLoop: () => void
 }
 
 const initialState: ProjectProviderState = {
@@ -102,6 +110,13 @@ const initialState: ProjectProviderState = {
   loadSong: () => null,
   fetchAudioInputs: () => null,
   trackLevelsRef: { current: {} },
+  loops: [],
+  activeLoop: null,
+  addLoop: () => null,
+  removeLoop: () => null,
+  updateLoop: () => null,
+  cancelLoop: () => null,
+  exitLoop: () => null,
 }
 
 const ProjectProviderContext = createContext<ProjectProviderState>(initialState)
@@ -126,6 +141,8 @@ export function ProjectProvider({
   const [masterVolume, setMasterVolume] = useState<number>(1)
   const [songLoading, setSongLoading] = useState<boolean>(false)
   const trackLevelsRef = useRef<Record<string, number>>({})
+  const [loops, setLoops] = useState<Loop[]>([])
+  const [activeLoop, setActiveLoop] = useState<Loop | null>(null)
 
   const fetchAudioInputs = useCallback(() => {
     if (ws && isConnected) {
@@ -294,6 +311,36 @@ export function ProjectProvider({
     [send],
   )
 
+  const addLoop = useCallback(
+    (start: number, end: number) => {
+      if (!activeSong) return
+      send({ action: 'loop.add', start, end })
+    },
+    [activeSong, send],
+  )
+
+  const removeLoop = useCallback(
+    (loopId: string) => {
+      send({ action: 'loop.remove', loopId })
+    },
+    [send],
+  )
+
+  const updateLoop = useCallback(
+    (loopId: string, start: number, end: number) => {
+      send({ action: 'loop.update', loopId, start, end })
+    },
+    [send],
+  )
+
+  const cancelLoop = useCallback(() => {
+    send({ action: 'loop.cancel' })
+  }, [send])
+
+  const exitLoop = useCallback(() => {
+    send({ action: 'loop.exit' })
+  }, [send])
+
   const setTrackHeight = useCallback((trackId: string, height: number) => {
     const clampedHeight = Math.max(60, height)
     setTrackViews((prev) =>
@@ -343,7 +390,11 @@ export function ProjectProvider({
     switch (data.event) {
       case 'project.currentLoaded': {
         if (data.project !== undefined) setProject(data.project)
-        if (data.activeSong !== undefined) setActiveSong(data.activeSong)
+        if (data.activeSong !== undefined) {
+          setActiveSong(data.activeSong)
+          setLoops(data.activeSong?.loops ?? [])
+          setActiveLoop(null)
+        }
         if (data.playheadPosition !== undefined) {
           playheadPosRef.current = data.playheadPosition
           playheadUpdateRef.current++
@@ -380,14 +431,22 @@ export function ProjectProvider({
       }
       case 'song.loaded': {
         setSongLoading(false)
-        if (data.song !== undefined) setActiveSong(data.song)
+        if (data.song !== undefined) {
+          const songData = data.song as Song
+          setActiveSong(songData)
+          setLoops(songData.loops ?? [])
+          setActiveLoop(null)
+        }
         break
       }
       case 'song.unloaded': {
+        setLoops([])
+        setActiveLoop(null)
         break
       }
       case 'song.endPositionUpdated': {
         if (data.songId) {
+          setIsDirty(true)
           setActiveSong((prev) => {
             if (!prev || prev.id !== data.songId) return prev
             return { ...prev, endPosition: data.endPosition ?? undefined }
@@ -498,6 +557,21 @@ export function ProjectProvider({
         setIsDirty(true)
         break
       }
+      case 'loop.listUpdated': {
+        setIsDirty(true)
+        const { loops: newLoops } = data as { loops: Loop[] }
+        setLoops(newLoops ?? [])
+        break
+      }
+      case 'loop.activated': {
+        const { loop } = data as { loop: Loop }
+        setActiveLoop(loop)
+        break
+      }
+      case 'loop.deactivated': {
+        setActiveLoop(null)
+        break
+      }
     }
   }
 
@@ -552,6 +626,13 @@ export function ProjectProvider({
     setMetronomeMute,
     fetchAudioInputs,
     trackLevelsRef,
+    loops,
+    activeLoop,
+    addLoop,
+    removeLoop,
+    updateLoop,
+    cancelLoop,
+    exitLoop,
   }
 
   return (

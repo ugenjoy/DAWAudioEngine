@@ -149,6 +149,23 @@ const SortableTrack = memo(
   }),
 )
 
+type LoopInteraction =
+  | { mode: 'creating'; start: number; end: number }
+  | {
+      mode: 'resizing'
+      loopId: string
+      edge: 'start' | 'end'
+      origStart: number
+      origEnd: number
+    }
+  | {
+      mode: 'moving'
+      loopId: string
+      origStart: number
+      origEnd: number
+      dragStartX: number
+    }
+
 function Sequencer() {
   const {
     project,
@@ -170,6 +187,10 @@ function Sequencer() {
     reorderTrack,
     trackLevelsRef,
     songLoading,
+    addLoop,
+    removeLoop,
+    updateLoop,
+    loops,
   } = useProject()
   const { isLiveMode } = useMode()
   const { send } = useWebSocket()
@@ -190,6 +211,14 @@ function Sequencer() {
   const dragStartRef = useRef<{ x: number; originPos: number } | null>(null)
   const endPositionDragRef = useRef<number | null>(null)
   const isDraggingEndPosition = useRef(false)
+  const loopInteractionRef = useRef<LoopInteraction | null>(null)
+  const loopPreviewRef = useRef<{
+    loopId: string | null
+    start: number
+    end: number
+  } | null>(null)
+  const [selectedLoopId, setSelectedLoopId] = useState<string | null>(null)
+  const [headerCursor, setHeaderCursor] = useState<string>('default')
   const [clipContextMenu, setClipContextMenu] = useState<{
     x: number
     y: number
@@ -213,6 +242,8 @@ function Sequencer() {
     selectedClip,
     draggingClipRef,
     endPositionDragRef,
+    loopPreviewRef,
+    selectedLoopId,
   )
 
   const tracksContainer = useRef<HTMLDivElement>(null)
@@ -376,144 +407,34 @@ function Sequencer() {
     [activeSong, activeTrackViews],
   )
 
-  const handleClick = useCallback(
-    (e: MouseEvent) => {
-      if (!activeSong) return
-      if (e.button === 2) return
-
-      e.preventDefault()
-
-      // Hit-test end position handle in header
-      if (e.offsetY < HEADER_HEIGHT && activeSong.endPosition !== undefined) {
-        const pixelsPerBeat = 20 * zoomRef.current
-        const endPosPx =
-          (activeSong.endPosition / 60) * activeSong.tempo * pixelsPerBeat -
+  const hitTestLoop = useCallback(
+    (
+      offsetX: number,
+    ): {
+      loopId: string
+      zone: 'start-edge' | 'end-edge' | 'interior'
+    } | null => {
+      if (!activeSong) return null
+      const pixelsPerBeat = 20 * zoomRef.current
+      const EDGE_HIT_ZONE = 8
+      for (const loop of loops) {
+        const startPx =
+          (loop.start / 60) * activeSong.tempo * pixelsPerBeat -
           scrollXRef.current
-        if (Math.abs(e.offsetX - endPosPx) < 8) {
-          isDraggingEndPosition.current = true
-          endPositionDragRef.current = activeSong.endPosition
-          return
-        }
+        const endPx =
+          (loop.end / 60) * activeSong.tempo * pixelsPerBeat -
+          scrollXRef.current
+        if (Math.abs(offsetX - startPx) <= EDGE_HIT_ZONE)
+          return { loopId: loop.id, zone: 'start-edge' }
+        if (Math.abs(offsetX - endPx) <= EDGE_HIT_ZONE)
+          return { loopId: loop.id, zone: 'end-edge' }
+        if (offsetX > startPx && offsetX < endPx)
+          return { loopId: loop.id, zone: 'interior' }
       }
-
-      const hit = hitTestClip(e.offsetX, e.offsetY)
-      if (hit && !isLiveMode) {
-        setSelectedClip({ trackId: hit.trackId, clipId: hit.clipId })
-        dragStartRef.current = {
-          x: e.offsetX,
-          originPos: hit.clipPosition,
-        }
-        setSelectedTrackId(hit.trackId)
-        return
-      }
-
-      setSelectedClip(null)
-
-      const zoom = zoomRef.current
-      const pixelsPerBeat = 20 * zoom
-      let beatsPerLine: number
-      if (pixelsPerBeat < 4) {
-        beatsPerLine = 16
-      } else if (pixelsPerBeat < 16) {
-        beatsPerLine = 4
-      } else if (pixelsPerBeat > 64) {
-        beatsPerLine = 0.25
-      } else {
-        beatsPerLine = 1
-      }
-
-      const rawPos =
-        ((e.offsetX + scrollXRef.current) * 60) / (activeSong.tempo * 20 * zoom)
-      const snapInterval = (beatsPerLine * 60) / activeSong.tempo
-      const cursorPos = Math.round(rawPos / snapInterval) * snapInterval
-
-      send({
-        action: 'transport.setCursorPosition',
-        position: cursorPos,
-      })
-
-      const clickY = e.offsetY + scrollYRef.current - HEADER_HEIGHT
-      if (clickY >= 0) {
-        let accHeight = 0
-        for (const tv of activeTrackViews) {
-          accHeight += tv.height
-          if (clickY < accHeight) {
-            setSelectedTrackId(tv.track.id)
-            break
-          }
-        }
-      }
+      return null
     },
-    [activeSong, activeTrackViews, hitTestClip, isLiveMode, send],
+    [activeSong, loops],
   )
-
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!activeSong) return
-      if (isLiveMode) return
-
-      if (isDraggingEndPosition.current) {
-        endPositionDragRef.current = snapPosition(e.offsetX)
-        return
-      }
-
-      if (!selectedClip || !dragStartRef.current) return
-
-      const dx = Math.abs(e.offsetX - dragStartRef.current.x)
-      if (dx < 3 && !isDraggingClip) return
-
-      const zoom = zoomRef.current
-      const pixelsPerBeat = 20 * zoom
-      const deltaPx = e.offsetX - dragStartRef.current.x
-      const deltaSeconds = (deltaPx * 60) / (activeSong.tempo * pixelsPerBeat)
-      const rawPos = dragStartRef.current.originPos + deltaSeconds
-
-      let beatsPerLine: number
-      if (pixelsPerBeat < 4) beatsPerLine = 16
-      else if (pixelsPerBeat < 16) beatsPerLine = 4
-      else if (pixelsPerBeat > 64) beatsPerLine = 0.25
-      else beatsPerLine = 1
-      const snapInterval = (beatsPerLine * 60) / activeSong.tempo
-      const snappedPos = Math.max(
-        0,
-        Math.round(rawPos / snapInterval) * snapInterval,
-      )
-
-      draggingClipRef.current = {
-        trackId: selectedClip.trackId,
-        clipId: selectedClip.clipId,
-        position: snappedPos,
-      }
-      setIsDraggingClip(true)
-    },
-    [activeSong, selectedClip, isLiveMode, isDraggingClip],
-  )
-
-  const handleMouseUp = useCallback(() => {
-    if (isDraggingEndPosition.current) {
-      if (endPositionDragRef.current !== null && activeSong) {
-        send({
-          action: 'song.setEndPosition',
-          songId: activeSong.id,
-          endPosition: endPositionDragRef.current,
-        })
-      }
-      endPositionDragRef.current = null
-      isDraggingEndPosition.current = false
-      return
-    }
-    if (draggingClipRef.current && isDraggingClip) {
-      send({
-        action: 'clip.move',
-        trackId: draggingClipRef.current.trackId,
-        clipId: draggingClipRef.current.clipId,
-        position: draggingClipRef.current.position,
-      })
-    }
-    draggingClipRef.current = null
-    dragStartRef.current = null
-    setIsDraggingClip(false)
-  }, [activeSong, isDraggingClip, send])
 
   const snapPosition = useCallback(
     (offsetX: number): number => {
@@ -533,12 +454,336 @@ function Sequencer() {
     [activeSong],
   )
 
+  const handleClick = useCallback(
+    (e: MouseEvent) => {
+      if (!activeSong) return
+      if (e.button === 2) return
+      e.preventDefault()
+
+      if (e.offsetY < HEADER_HEIGHT) {
+        // 1. Ctrl held → start creating a loop
+        if (e.ctrlKey || e.metaKey) {
+          const snapped = snapPosition(e.offsetX)
+          loopInteractionRef.current = {
+            mode: 'creating',
+            start: snapped,
+            end: snapped,
+          }
+          loopPreviewRef.current = {
+            loopId: null,
+            start: snapped,
+            end: snapped,
+          }
+          setHeaderCursor('crosshair')
+          return
+        }
+
+        // 2. End position handle
+        if (activeSong.endPosition !== undefined) {
+          const pixelsPerBeat = 20 * zoomRef.current
+          const endPosPx =
+            (activeSong.endPosition / 60) * activeSong.tempo * pixelsPerBeat -
+            scrollXRef.current
+          if (Math.abs(e.offsetX - endPosPx) < 8) {
+            isDraggingEndPosition.current = true
+            endPositionDragRef.current = activeSong.endPosition
+            return
+          }
+        }
+
+        // 3. Loop hit test
+        const loopHit = hitTestLoop(e.offsetX)
+        if (loopHit) {
+          const loop = loops.find((l) => l.id === loopHit.loopId)
+          if (!loop) return
+          if (loopHit.zone === 'start-edge') {
+            loopInteractionRef.current = {
+              mode: 'resizing',
+              loopId: loopHit.loopId,
+              edge: 'start',
+              origStart: loop.start,
+              origEnd: loop.end,
+            }
+            loopPreviewRef.current = {
+              loopId: loopHit.loopId,
+              start: loop.start,
+              end: loop.end,
+            }
+            setHeaderCursor('ew-resize')
+          } else if (loopHit.zone === 'end-edge') {
+            loopInteractionRef.current = {
+              mode: 'resizing',
+              loopId: loopHit.loopId,
+              edge: 'end',
+              origStart: loop.start,
+              origEnd: loop.end,
+            }
+            loopPreviewRef.current = {
+              loopId: loopHit.loopId,
+              start: loop.start,
+              end: loop.end,
+            }
+            setHeaderCursor('ew-resize')
+          } else {
+            setSelectedLoopId(loopHit.loopId)
+            loopInteractionRef.current = {
+              mode: 'moving',
+              loopId: loopHit.loopId,
+              origStart: loop.start,
+              origEnd: loop.end,
+              dragStartX: e.offsetX,
+            }
+            loopPreviewRef.current = {
+              loopId: loopHit.loopId,
+              start: loop.start,
+              end: loop.end,
+            }
+            setHeaderCursor('grabbing')
+          }
+          return
+        }
+
+        // 4. Empty header → deselect loop, set playhead cursor
+        setSelectedLoopId(null)
+        const zoom = zoomRef.current
+        const pixelsPerBeat = 20 * zoom
+        let beatsPerLine: number
+        if (pixelsPerBeat < 4) beatsPerLine = 16
+        else if (pixelsPerBeat < 16) beatsPerLine = 4
+        else if (pixelsPerBeat > 64) beatsPerLine = 0.25
+        else beatsPerLine = 1
+        const rawPos =
+          ((e.offsetX + scrollXRef.current) * 60) /
+          (activeSong.tempo * 20 * zoom)
+        const snapInterval = (beatsPerLine * 60) / activeSong.tempo
+        const cursorPos = Math.round(rawPos / snapInterval) * snapInterval
+        send({ action: 'transport.setCursorPosition', position: cursorPos })
+        return
+      }
+
+      // Below header: clip and track selection — always deselect loop
+      setSelectedLoopId(null)
+      const hit = hitTestClip(e.offsetX, e.offsetY)
+      if (hit && !isLiveMode) {
+        setSelectedClip({ trackId: hit.trackId, clipId: hit.clipId })
+        dragStartRef.current = { x: e.offsetX, originPos: hit.clipPosition }
+        setSelectedTrackId(hit.trackId)
+        return
+      }
+
+      setSelectedClip(null)
+
+      const zoom = zoomRef.current
+      const pixelsPerBeat = 20 * zoom
+      let beatsPerLine: number
+      if (pixelsPerBeat < 4) beatsPerLine = 16
+      else if (pixelsPerBeat < 16) beatsPerLine = 4
+      else if (pixelsPerBeat > 64) beatsPerLine = 0.25
+      else beatsPerLine = 1
+      const rawPos =
+        ((e.offsetX + scrollXRef.current) * 60) / (activeSong.tempo * 20 * zoom)
+      const snapInterval = (beatsPerLine * 60) / activeSong.tempo
+      const cursorPos = Math.round(rawPos / snapInterval) * snapInterval
+      send({ action: 'transport.setCursorPosition', position: cursorPos })
+
+      const clickY = e.offsetY + scrollYRef.current - HEADER_HEIGHT
+      if (clickY >= 0) {
+        let accHeight = 0
+        for (const tv of activeTrackViews) {
+          accHeight += tv.height
+          if (clickY < accHeight) {
+            setSelectedTrackId(tv.track.id)
+            break
+          }
+        }
+      }
+    },
+    [
+      activeSong,
+      activeTrackViews,
+      hitTestClip,
+      hitTestLoop,
+      isLiveMode,
+      loops,
+      send,
+      snapPosition,
+    ],
+  )
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!activeSong) return
+      if (isLiveMode) return
+
+      const interaction = loopInteractionRef.current
+
+      // Active loop interaction — update preview
+      if (interaction) {
+        const snapped = snapPosition(e.offsetX)
+
+        if (interaction.mode === 'creating') {
+          interaction.end = snapped
+          loopPreviewRef.current = {
+            loopId: null,
+            start: interaction.start,
+            end: snapped,
+          }
+          return
+        }
+
+        if (interaction.mode === 'resizing') {
+          const newStart =
+            interaction.edge === 'start' ? snapped : interaction.origStart
+          const newEnd =
+            interaction.edge === 'end' ? snapped : interaction.origEnd
+          loopPreviewRef.current = {
+            loopId: interaction.loopId,
+            start: newStart,
+            end: newEnd,
+          }
+          return
+        }
+
+        if (interaction.mode === 'moving') {
+          const delta =
+            snapPosition(e.offsetX) - snapPosition(interaction.dragStartX)
+          const newStart = Math.max(0, interaction.origStart + delta)
+          const duration = interaction.origEnd - interaction.origStart
+          loopPreviewRef.current = {
+            loopId: interaction.loopId,
+            start: newStart,
+            end: newStart + duration,
+          }
+          return
+        }
+      }
+
+      // Cursor hover feedback in header
+      if (e.offsetY < HEADER_HEIGHT) {
+        if (e.ctrlKey) {
+          setHeaderCursor('crosshair')
+          return
+        }
+        const hit = hitTestLoop(e.offsetX)
+        if (hit?.zone === 'start-edge' || hit?.zone === 'end-edge') {
+          setHeaderCursor('ew-resize')
+        } else if (hit?.zone === 'interior') {
+          setHeaderCursor('grab')
+        } else {
+          setHeaderCursor('default')
+        }
+        return
+      }
+
+      setHeaderCursor('default')
+
+      // Existing end position drag
+      if (isDraggingEndPosition.current) {
+        endPositionDragRef.current = snapPosition(e.offsetX)
+        return
+      }
+
+      // Existing clip drag
+      if (!selectedClip || !dragStartRef.current) return
+      const dx = Math.abs(e.offsetX - dragStartRef.current.x)
+      if (dx < 3 && !isDraggingClip) return
+      const zoom = zoomRef.current
+      const pixelsPerBeat = 20 * zoom
+      const deltaPx = e.offsetX - dragStartRef.current.x
+      const deltaSeconds = (deltaPx * 60) / (activeSong.tempo * pixelsPerBeat)
+      const rawPos = dragStartRef.current.originPos + deltaSeconds
+      let beatsPerLine: number
+      if (pixelsPerBeat < 4) beatsPerLine = 16
+      else if (pixelsPerBeat < 16) beatsPerLine = 4
+      else if (pixelsPerBeat > 64) beatsPerLine = 0.25
+      else beatsPerLine = 1
+      const snapInterval = (beatsPerLine * 60) / activeSong.tempo
+      const snappedPos = Math.max(
+        0,
+        Math.round(rawPos / snapInterval) * snapInterval,
+      )
+      draggingClipRef.current = {
+        trackId: selectedClip.trackId,
+        clipId: selectedClip.clipId,
+        position: snappedPos,
+      }
+      setIsDraggingClip(true)
+    },
+    [
+      activeSong,
+      selectedClip,
+      isLiveMode,
+      isDraggingClip,
+      snapPosition,
+      hitTestLoop,
+    ],
+  )
+
+  const handleMouseUp = useCallback(() => {
+    const interaction = loopInteractionRef.current
+
+    if (interaction) {
+      const preview = loopPreviewRef.current
+
+      if (interaction.mode === 'creating' && preview?.loopId === null) {
+        const start = Math.min(preview.start, preview.end)
+        const end = Math.max(preview.start, preview.end)
+        if (end - start > 0.1) {
+          addLoop(start, end)
+        }
+      } else if (
+        interaction.mode === 'resizing' &&
+        preview?.loopId === interaction.loopId
+      ) {
+        const newStart = Math.min(preview.start, preview.end)
+        const newEnd = Math.max(preview.start, preview.end)
+        if (newEnd - newStart > 0.1) {
+          updateLoop(interaction.loopId, newStart, newEnd)
+        }
+      } else if (
+        interaction.mode === 'moving' &&
+        preview?.loopId === interaction.loopId
+      ) {
+        updateLoop(interaction.loopId, preview.start, preview.end)
+      }
+
+      loopInteractionRef.current = null
+      loopPreviewRef.current = null
+      setHeaderCursor('default')
+      return
+    }
+
+    if (isDraggingEndPosition.current) {
+      if (endPositionDragRef.current !== null && activeSong) {
+        send({
+          action: 'song.setEndPosition',
+          songId: activeSong.id,
+          endPosition: endPositionDragRef.current,
+        })
+      }
+      endPositionDragRef.current = null
+      isDraggingEndPosition.current = false
+      return
+    }
+
+    if (draggingClipRef.current && isDraggingClip) {
+      send({
+        action: 'clip.move',
+        trackId: draggingClipRef.current.trackId,
+        clipId: draggingClipRef.current.clipId,
+        position: draggingClipRef.current.position,
+      })
+    }
+    draggingClipRef.current = null
+    dragStartRef.current = null
+    setIsDraggingClip(false)
+  }, [activeSong, isDraggingClip, send, addLoop, updateLoop])
+
   const handleContextMenu = useCallback(
     (e: MouseEvent) => {
       if (!activeSong || isLiveMode) return
 
-      const headerHeight = HEADER_HEIGHT
-      if (e.offsetY < headerHeight) {
+      if (e.offsetY < HEADER_HEIGHT) {
         e.preventDefault()
         setEndPositionContextMenu({
           x: e.clientX,
@@ -571,21 +816,21 @@ function Sequencer() {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (!activeSong) return
-
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
       switch (e.key) {
         case ' ': {
           e.preventDefault()
-          send({
-            action: `transport.${playing ? 'stop' : 'play'}`,
-          })
+          send({ action: `transport.${playing ? 'stop' : 'play'}` })
           break
         }
         case 'Delete': {
           e.preventDefault()
-          if (!isLiveMode && selectedClip) {
+          if (!isLiveMode && selectedLoopId) {
+            removeLoop(selectedLoopId)
+            setSelectedLoopId(null)
+          } else if (!isLiveMode && selectedClip) {
             removeSelectedClip()
           } else if (!isLiveMode && selectedTrackId) {
             setDeleteDialogOpen(true)
@@ -598,9 +843,11 @@ function Sequencer() {
       activeSong,
       playing,
       isLiveMode,
+      selectedLoopId,
       selectedTrackId,
       selectedClip,
       removeSelectedClip,
+      removeLoop,
       send,
     ],
   )
@@ -843,6 +1090,7 @@ function Sequencer() {
 
           <div
             className="h-full flex-1"
+            style={{ cursor: headerCursor }}
             onDragOver={handleFileDragOver}
             onDragLeave={handleFileDragLeave}
             onDrop={handleFileDrop}

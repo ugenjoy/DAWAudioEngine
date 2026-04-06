@@ -1,4 +1,5 @@
 import { EventRule } from './event-rule'
+import { Loop } from './loop'
 import { Track } from './track'
 
 export interface Song {
@@ -9,4 +10,5 @@ export interface Song {
   tracks: Track[]
   events?: EventRule[]
   endPosition?: number
+  loops?: Loop[]
 }

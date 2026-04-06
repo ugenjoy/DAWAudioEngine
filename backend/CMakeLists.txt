@@ -85,6 +85,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/commands/event-commands.cpp
     src/commands/clip-commands.cpp
     src/commands/setlist-commands.cpp
+    src/commands/loop-commands.cpp
     src/services/mode-manager.cpp
     src/services/midi-output-manager.cpp
     src/events/event-rule.cpp
@@ -94,6 +95,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/model/setlist.cpp
     src/services/setlist-manager.cpp
     src/services/live-setlist-manager.cpp
+    src/services/loop-manager.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE
@@ -158,6 +160,8 @@ if(BUILD_TESTS)
     target_sources(DAWAudioEngine_Tests PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}/test_main.cpp
         tests/test.wavetable.cpp
+        tests/test.loop-manager.cpp
+        src/services/loop-manager.cpp
     )
     
     target_include_directories(DAWAudioEngine_Tests PRIVATE
@@ -177,7 +181,8 @@ if(BUILD_TESTS)
         juce::juce_audio_formats
         juce::juce_audio_utils
         juce::juce_core
-        juce::juce_events)
+        juce::juce_events
+        nlohmann_json::nlohmann_json)
 
     # Link JACK if available (for tests)
     if(JACK_FOUND)

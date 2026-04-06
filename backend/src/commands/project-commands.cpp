@@ -41,6 +41,8 @@ void LoadProjectCommand::execute(AppContext& ctx) {
       firstSong->loadAudio(audioDir);
 
       audioEngine.loadSong(firstSong);
+      ctx.getLoopManager().reset();
+      ctx.getLoopManager().setLoops(firstSong->getLoops());
 
       // Load event rules and fire song.loaded trigger
       ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(), {},
@@ -209,6 +211,8 @@ void LoadSongCommand::execute(AppContext& ctx) {
   }
 
   audioEngine.loadSong(nextSong);
+  ctx.getLoopManager().reset();
+  ctx.getLoopManager().setLoops(nextSong->getLoops());
 
   // Load event rules and fire song.loaded trigger
   ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(), {},

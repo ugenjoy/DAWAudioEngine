@@ -72,15 +72,21 @@ void AudioEngineCore::unloadSong() {
   cursorPosition.store(0.0, std::memory_order_relaxed);
   monitoringTrackCount.store(0, std::memory_order_relaxed);
   monitoredChannelMask.store(0, std::memory_order_relaxed);
+  if (loopManager) loopManager->reset();
 }
 
 void AudioEngineCore::setEndPositionCallback(EndPositionCallback cb) {
   endPositionCallback = std::move(cb);
 }
 
+void AudioEngineCore::setLoopManager(LoopManager* lm) {
+  loopManager = lm;
+}
+
 void AudioEngineCore::loadSong(Song* newSong) {
   activeSong = newSong;
   endPositionFired = false;
+  if (loopManager) loopManager->reset();
   playheadPosition.store(0, std::memory_order_relaxed);
   cursorPosition.store(0, std::memory_order_relaxed);
 
@@ -131,6 +137,7 @@ void AudioEngineCore::pause() {
 void AudioEngineCore::stop() {
   if (activeSong) {
     endPositionFired = false;
+    if (loopManager) loopManager->reset();
     // Two-phase stop: first press returns to cursor position,
     // second press (already paused) resets everything to zero.
     if (playing) {
@@ -241,6 +248,31 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
     playheadPosition.store(
         playheadPosition + (double)numSamples / ctx.sampleRate,
         std::memory_order_relaxed);
+
+    // Loop position check
+    if (loopManager) {
+      double curr = playheadPosition.load(std::memory_order_relaxed);
+      double prev = curr - (double)numSamples / ctx.sampleRate;
+      auto loopResult = loopManager->checkPosition(prev, curr);
+
+      if (loopResult.jumpTo.has_value()) {
+        playheadPosition.store(*loopResult.jumpTo, std::memory_order_relaxed);
+      }
+
+      if (loopResult.activated) {
+        if (wsServer != nullptr) {
+          auto* ws = wsServer;
+          auto loop = loopManager->getActiveLoop();
+          if (loop.has_value()) {
+            auto loopJson = nlohmann::json{
+                {"id", loop->id}, {"start", loop->start}, {"end", loop->end}};
+            juce::MessageManager::callAsync([ws, loopJson]() {
+              broadcast::send(*ws, "loop.activated", {{"loop", loopJson}});
+            });
+          }
+        }
+      }
+    }
 
     if (!endPositionFired && endPositionCallback) {
       auto endPos = activeSong->getEndPosition();

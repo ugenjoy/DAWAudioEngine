@@ -48,6 +48,8 @@ void LiveSetlistManager::loadSingle(Song* song, AppContext& ctx) {
 
   ctx.getAudioEngine().stop();
   ctx.getAudioEngine().loadSong(song);
+  ctx.getLoopManager().reset();
+  ctx.getLoopManager().setLoops(song->getLoops());
   ctx.getEventEngine().loadRules(ctx.getSongsManager().getProjectEventRules(),
                                  setlistSnapshot.getEventRules(),
                                  song->getEventRules());
@@ -131,6 +133,8 @@ void LiveSetlistManager::changeSong(int newIndex, AppContext& ctx, bool fireEven
   }
 
   ctx.getAudioEngine().loadSong(song);
+  ctx.getLoopManager().reset();
+  ctx.getLoopManager().setLoops(song->getLoops());
   ctx.getEventEngine().loadRules(sm.getProjectEventRules(),
                                  setlistSnapshot.getEventRules(),
                                  song->getEventRules());

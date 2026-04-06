@@ -37,6 +37,13 @@ type ClipCommand = 'clip.add' | 'clip.move' | 'clip.remove'
 
 type EventCommand = 'event.list' | 'event.add' | 'event.remove' | 'event.update'
 
+type LoopCommand =
+  | 'loop.add'
+  | 'loop.remove'
+  | 'loop.update'
+  | 'loop.cancel'
+  | 'loop.exit'
+
 type SetlistCommand =
   | 'setlist.list'
   | 'setlist.create'
@@ -60,6 +67,7 @@ type Command =
   | EventCommand
   | ClipCommand
   | SetlistCommand
+  | LoopCommand
 
 export interface WebSocketMessage {
   action: Command

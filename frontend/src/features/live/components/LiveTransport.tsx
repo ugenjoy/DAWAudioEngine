@@ -11,19 +11,14 @@ import {
 
 export function LiveTransport() {
   const { send } = useWebSocket()
-  const { activeSong, playing } = useProject()
+  const { activeSong, playing, activeLoop, cancelLoop, exitLoop } = useProject()
 
   function transport(action: 'play' | 'pause' | 'stop') {
-    send({
-      action: `transport.${action}`,
-    })
+    send({ action: `transport.${action}` })
   }
 
   function resetPosition() {
-    send({
-      action: `transport.setCursorPosition`,
-      position: 0,
-    })
+    send({ action: `transport.setCursorPosition`, position: 0 })
   }
 
   return (
@@ -34,7 +29,7 @@ export function LiveTransport() {
           <Button
             variant="ghost"
             size="icon-lg"
-            onClick={() => resetPosition()}
+            onClick={resetPosition}
             title="Go to start"
           >
             <IconPlayerSkipBackFilled className="size-5" />
@@ -53,7 +48,7 @@ export function LiveTransport() {
             variant={playing ? 'default' : 'ghost'}
             size="icon-lg"
             onClick={() => transport(playing ? 'pause' : 'play')}
-            title={playing ? 'Stop' : 'Play'}
+            title={playing ? 'Pause' : 'Play'}
           >
             {playing ? (
               <IconPlayerPauseFilled className="size-5" />
@@ -62,6 +57,31 @@ export function LiveTransport() {
             )}
           </Button>
         </div>
+
+        {activeLoop && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-amber-400">LOOP</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={cancelLoop}
+              title="Cancel loop (continue past end)"
+              className="text-amber-400 hover:text-amber-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={exitLoop}
+              title="Exit loop (jump to end)"
+              className="text-amber-400 hover:text-amber-300"
+            >
+              Exit
+            </Button>
+          </div>
+        )}
+
         <div className="flex-1" />
       </div>
     )

@@ -2,6 +2,7 @@
 
 #include "services/setlist-manager.hpp"
 #include "services/live-setlist-manager.hpp"
+#include "services/loop-manager.hpp"
 
 class AudioEngineCore;
 class SongsManager;
@@ -31,7 +32,8 @@ class AppContext {
              MidiOutputManager& midiOutputManager,
              SongPreloader& songPreloader,
              SetlistManager& setlistManager,
-             LiveSetlistManager& liveSetlistManager)
+             LiveSetlistManager& liveSetlistManager,
+             LoopManager& loopManager)
       : audioEngine(audioEngine),
         songsManager(songsManager),
         projectManager(projectManager),
@@ -41,7 +43,8 @@ class AppContext {
         midiOutputManager(midiOutputManager),
         songPreloader(songPreloader),
         setlistManager(setlistManager),
-        liveSetlistManager(liveSetlistManager) {}
+        liveSetlistManager(liveSetlistManager),
+        loopManager(loopManager) {}
 
   AudioEngineCore& getAudioEngine() { return audioEngine; }
   SongsManager& getSongsManager() { return songsManager; }
@@ -53,6 +56,7 @@ class AppContext {
   SongPreloader& getSongPreloader() { return songPreloader; }
   SetlistManager& getSetlistManager() { return setlistManager; }
   LiveSetlistManager& getLiveSetlistManager() { return liveSetlistManager; }
+  LoopManager& getLoopManager() { return loopManager; }
 
   /** Injected after construction to avoid circular dependency. */
   void setCommandProcessor(CommandProcessor* processor) {
@@ -71,5 +75,6 @@ class AppContext {
   SongPreloader& songPreloader;
   SetlistManager& setlistManager;
   LiveSetlistManager& liveSetlistManager;
+  LoopManager& loopManager;
   CommandProcessor* commandProcessor = nullptr;
 };
