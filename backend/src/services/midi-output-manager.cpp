@@ -33,30 +33,51 @@ void MidiOutputManager::closeAll() {
 }
 
 juce::MidiOutput* MidiOutputManager::getOrOpenDevice(
-    const std::string& deviceIdentifier) {
-  auto it = openDevices.find(deviceIdentifier);
-  if (it != openDevices.end()) {
-    return it->second.get();
+    const std::string& deviceNameOrId) {
+  // Resolve the current device info from the OS (by name, then by identifier
+  // as a legacy fallback for old saved rules that stored identifiers).
+  auto available = juce::MidiOutput::getAvailableDevices();
+  juce::MidiDeviceInfo targetInfo;
+  bool found = false;
+
+  for (const auto& info : available) {
+    if (info.name.toStdString() == deviceNameOrId) {
+      targetInfo = info;
+      found = true;
+      break;
+    }
   }
-
-  // Try to open the device
-  auto device = juce::MidiOutput::openDevice(
-      juce::String(deviceIdentifier));
-
-  if (!device) {
-    // Also try by name if identifier lookup failed
-    auto devices = juce::MidiOutput::getAvailableDevices();
-    for (const auto& info : devices) {
-      if (info.name.toStdString() == deviceIdentifier) {
-        device = juce::MidiOutput::openDevice(info.identifier);
+  if (!found) {
+    for (const auto& info : available) {
+      if (info.identifier.toStdString() == deviceNameOrId) {
+        targetInfo = info;
+        found = true;
         break;
       }
     }
   }
 
+  if (!found) {
+    openDevices.erase(deviceNameOrId);
+    return nullptr;
+  }
+
+  // Return cached handle if the OS identifier hasn't changed.
+  // A changed identifier means the device was reconnected and the old handle
+  // is stale — close it and reopen with the new identifier.
+  auto it = openDevices.find(deviceNameOrId);
+  if (it != openDevices.end()) {
+    if (it->second.identifier == targetInfo.identifier.toStdString()) {
+      return it->second.output.get();
+    }
+    openDevices.erase(it);
+  }
+
+  auto device = juce::MidiOutput::openDevice(targetInfo.identifier);
   if (!device) return nullptr;
 
   auto* ptr = device.get();
-  openDevices[deviceIdentifier] = std::move(device);
+  openDevices[deviceNameOrId] = {targetInfo.identifier.toStdString(),
+                                  std::move(device)};
   return ptr;
 }

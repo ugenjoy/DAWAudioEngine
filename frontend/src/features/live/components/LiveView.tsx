@@ -11,7 +11,8 @@ import { LiveTransport } from './LiveTransport'
 export function LiveView() {
   const { activeSetlist, currentSong, currentIndex, advance, previous } =
     useSetlist()
-  const { playheadPosRef, playheadUpdateRef, playing, loops, activeLoop } = useProject()
+  const { playheadPosRef, playheadUpdateRef, playing, loops, activeLoop } =
+    useProject()
   const { send } = useWebSocket()
   const navigate = useNavigate()
 
@@ -21,7 +22,7 @@ export function LiveView() {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       e.preventDefault()
-      send({ action: `transport.${playing ? 'pause' : 'play'}` })
+      send({ action: `transport.${playing ? 'stop' : 'play'}` })
     }
     globalThis.addEventListener('keydown', handleKeyDown)
     return () => globalThis.removeEventListener('keydown', handleKeyDown)

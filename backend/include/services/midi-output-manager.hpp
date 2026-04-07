@@ -38,11 +38,16 @@ class MidiOutputManager {
 
  private:
   /**
-   * Get or open a MIDI output device by identifier.
-   * Caches open devices for reuse.
+   * Get or open a MIDI output device by name (preferred) or identifier (legacy).
+   * Resolves the current OS identifier at call time so reconnected devices
+   * are automatically detected and reopened.
    */
-  juce::MidiOutput* getOrOpenDevice(const std::string& deviceIdentifier);
+  juce::MidiOutput* getOrOpenDevice(const std::string& deviceNameOrId);
 
-  std::unordered_map<std::string, std::unique_ptr<juce::MidiOutput>>
-      openDevices;
+  struct OpenDevice {
+    std::string identifier;  // identifier used when opening (changes on reconnect)
+    std::unique_ptr<juce::MidiOutput> output;
+  };
+  // Keyed by device name (stable across reconnects, unlike identifier)
+  std::unordered_map<std::string, OpenDevice> openDevices;
 };

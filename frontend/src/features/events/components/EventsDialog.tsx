@@ -316,7 +316,7 @@ function EventRuleRow({
             </SelectTrigger>
             <SelectContent>
               {midiOutputs.map((d) => (
-                <SelectItem key={d.identifier} value={d.identifier}>
+                <SelectItem key={d.identifier} value={d.name}>
                   {d.name}
                 </SelectItem>
               ))}
@@ -425,7 +425,7 @@ export function EventsDialog() {
     addEvent(scope, 'song.loaded', {
       type: 'midi.send',
       params: {
-        device: midiOutputs[0]?.identifier ?? '',
+        device: midiOutputs[0]?.name ?? '',
         message: [0xc0, 0], // Program Change ch1, program 0
       },
     })
