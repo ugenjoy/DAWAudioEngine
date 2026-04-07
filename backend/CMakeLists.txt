@@ -161,7 +161,10 @@ if(BUILD_TESTS)
         ${CMAKE_CURRENT_BINARY_DIR}/test_main.cpp
         tests/test.wavetable.cpp
         tests/test.loop-manager.cpp
+        tests/test.event-engine-midi.cpp
         src/services/loop-manager.cpp
+        src/events/event-rule.cpp
+        src/events/event-engine.cpp
     )
     
     target_include_directories(DAWAudioEngine_Tests PRIVATE

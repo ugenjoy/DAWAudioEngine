@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <juce_audio_basics/juce_audio_basics.h>
+
 #include "events/action-executor.hpp"
 #include "events/event-rule.hpp"
 
@@ -48,6 +50,23 @@ class EventEngine {
    * @param ctx Application context passed to executors
    */
   void fire(const std::string& trigger, AppContext& ctx);
+
+  /**
+   * Returns true if the given MIDI message satisfies the rule's trigger.
+   * Supports "midi.note" (Note On) and "midi.cc" (CC with threshold) triggers.
+   * Pure matching logic — no side effects.
+   */
+  static bool matchesMidiTrigger(const EventRule& rule,
+                                  const juce::MidiMessage& msg,
+                                  const std::string& deviceName);
+
+  /**
+   * Called by MidiInputManager on the message thread.
+   * Finds all rules whose MIDI trigger matches the message and executes them.
+   */
+  void fireMidi(const juce::MidiMessage& msg,
+                const std::string& deviceName,
+                AppContext& ctx);
 
  private:
   std::unordered_map<std::string, std::unique_ptr<ActionExecutor>> executors;

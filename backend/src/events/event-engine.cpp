@@ -1,5 +1,6 @@
 #include "events/event-engine.hpp"
 
+#include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
 void EventEngine::registerExecutor(std::unique_ptr<ActionExecutor> executor) {
@@ -52,5 +53,55 @@ void EventEngine::fire(const std::string& trigger, AppContext& ctx) {
     juce::Logger::writeToLog(
         "[EventEngine] Fired " + juce::String(fired) +
         " rule(s) for trigger '" + juce::String(trigger) + "'");
+  }
+}
+
+bool EventEngine::matchesMidiTrigger(const EventRule& rule,
+                                      const juce::MidiMessage& msg,
+                                      const std::string& deviceName) {
+  const auto& p = rule.triggerParams;
+
+  if (rule.trigger == "midi.note") {
+    if (!msg.isNoteOn()) return false;
+    int ruleNote    = p.value("note",    -1);
+    int ruleChannel = p.value("channel", 0);
+    std::string dev = p.value("device",  std::string(""));
+    return (ruleNote    < 0 || ruleNote    == msg.getNoteNumber()) &&
+           (ruleChannel == 0 || ruleChannel == msg.getChannel())   &&
+           (dev.empty()      || dev         == deviceName);
+  }
+
+  if (rule.trigger == "midi.cc") {
+    if (!msg.isController()) return false;
+    int ruleCc      = p.value("cc",       -1);
+    int ruleChannel = p.value("channel",   0);
+    int threshold   = p.value("threshold", 0);
+    std::string dev = p.value("device",    std::string(""));
+    return (ruleCc      < 0 || ruleCc      == msg.getControllerNumber()) &&
+           (ruleChannel == 0 || ruleChannel == msg.getChannel())          &&
+           (dev.empty()      || dev         == deviceName)                &&
+           (msg.getControllerValue() >= threshold);
+  }
+
+  return false;
+}
+
+void EventEngine::fireMidi(const juce::MidiMessage& msg,
+                            const std::string& deviceName,
+                            AppContext& ctx) {
+  for (const auto& rule : rules) {
+    if (!rule.enabled) continue;
+    if (!matchesMidiTrigger(rule, msg, deviceName)) continue;
+
+    auto it = executors.find(rule.action.type);
+    if (it == executors.end()) {
+      juce::Logger::writeToLog("[EventEngine] No executor for MIDI action: " +
+                               juce::String(rule.action.type));
+      continue;
+    }
+    juce::Logger::writeToLog("[EventEngine] MIDI trigger matched rule '" +
+                             juce::String(rule.id) + "' → " +
+                             juce::String(rule.action.type));
+    it->second->execute(rule.action, ctx);
   }
 }
