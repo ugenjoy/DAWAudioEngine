@@ -5,6 +5,10 @@
 #include "commands/command-queue.hpp"
 #include "events/event-engine.hpp"
 #include "events/midi-action-executor.hpp"
+#include "events/transport-action-executor.hpp"
+#include "events/setlist-action-executor.hpp"
+#include "events/loop-action-executor.hpp"
+#include "services/midi-input-manager.hpp"
 #include "services/live-setlist-manager.hpp"
 #include "services/loop-manager.hpp"
 #include "services/midi-output-manager.hpp"
@@ -34,6 +38,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     projectManager = std::make_unique<ProjectManager>();
     modeManager = std::make_unique<ModeManager>();
     midiOutputManager = std::make_unique<MidiOutputManager>();
+    midiInputManager = std::make_unique<MidiInputManager>();
     songPreloader = std::make_unique<SongPreloader>();
     setlistManager = std::make_unique<SetlistManager>();
     liveSetlistManager = std::make_unique<LiveSetlistManager>();
@@ -42,6 +47,12 @@ class AudioEngineApplication : public juce::JUCEApplication,
     // Create and configure event engine
     eventEngine = std::make_unique<EventEngine>();
     eventEngine->registerExecutor(createMidiActionExecutor());
+    for (auto& exec : createTransportActionExecutors())
+      eventEngine->registerExecutor(std::move(exec));
+    for (auto& exec : createSetlistActionExecutors())
+      eventEngine->registerExecutor(std::move(exec));
+    for (auto& exec : createLoopActionExecutors())
+      eventEngine->registerExecutor(std::move(exec));
 
     // Connect ModeManager to AudioEngineCore playback state
     modeManager->setPlayingStateProvider(
@@ -63,7 +74,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     appContext = std::make_unique<AppContext>(
         *audioEngine, *songsManager, *projectManager, *wsServer, *modeManager,
         *eventEngine, *midiOutputManager, *songPreloader,
-        *setlistManager, *liveSetlistManager, *loopManager);
+        *setlistManager, *liveSetlistManager, *loopManager, *midiInputManager);
 
     audioEngine->setLoopManager(loopManager.get());
 
@@ -83,6 +94,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     commandProcessor =
         std::make_unique<CommandProcessor>(*commandQueue, *appContext);
     appContext->setCommandProcessor(commandProcessor.get());
+    midiInputManager->init(*eventEngine, *appContext);
     commandProcessor->startProcessing();
     juce::Logger::writeToLog("Command processor started");
 
@@ -108,6 +120,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     commandQueue.reset();
 
     juce::Logger::writeToLog("=== Stopping audio engine ===");
+    midiInputManager->shutdown();
     appContext.reset();
     audioEngine.reset();
     songsManager.reset();
@@ -118,6 +131,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     setlistManager.reset();
     liveSetlistManager.reset();
     loopManager.reset();
+    midiInputManager.reset();
     eventEngine.reset();
     commandFactory.reset();
   }
@@ -137,6 +151,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
   std::unique_ptr<ProjectManager> projectManager;
   std::unique_ptr<ModeManager> modeManager;
   std::unique_ptr<MidiOutputManager> midiOutputManager;
+  std::unique_ptr<MidiInputManager> midiInputManager;
   std::unique_ptr<SongPreloader> songPreloader;
   std::unique_ptr<SetlistManager> setlistManager;
   std::unique_ptr<LiveSetlistManager> liveSetlistManager;

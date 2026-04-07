@@ -13,6 +13,7 @@ class CommandProcessor;
 class EventEngine;
 class MidiOutputManager;
 class SongPreloader;
+class MidiInputManager;
 
 /**
  * Application context providing access to all core services.
@@ -33,7 +34,8 @@ class AppContext {
              SongPreloader& songPreloader,
              SetlistManager& setlistManager,
              LiveSetlistManager& liveSetlistManager,
-             LoopManager& loopManager)
+             LoopManager& loopManager,
+             MidiInputManager& midiInputManager)
       : audioEngine(audioEngine),
         songsManager(songsManager),
         projectManager(projectManager),
@@ -44,7 +46,8 @@ class AppContext {
         songPreloader(songPreloader),
         setlistManager(setlistManager),
         liveSetlistManager(liveSetlistManager),
-        loopManager(loopManager) {}
+        loopManager(loopManager),
+        midiInputManager(midiInputManager) {}
 
   AudioEngineCore& getAudioEngine() { return audioEngine; }
   SongsManager& getSongsManager() { return songsManager; }
@@ -57,6 +60,7 @@ class AppContext {
   SetlistManager& getSetlistManager() { return setlistManager; }
   LiveSetlistManager& getLiveSetlistManager() { return liveSetlistManager; }
   LoopManager& getLoopManager() { return loopManager; }
+  MidiInputManager& getMidiInputManager() { return midiInputManager; }
 
   /** Injected after construction to avoid circular dependency. */
   void setCommandProcessor(CommandProcessor* processor) {
@@ -76,5 +80,6 @@ class AppContext {
   SetlistManager& setlistManager;
   LiveSetlistManager& liveSetlistManager;
   LoopManager& loopManager;
+  MidiInputManager& midiInputManager;
   CommandProcessor* commandProcessor = nullptr;
 };
