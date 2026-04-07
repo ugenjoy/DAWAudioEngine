@@ -31,7 +31,7 @@ type SongCommand = 'song.setTempo' | 'song.setMetronomeMute' | 'song.create' | '
 
 type ModeCommand = 'mode.setEdit' | 'mode.setLive' | 'mode.getMode'
 
-type MidiCommand = 'midi.listOutputs' | 'midi.send'
+type MidiCommand = 'midi.listOutputs' | 'midi.listInputs' | 'midi.send'
 
 type ClipCommand = 'clip.add' | 'clip.move' | 'clip.remove'
 

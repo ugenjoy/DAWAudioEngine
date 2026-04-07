@@ -17,10 +17,12 @@ type EventsProviderState = {
   projectEvents: EventRule[]
   songEvents: EventRule[]
   midiOutputs: MidiDevice[]
-  addEvent: (scope: 'project' | 'song', trigger: string, eventAction: EventAction) => void
+  midiInputs: MidiDevice[]
+  addEvent: (scope: 'project' | 'song', trigger: string, triggerParams: Record<string, unknown>, eventAction: EventAction) => void
   removeEvent: (scope: 'project' | 'song', eventId: string) => void
-  updateEvent: (scope: 'project' | 'song', eventId: string, changes: { trigger?: string; eventAction?: EventAction; enabled?: boolean }) => void
+  updateEvent: (scope: 'project' | 'song', eventId: string, changes: { trigger?: string; triggerParams?: Record<string, unknown>; eventAction?: EventAction; enabled?: boolean }) => void
   fetchMidiOutputs: () => void
+  fetchMidiInputs: () => void
   fetchEvents: () => void
 }
 
@@ -28,10 +30,12 @@ const initialState: EventsProviderState = {
   projectEvents: [],
   songEvents: [],
   midiOutputs: [],
+  midiInputs: [],
   addEvent: () => null,
   removeEvent: () => null,
   updateEvent: () => null,
   fetchMidiOutputs: () => null,
+  fetchMidiInputs: () => null,
   fetchEvents: () => null,
 }
 
@@ -44,10 +48,17 @@ export function EventsProvider({
   const [projectEvents, setProjectEvents] = useState<EventRule[]>([])
   const [songEvents, setSongEvents] = useState<EventRule[]>([])
   const [midiOutputs, setMidiOutputs] = useState<MidiDevice[]>([])
+  const [midiInputs, setMidiInputs] = useState<MidiDevice[]>([])
 
   const fetchMidiOutputs = useCallback(() => {
     if (ws && isConnected) {
       send({ action: 'midi.listOutputs' })
+    }
+  }, [ws, isConnected, send])
+
+  const fetchMidiInputs = useCallback(() => {
+    if (ws && isConnected) {
+      send({ action: 'midi.listInputs' })
     }
   }, [ws, isConnected, send])
 
@@ -58,8 +69,8 @@ export function EventsProvider({
   }, [ws, isConnected, send])
 
   const addEvent = useCallback(
-    (scope: 'project' | 'song', trigger: string, eventAction: EventAction) => {
-      send({ action: 'event.add', scope, trigger, eventAction })
+    (scope: 'project' | 'song', trigger: string, triggerParams: Record<string, unknown>, eventAction: EventAction) => {
+      send({ action: 'event.add', scope, trigger, triggerParams, eventAction })
     },
     [send],
   )
@@ -75,7 +86,7 @@ export function EventsProvider({
     (
       scope: 'project' | 'song',
       eventId: string,
-      changes: { trigger?: string; eventAction?: EventAction; enabled?: boolean },
+      changes: { trigger?: string; triggerParams?: Record<string, unknown>; eventAction?: EventAction; enabled?: boolean },
     ) => {
       send({ action: 'event.update', scope, eventId, ...changes })
     },
@@ -103,6 +114,10 @@ export function EventsProvider({
         if (data.outputs !== undefined) setMidiOutputs(data.outputs)
         break
       }
+      case 'midi.inputsListed': {
+        if (data.inputs !== undefined) setMidiInputs(data.inputs)
+        break
+      }
     }
   }
 
@@ -112,10 +127,12 @@ export function EventsProvider({
         projectEvents,
         songEvents,
         midiOutputs,
+        midiInputs,
         addEvent,
         removeEvent,
         updateEvent,
         fetchMidiOutputs,
+        fetchMidiInputs,
         fetchEvents,
       }}
     >
