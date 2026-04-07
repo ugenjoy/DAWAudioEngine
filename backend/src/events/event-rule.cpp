@@ -24,6 +24,9 @@ nlohmann::json EventRule::toJson() const {
   nlohmann::json j;
   j["id"] = id;
   j["trigger"] = trigger;
+  if (!triggerParams.is_null() && !triggerParams.empty()) {
+    j["triggerParams"] = triggerParams;
+  }
   j["action"] = action.toJson();
   j["enabled"] = enabled;
   return j;
@@ -34,6 +37,8 @@ EventRule EventRule::fromJson(const nlohmann::json& j) {
   // Generate a new UUID if none provided
   r.id = j.value("id", juce::Uuid().toDashedString().toStdString());
   r.trigger = j.value("trigger", "");
+  r.triggerParams = j.contains("triggerParams") ? j["triggerParams"]
+                                                 : nlohmann::json::object();
   if (j.contains("action")) {
     r.action = EventAction::fromJson(j["action"]);
   }

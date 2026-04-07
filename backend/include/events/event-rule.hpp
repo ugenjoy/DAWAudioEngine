@@ -22,6 +22,7 @@ struct EventAction {
 struct EventRule {
   std::string id;       // UUID
   std::string trigger;  // e.g. "song.loaded"
+  nlohmann::json triggerParams;  // optional MIDI input filter: device, channel, note/cc, threshold
   EventAction action;
   bool enabled = true;
 
