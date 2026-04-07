@@ -91,6 +91,9 @@ target_sources(DAWAudioEngine PRIVATE
     src/events/event-rule.cpp
     src/events/event-engine.cpp
     src/events/midi-action-executor.cpp
+    src/events/transport-action-executor.cpp
+    src/events/setlist-action-executor.cpp
+    src/events/loop-action-executor.cpp
     src/services/song-preloader.cpp
     src/model/setlist.cpp
     src/services/setlist-manager.cpp
