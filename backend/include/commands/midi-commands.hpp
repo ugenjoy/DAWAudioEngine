@@ -15,6 +15,16 @@ class MidiListOutputsCommand : public Command {
 };
 
 /**
+ * Command to list available MIDI input devices.
+ * Payload: none
+ * Broadcasts: midi.inputsListed { inputs: [{name, identifier}] }
+ */
+class MidiListInputsCommand : public Command {
+ public:
+  void execute(AppContext& ctx) override;
+};
+
+/**
  * Command to send a raw MIDI message to a device.
  * Payload: { "device": "<identifier>", "message": [statusByte, data1, data2?] }
  * Available in both Live and Edit modes (for testing event configs).

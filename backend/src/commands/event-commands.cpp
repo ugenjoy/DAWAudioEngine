@@ -134,6 +134,9 @@ REGISTER_EDIT_COMMAND_WITH_CREATOR(
       EventRule rule;
       rule.id = juce::Uuid().toDashedString().toStdString();
       rule.trigger = payload["trigger"].get<std::string>();
+      rule.triggerParams = payload.contains("triggerParams")
+                               ? payload["triggerParams"]
+                               : nlohmann::json::object();
       rule.action = EventAction::fromJson(payload["eventAction"]);
       rule.enabled = payload.value("enabled", true);
 
@@ -160,6 +163,9 @@ REGISTER_EDIT_COMMAND_WITH_CREATOR(
       updated.id = eventId;
       if (payload.contains("trigger")) {
         updated.trigger = payload["trigger"].get<std::string>();
+      }
+      if (payload.contains("triggerParams")) {
+        updated.triggerParams = payload["triggerParams"];
       }
       if (payload.contains("eventAction")) {
         updated.action = EventAction::fromJson(payload["eventAction"]);

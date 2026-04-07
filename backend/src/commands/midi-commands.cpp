@@ -4,6 +4,7 @@
 
 #include "app-context.hpp"
 #include "commands/command-factory.hpp"
+#include "services/midi-input-manager.hpp"
 #include "services/midi-output-manager.hpp"
 #include "services/midi-utils.hpp"
 #include "websocket/broadcast-helpers.hpp"
@@ -19,6 +20,17 @@ void MidiListOutputsCommand::execute(AppContext& ctx) {
   juce::Logger::writeToLog("[MidiListOutputsCommand] Listed " +
                            juce::String((int)outputs.size()) +
                            " MIDI output(s)");
+}
+
+// ── MidiListInputsCommand ──────────────────────────────────────────────────
+
+void MidiListInputsCommand::execute(AppContext& ctx) {
+  nlohmann::json inputs = ctx.getMidiInputManager().getAvailableInputs();
+  broadcast::send(ctx.getWebSocketServer(), "midi.inputsListed",
+                  {{"inputs", inputs}});
+  juce::Logger::writeToLog("[MidiListInputsCommand] Listed " +
+                           juce::String((int)inputs.size()) +
+                           " MIDI input(s)");
 }
 
 // ── MidiSendCommand ────────────────────────────────────────────────────────
@@ -47,6 +59,7 @@ void MidiSendCommand::execute(AppContext& ctx) {
 // ── Auto-registration ──────────────────────────────────────────────────────
 
 REGISTER_COMMAND("midi.listOutputs", MidiListOutputsCommand);
+REGISTER_COMMAND("midi.listInputs", MidiListInputsCommand);
 
 REGISTER_COMMAND_WITH_CREATOR(
     "midi.send", MidiSend,
