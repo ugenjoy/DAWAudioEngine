@@ -34,6 +34,7 @@ export function useSequencer(
   loopPreviewRef?: RefObject<{ loopId: string | null; start: number; end: number } | null>,
   selectedLoopId?: string | null,
   positionTriggers?: EventRule[],
+  draggingPositionTriggerRef?: RefObject<{ ruleId: string; position: number } | null>,
 ) {
   const {
     activeSong,
@@ -328,10 +329,15 @@ export function useSequencer(
 
       // Position trigger markers
       if (positionTriggers) {
+        const draggingTrigger = draggingPositionTriggerRef?.current
         for (const trigger of positionTriggers) {
           const tp = trigger.triggerParams as { position?: number }
           if (tp?.position === undefined) continue
-          const triggerX = (tp.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+          // Use live drag position if this trigger is being dragged
+          const pos = draggingTrigger?.ruleId === trigger.id
+            ? draggingTrigger.position
+            : tp.position
+          const triggerX = (pos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
           if (triggerX < 0 || triggerX > width) continue
 
           ctx.globalAlpha = trigger.enabled ? 1.0 : 0.4
@@ -388,7 +394,7 @@ export function useSequencer(
       ctx.stroke()
 
     },
-    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef, loops, activeLoop, loopPreviewRef, selectedLoopId, positionTriggers],
+    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef, loops, activeLoop, loopPreviewRef, selectedLoopId, positionTriggers, draggingPositionTriggerRef],
   )
   return { draw }
 }

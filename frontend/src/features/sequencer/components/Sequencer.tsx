@@ -218,6 +218,7 @@ function Sequencer() {
   const dragStartRef = useRef<{ x: number; originPos: number } | null>(null)
   const endPositionDragRef = useRef<number | null>(null)
   const isDraggingEndPosition = useRef(false)
+  const draggingPositionTriggerRef = useRef<{ ruleId: string; position: number } | null>(null)
   const loopInteractionRef = useRef<LoopInteraction | null>(null)
   const loopPreviewRef = useRef<{
     loopId: string | null
@@ -258,6 +259,7 @@ function Sequencer() {
     loopPreviewRef,
     selectedLoopId,
     positionTriggers,
+    draggingPositionTriggerRef,
   )
 
   const tracksContainer = useRef<HTMLDivElement>(null)
@@ -519,7 +521,18 @@ function Sequencer() {
           }
         }
 
-        // 3. Loop hit test
+        // 3. Position trigger drag
+        const triggerHit = hitTestPositionTrigger(e.offsetX)
+        if (triggerHit) {
+          const tp = triggerHit.triggerParams as { position?: number }
+          draggingPositionTriggerRef.current = {
+            ruleId: triggerHit.id,
+            position: tp.position ?? 0,
+          }
+          return
+        }
+
+        // 4. Loop hit test
         const loopHit = hitTestLoop(e.offsetX)
         if (loopHit) {
           const loop = loops.find((l) => l.id === loopHit.loopId)
@@ -711,6 +724,15 @@ function Sequencer() {
         return
       }
 
+      // Existing position trigger drag
+      if (draggingPositionTriggerRef.current) {
+        draggingPositionTriggerRef.current = {
+          ...draggingPositionTriggerRef.current,
+          position: snapPosition(e.offsetX),
+        }
+        return
+      }
+
       // Existing clip drag
       if (!selectedClip || !dragStartRef.current) return
       const dx = Math.abs(e.offsetX - dragStartRef.current.x)
@@ -791,6 +813,14 @@ function Sequencer() {
       }
       endPositionDragRef.current = null
       isDraggingEndPosition.current = false
+      return
+    }
+
+    if (draggingPositionTriggerRef.current) {
+      updateEvent('song', draggingPositionTriggerRef.current.ruleId, {
+        triggerParams: { position: draggingPositionTriggerRef.current.position },
+      })
+      draggingPositionTriggerRef.current = null
       return
     }
 
@@ -1225,18 +1255,6 @@ function Sequencer() {
             >
               {positionTriggerContextMenu.existingRule ? (
                 <>
-                  <button
-                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-default"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      updateEvent('song', positionTriggerContextMenu.existingRule!.id, {
-                        triggerParams: { position: positionTriggerContextMenu.position },
-                      })
-                      setPositionTriggerContextMenu(null)
-                    }}
-                  >
-                    Move trigger here
-                  </button>
                   <button
                     className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-accent cursor-default"
                     onClick={(e) => {
