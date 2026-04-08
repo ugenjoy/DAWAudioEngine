@@ -1,5 +1,6 @@
 import { useProject, type TrackView } from '@/shared/contexts/project-provider'
 import { useCallback, type RefObject } from 'react'
+import type { EventRule } from '@/shared/models/event-rule'
 import { getCSSVar } from '../utils'
 import { drawClip } from '../canvas/clips'
 import { useInterpolatedPlayhead } from './useInterpolatedPlayhead'
@@ -32,6 +33,7 @@ export function useSequencer(
   endPositionDragRef?: RefObject<number | null>,
   loopPreviewRef?: RefObject<{ loopId: string | null; start: number; end: number } | null>,
   selectedLoopId?: string | null,
+  positionTriggers?: EventRule[],
 ) {
   const {
     activeSong,
@@ -266,6 +268,33 @@ export function useSequencer(
         ctx.fillRect(endPosPx - handleW / 2, (headerHeight - handleH) / 2, handleW, handleH)
       }
 
+      // Position trigger markers
+      if (positionTriggers) {
+        for (const trigger of positionTriggers) {
+          const tp = trigger.triggerParams as { position?: number }
+          if (tp?.position === undefined) continue
+          const triggerX = (tp.position / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+          if (triggerX < 0 || triggerX > width) continue
+
+          ctx.globalAlpha = trigger.enabled ? 1.0 : 0.4
+          ctx.strokeStyle = '#a855f7'
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          ctx.moveTo(triggerX, 0)
+          ctx.lineTo(triggerX, headerHeight)
+          ctx.stroke()
+
+          ctx.fillStyle = '#a855f7'
+          ctx.beginPath()
+          ctx.moveTo(triggerX - 5, 0)
+          ctx.lineTo(triggerX + 5, 0)
+          ctx.lineTo(triggerX, 6)
+          ctx.closePath()
+          ctx.fill()
+          ctx.globalAlpha = 1.0
+        }
+      }
+
       // Grid
       const firstVisibleLine = Math.floor(scrollX / pixelsPerLine)
       const lastVisibleLine = Math.ceil((scrollX + width) / pixelsPerLine)
@@ -359,7 +388,7 @@ export function useSequencer(
       ctx.stroke()
 
     },
-    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef, loops, activeLoop, loopPreviewRef, selectedLoopId],
+    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef, loops, activeLoop, loopPreviewRef, selectedLoopId, positionTriggers],
   )
   return { draw }
 }

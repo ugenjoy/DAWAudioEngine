@@ -19,6 +19,7 @@ import {
 } from '../hooks/useSequencer'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { useMode } from '@/shared/contexts/mode-provider'
+import { useEvents } from '@/shared/contexts/events-provider'
 import {
   DndContext,
   closestCenter,
@@ -193,6 +194,8 @@ function Sequencer() {
     loops,
   } = useProject()
   const { isLiveMode } = useMode()
+  const { songEvents } = useEvents()
+  const positionTriggers = songEvents.filter((r) => r.trigger === 'position')
   const { send } = useWebSocket()
 
   const HEADER_HEIGHT = 22
@@ -244,6 +247,7 @@ function Sequencer() {
     endPositionDragRef,
     loopPreviewRef,
     selectedLoopId,
+    positionTriggers,
   )
 
   const tracksContainer = useRef<HTMLDivElement>(null)
