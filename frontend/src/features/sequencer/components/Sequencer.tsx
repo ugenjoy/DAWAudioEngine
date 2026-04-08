@@ -195,7 +195,10 @@ function Sequencer() {
   } = useProject()
   const { isLiveMode } = useMode()
   const { songEvents } = useEvents()
-  const positionTriggers = songEvents.filter((r) => r.trigger === 'position')
+  const positionTriggers = useMemo(
+    () => songEvents.filter((r) => r.trigger === 'position'),
+    [songEvents],
+  )
   const { send } = useWebSocket()
 
   const HEADER_HEIGHT = 22
