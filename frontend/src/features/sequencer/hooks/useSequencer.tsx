@@ -1,6 +1,7 @@
 import { useProject, type TrackView } from '@/shared/contexts/project-provider'
 import { useCallback, type RefObject } from 'react'
 import type { EventRule } from '@/shared/models/event-rule'
+import type { Marker } from '@/shared/models/marker'
 import { getCSSVar } from '../utils'
 import { drawClip } from '../canvas/clips'
 import { useInterpolatedPlayhead } from './useInterpolatedPlayhead'
@@ -34,7 +35,8 @@ export function useSequencer(
   loopPreviewRef?: RefObject<{ loopId: string | null; start: number; end: number } | null>,
   selectedLoopId?: string | null,
   positionTriggers?: EventRule[],
-  draggingPositionTriggerRef?: RefObject<{ ruleId: string; position: number } | null>,
+  draggingMarkerRef?: RefObject<{ markerId: string; position: number } | null>,
+  markers?: Marker[],
 ) {
   const {
     activeSong,
@@ -327,16 +329,21 @@ export function useSequencer(
         ctx.fillText(text, x + 4, 13)
       }
 
-      // Position trigger markers
+      // Position trigger markers (purple) — resolved via markers
       if (positionTriggers) {
-        const draggingTrigger = draggingPositionTriggerRef?.current
         for (const trigger of positionTriggers) {
-          const tp = trigger.triggerParams as { position?: number }
-          if (tp?.position === undefined) continue
-          // Use live drag position if this trigger is being dragged
-          const pos = draggingTrigger?.ruleId === trigger.id
-            ? draggingTrigger.position
-            : tp.position
+          const tp = trigger.triggerParams as { markerId?: string }
+          if (!tp?.markerId) continue
+          // Check if this marker is being dragged (live position)
+          const dragging = draggingMarkerRef?.current
+          let pos: number | undefined
+          if (dragging?.markerId === tp.markerId) {
+            pos = dragging.position
+          } else {
+            const marker = markers?.find(m => m.id === tp.markerId)
+            pos = marker?.position
+          }
+          if (pos === undefined) continue
           const triggerX = (pos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
           if (triggerX < 0 || triggerX > width) continue
 
@@ -356,6 +363,32 @@ export function useSequencer(
           ctx.closePath()
           ctx.fill()
           ctx.globalAlpha = 1.0
+        }
+      }
+
+      // Markers (amber flags) — draggable
+      if (markers) {
+        for (const marker of markers) {
+          const dragging = draggingMarkerRef?.current
+          const pos = dragging?.markerId === marker.id ? dragging.position : marker.position
+          const markerX = (pos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
+          if (markerX < 0 || markerX > width) continue
+
+          ctx.strokeStyle = '#f59e0b'
+          ctx.lineWidth = 1.5
+          ctx.beginPath()
+          ctx.moveTo(markerX, 0)
+          ctx.lineTo(markerX, headerHeight)
+          ctx.stroke()
+
+          // Flag
+          ctx.fillStyle = '#f59e0b'
+          ctx.fillRect(markerX, 0, 10, 8)
+
+          // Label
+          ctx.fillStyle = '#000'
+          ctx.font = 'bold 8px Arial'
+          ctx.fillText(marker.name, markerX + 2, 7)
         }
       }
 
@@ -394,7 +427,7 @@ export function useSequencer(
       ctx.stroke()
 
     },
-    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef, loops, activeLoop, loopPreviewRef, selectedLoopId, positionTriggers, draggingPositionTriggerRef],
+    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef, loops, activeLoop, loopPreviewRef, selectedLoopId, positionTriggers, draggingMarkerRef, markers],
   )
   return { draw }
 }
