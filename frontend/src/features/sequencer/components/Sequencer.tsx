@@ -1263,6 +1263,39 @@ function Sequencer() {
                   Add position trigger here
                 </button>
               )}
+              <div className="border-t my-1" />
+              <button
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-default"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  send({
+                    action: 'song.setEndPosition',
+                    songId: activeSong!.id,
+                    endPosition: positionTriggerContextMenu.position,
+                  })
+                  setPositionTriggerContextMenu(null)
+                }}
+              >
+                {activeSong?.endPosition !== undefined
+                  ? 'Move end position here'
+                  : 'Set end position here'}
+              </button>
+              {activeSong?.endPosition !== undefined && (
+                <button
+                  className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-accent cursor-default"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    send({
+                      action: 'song.setEndPosition',
+                      songId: activeSong!.id,
+                      endPosition: null,
+                    })
+                    setPositionTriggerContextMenu(null)
+                  }}
+                >
+                  Remove end position
+                </button>
+              )}
             </div>
           </div>
         )}
