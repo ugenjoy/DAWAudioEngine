@@ -214,9 +214,10 @@ void LoadSongCommand::execute(AppContext& ctx) {
   ctx.getLoopManager().reset();
   ctx.getLoopManager().setLoops(nextSong->getLoops());
 
-  // Load event rules and fire song.loaded trigger
+  // Load event rules, markers, and fire song.loaded trigger
   ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(), {},
                                  nextSong->getEventRules());
+  ctx.getEventEngine().loadMarkers(nextSong->getMarkers());
   ctx.getEventEngine().fire("song.loaded", ctx);
 
   // Preload next song if in live mode
