@@ -77,6 +77,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
         *setlistManager, *liveSetlistManager, *loopManager, *midiInputManager);
 
     audioEngine->setLoopManager(loopManager.get());
+    audioEngine->setEventEngine(eventEngine.get(), appContext.get());
 
     // Wire end position callback: stop in edit mode, handle transitions in live mode
     audioEngine->setEndPositionCallback([this]() {

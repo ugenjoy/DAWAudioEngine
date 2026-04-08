@@ -22,6 +22,9 @@
 // - std::function<void(const String& error)> errorCallback;
 // - void setErrorCallback(std::function<void(const String&)> callback);
 
+class EventEngine;
+class AppContext;
+
 class AudioEngineCore : public juce::AudioIODeviceCallback,
                         public juce::Timer {
  public:
@@ -98,6 +101,7 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   using EndPositionCallback = std::function<void()>;
   void setEndPositionCallback(EndPositionCallback cb);
   void setLoopManager(LoopManager* lm);
+  void setEventEngine(EventEngine* engine, AppContext* ctx);
 
  private:
   juce::AudioDeviceManager deviceManager;
@@ -124,6 +128,9 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   EndPositionCallback endPositionCallback;
   std::atomic<bool> endPositionFired{false};
   LoopManager* loopManager = nullptr;
+  EventEngine* eventEngine = nullptr;
+  AppContext* appContext = nullptr;
+  double prevTimerPosition = 0.0;
 
   // Audio settings persistence
   void saveSettings();

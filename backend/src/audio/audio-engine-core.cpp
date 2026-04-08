@@ -1,6 +1,7 @@
 #include "audio/audio-engine-core.hpp"
 
 #include "audio/audio-context.hpp"
+#include "events/event-engine.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
 AudioEngineCore::AudioEngineCore()
@@ -83,11 +84,17 @@ void AudioEngineCore::setLoopManager(LoopManager* lm) {
   loopManager = lm;
 }
 
+void AudioEngineCore::setEventEngine(EventEngine* engine, AppContext* ctx) {
+  eventEngine = engine;
+  appContext = ctx;
+}
+
 void AudioEngineCore::loadSong(Song* newSong) {
   activeSong = newSong;
   endPositionFired = false;
   if (loopManager) loopManager->reset();
   playheadPosition.store(0, std::memory_order_relaxed);
+  prevTimerPosition = 0.0;
   cursorPosition.store(0, std::memory_order_relaxed);
 
   // Tracks loaded from JSON may already have monitoring enabled,
@@ -149,6 +156,8 @@ void AudioEngineCore::stop() {
       playheadPosition.store(0.0, std::memory_order_relaxed);
     }
 
+    prevTimerPosition = playheadPosition.load(std::memory_order_relaxed);
+
     if (wsServer != nullptr) {
       broadcast::send(*wsServer, "transport.stop");
       broadcast::send(*wsServer, "transport.playheadPosition",
@@ -175,6 +184,7 @@ void AudioEngineCore::switchPlaying() {
 void AudioEngineCore::setPlayheadPosition(double position) {
   if (activeSong) {
     playheadPosition.store(position, std::memory_order_relaxed);
+    prevTimerPosition = position;
 
     if (wsServer != nullptr) {
       broadcast::send(*wsServer, "transport.playheadPosition",
@@ -350,10 +360,16 @@ void AudioEngineCore::unfreezeTracks() {
 void AudioEngineCore::timerCallback() {
   if (wsServer == nullptr || activeSong == nullptr) return;
 
-  broadcast::send(*wsServer, "transport.playheadPosition",
-                  {{"position", playheadPosition.load(std::memory_order_relaxed)}});
+  const double currentPos = playheadPosition.load(std::memory_order_relaxed);
 
-  // Broadcast per-track peak levels for VU meters
+  if (eventEngine != nullptr && appContext != nullptr) {
+    eventEngine->firePosition(prevTimerPosition, currentPos, *appContext);
+  }
+  prevTimerPosition = currentPos;
+
+  broadcast::send(*wsServer, "transport.playheadPosition",
+                  {{"position", currentPos}});
+
   nlohmann::json levels = nlohmann::json::object();
   for (const auto& track : activeSong->getTracksManager()->getTracks()) {
     levels[track->getId()] = track->peakLevel.load(std::memory_order_relaxed);
