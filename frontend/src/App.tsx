@@ -4,6 +4,7 @@ import { IconLoader } from '@tabler/icons-react'
 import ProjectHomePage from './pages/ProjectHomePage'
 import EditPage from './pages/EditPage'
 import LivePage from './pages/LivePage'
+import EventsPage from './pages/EventsPage'
 import { WebSocketProvider } from './shared/contexts/websocket-provider'
 import { useWebSocket } from './shared/contexts/websocket-provider'
 import { ProjectsProvider } from './shared/contexts/projects-provider'
@@ -51,6 +52,7 @@ function App() {
                             <Route index element={<ProjectHomePage />} />
                             <Route path="edit/:songId" element={<EditPage />} />
                             <Route path="live" element={<LivePage />} />
+                            <Route path="events" element={<EventsPage />} />
                           </Routes>
                         </RequireConnection>
                       }
