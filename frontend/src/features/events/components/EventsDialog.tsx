@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useEvents, MidiDevice } from '@/shared/contexts/events-provider'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { useMode } from '@/shared/contexts/mode-provider'
+import { useMarkers } from '@/shared/contexts/markers-provider'
 import { EventRule, EventAction } from '@/shared/models/event-rule'
 import { Button } from '@/shared/shadcn/components/button'
 import {
@@ -39,6 +40,7 @@ type ActionType =
   | 'setlist.prev'
   | 'loop.cancel'
   | 'loop.exit'
+  | 'transport.seekToPosition'
 
 const TRIGGER_TYPES: { value: TriggerType; label: string }[] = [
   { value: 'song.loaded', label: 'Song Loaded' },
@@ -48,14 +50,15 @@ const TRIGGER_TYPES: { value: TriggerType; label: string }[] = [
 ]
 
 const ACTION_TYPES: { value: ActionType; label: string }[] = [
-  { value: 'midi.send', label: 'MIDI Send' },
-  { value: 'transport.play', label: 'Play' },
-  { value: 'transport.pause', label: 'Pause' },
-  { value: 'transport.stop', label: 'Stop' },
-  { value: 'setlist.next', label: 'Next Song' },
-  { value: 'setlist.prev', label: 'Prev Song' },
-  { value: 'loop.cancel', label: 'Cancel Loop' },
-  { value: 'loop.exit', label: 'Exit Loop' },
+  { value: 'midi.send',                label: 'MIDI Send' },
+  { value: 'transport.play',           label: 'Play' },
+  { value: 'transport.pause',          label: 'Pause' },
+  { value: 'transport.stop',           label: 'Stop' },
+  { value: 'transport.seekToPosition', label: 'Seek to Marker' },
+  { value: 'setlist.next',             label: 'Next Song' },
+  { value: 'setlist.prev',             label: 'Prev Song' },
+  { value: 'loop.cancel',              label: 'Cancel Loop' },
+  { value: 'loop.exit',                label: 'Exit Loop' },
 ]
 
 function triggerLabel(t: string): string {
@@ -172,6 +175,7 @@ function EventRuleDetail({
   const { updateEvent, removeEvent } = useEvents()
   const { send } = useWebSocket()
   const { isLiveMode } = useMode()
+  const { markers } = useMarkers()
 
   const triggerType = (rule.trigger ?? 'song.loaded') as TriggerType
   const tp = (rule.triggerParams ?? {}) as Record<string, unknown>
@@ -180,12 +184,13 @@ function EventRuleDetail({
   const tpNote      = (tp.note      as number) ?? 60
   const tpCc        = (tp.cc        as number) ?? 0
   const tpThreshold = (tp.threshold as number) ?? 0
-  const tpPosition  = (tp.position  as number) ?? 0
+  const tpMarkerId  = (tp.markerId  as string) ?? ''
 
   const actionType = (rule.action.type ?? 'midi.send') as ActionType
   const midiParams = (rule.action.params ?? {}) as { device?: string; message?: number[] }
   const midiDevice = midiParams.device ?? ''
   const parsed     = parseMidiBytes(midiParams.message ?? [])
+  const seekMarkerId = (rule.action.params as { markerId?: string }).markerId ?? ''
 
   function sendUpdate(opts: {
     trigger: TriggerType
@@ -196,6 +201,7 @@ function EventRuleDetail({
     channel: number
     data1: number
     data2: number
+    seekMarkerId: string
     enabled: boolean
   }) {
     const eventAction: EventAction =
@@ -207,6 +213,8 @@ function EventRuleDetail({
               message: buildMidiBytes(opts.midiMsgType, opts.channel, opts.data1, opts.data2),
             },
           }
+        : opts.actionType === 'transport.seekToPosition'
+        ? { type: 'transport.seekToPosition', params: { markerId: opts.seekMarkerId } }
         : { type: opts.actionType, params: {} }
 
     updateEvent(scope, rule.id, {
@@ -227,6 +235,7 @@ function EventRuleDetail({
       channel: parsed.channel,
       data1: parsed.data1,
       data2: parsed.data2,
+      seekMarkerId,
       enabled: rule.enabled,
     }
   }
@@ -240,7 +249,7 @@ function EventRuleDetail({
       'song.loaded': {},
       'midi.note':   { device: '', channel: 0, note: 60 },
       'midi.cc':     { device: '', channel: 0, cc: 0, threshold: 0 },
-      'position':    { position: 0 },
+      'position':    { markerId: '' },
     }
     sendUpdate({ ...currentOpts(), trigger: t, triggerParams: defaults[t] })
   }
@@ -274,6 +283,10 @@ function EventRuleDetail({
   function handleData2Change(v: string) {
     const d = Number(v)
     if (!isNaN(d)) sendUpdate({ ...currentOpts(), data2: d })
+  }
+
+  function handleSeekMarkerChange(markerId: string) {
+    sendUpdate({ ...currentOpts(), seekMarkerId: markerId })
   }
 
   function handleTest() {
@@ -452,14 +465,34 @@ function EventRuleDetail({
 
           {triggerType === 'position' && (
             <div className="flex flex-col gap-1">
-              <Label className="text-xs">Position (s)</Label>
-              <Input
-                type="number" min={0} step={0.01}
-                value={tpPosition}
-                onChange={(e) => handleTriggerParam('position', Number(e.target.value))}
-                className="w-24"
+              <Label className="text-xs">Marker</Label>
+              <Select
+                value={tpMarkerId || '__none__'}
+                onValueChange={(v) =>
+                  handleTriggerParam('markerId', v === '__none__' ? '' : v)
+                }
                 disabled={isLiveMode}
-              />
+              >
+                <SelectTrigger className="w-52">
+                  <SelectValue placeholder="Select marker" />
+                </SelectTrigger>
+                <SelectContent>
+                  {markers.length === 0 ? (
+                    <SelectItem value="__none__" disabled>
+                      No markers — add one on the timeline
+                    </SelectItem>
+                  ) : (
+                    markers
+                      .slice()
+                      .sort((a, b) => a.position - b.position)
+                      .map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name} ({m.position.toFixed(2)}s)
+                        </SelectItem>
+                      ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>
@@ -575,6 +608,39 @@ function EventRuleDetail({
                 </Button>
               </div>
             </>
+          )}
+
+          {actionType === 'transport.seekToPosition' && (
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">Marker</Label>
+              <Select
+                value={seekMarkerId || '__none__'}
+                onValueChange={(v) =>
+                  handleSeekMarkerChange(v === '__none__' ? '' : v)
+                }
+                disabled={isLiveMode}
+              >
+                <SelectTrigger className="w-52">
+                  <SelectValue placeholder="Select marker" />
+                </SelectTrigger>
+                <SelectContent>
+                  {markers.length === 0 ? (
+                    <SelectItem value="__none__" disabled>
+                      No markers — add one on the timeline
+                    </SelectItem>
+                  ) : (
+                    markers
+                      .slice()
+                      .sort((a, b) => a.position - b.position)
+                      .map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name} ({m.position.toFixed(2)}s)
+                        </SelectItem>
+                      ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           )}
         </div>
       </div>

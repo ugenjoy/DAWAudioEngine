@@ -161,8 +161,10 @@ export function LiveTimeline({
       if (positionTriggers) {
         for (const trigger of positionTriggers) {
           const tp = trigger.triggerParams as PositionTriggerParams | undefined
-          if (tp?.position === undefined) continue
-          const x = center + (tp.position - position) * pps
+          if (!tp?.markerId) continue
+          const marker = markers?.find((m) => m.id === tp.markerId)
+          if (marker === undefined) continue
+          const x = center + (marker.position - position) * pps
           if (x < 0 || x > width) continue
 
           ctx.globalAlpha = trigger.enabled ? 1.0 : 0.4

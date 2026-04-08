@@ -3,10 +3,15 @@ export interface MidiSendParams {
   message: number[] // Raw MIDI bytes, e.g. [0xC0, 42] for program change ch1
 }
 
+export interface SeekToPositionParams {
+  markerId: string
+}
+
 export interface EventAction {
   type: 'midi.send' | 'transport.play' | 'transport.pause' | 'transport.stop'
-      | 'setlist.next' | 'setlist.prev' | 'loop.cancel' | 'loop.exit' | string
-  params: MidiSendParams | Record<string, unknown>
+      | 'setlist.next' | 'setlist.prev' | 'loop.cancel' | 'loop.exit'
+      | 'transport.seekToPosition' | string
+  params: MidiSendParams | SeekToPositionParams | Record<string, unknown>
 }
 
 export interface MidiNoteTriggerParams {
@@ -23,7 +28,7 @@ export interface MidiCcTriggerParams {
 }
 
 export interface PositionTriggerParams {
-  position: number // seconds
+  markerId: string // references a Marker.id
 }
 
 export interface EventRule {
