@@ -596,13 +596,15 @@ export function EventsPanel() {
     fetchEvents,
   } = useEvents()
   const { isLiveMode } = useMode()
+  const { isConnected } = useWebSocket()
   const [selectedId, setSelectedId] = useState<{ id: string; scope: 'project' | 'song' } | null>(null)
 
   useEffect(() => {
+    if (!isConnected) return
     fetchMidiOutputs()
     fetchMidiInputs()
     fetchEvents()
-  }, [])
+  }, [isConnected, fetchMidiOutputs, fetchMidiInputs, fetchEvents])
 
   function handleAddEvent(scope: 'project' | 'song') {
     addEvent(scope, 'song.loaded', {}, {
