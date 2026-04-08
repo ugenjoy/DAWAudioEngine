@@ -86,6 +86,32 @@ bool EventEngine::matchesMidiTrigger(const EventRule& rule,
   return false;
 }
 
+bool EventEngine::matchesPositionTrigger(const EventRule& rule,
+                                          double prevPos,
+                                          double currentPos) {
+  if (rule.trigger != "position") return false;
+  double triggerPos = rule.triggerParams.value("position", -1.0);
+  if (triggerPos < 0) return false;
+  return prevPos < triggerPos && triggerPos <= currentPos;
+}
+
+void EventEngine::firePosition(double prevPos, double currentPos, AppContext& ctx) {
+  for (const auto& rule : rules) {
+    if (!rule.enabled) continue;
+    if (!matchesPositionTrigger(rule, prevPos, currentPos)) continue;
+    auto it = executors.find(rule.action.type);
+    if (it == executors.end()) {
+      juce::Logger::writeToLog("[EventEngine] No executor for position action: " +
+                               juce::String(rule.action.type));
+      continue;
+    }
+    juce::Logger::writeToLog("[EventEngine] Position trigger fired at " +
+                             juce::String(rule.triggerParams.value("position", 0.0)) +
+                             "s → " + juce::String(rule.action.type));
+    it->second->execute(rule.action, ctx);
+  }
+}
+
 void EventEngine::fireMidi(const juce::MidiMessage& msg,
                             const std::string& deviceName,
                             AppContext& ctx) {

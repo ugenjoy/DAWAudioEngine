@@ -68,6 +68,24 @@ class EventEngine {
                 const std::string& deviceName,
                 AppContext& ctx);
 
+  /**
+   * Returns true if the given position window ]prevPos, currentPos] contains
+   * the rule's trigger position.
+   * Pure matching logic — no side effects. Ignores the enabled flag.
+   */
+  static bool matchesPositionTrigger(const EventRule& rule,
+                                      double prevPos,
+                                      double currentPos);
+
+  /**
+   * Called by the audio engine on each buffer cycle.
+   * Fires all enabled position-triggered rules whose position falls in
+   * ]prevPos, currentPos].
+   * @param prevPos Position (in seconds) at the start of the buffer
+   * @param currentPos Position (in seconds) at the end of the buffer
+   */
+  void firePosition(double prevPos, double currentPos, AppContext& ctx);
+
  private:
   std::unordered_map<std::string, std::unique_ptr<ActionExecutor>> executors;
   std::vector<EventRule> rules;  // Combined project + setlist + song rules

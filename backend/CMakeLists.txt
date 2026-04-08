@@ -166,6 +166,7 @@ if(BUILD_TESTS)
         tests/test.wavetable.cpp
         tests/test.loop-manager.cpp
         tests/test.event-engine-midi.cpp
+        tests/test.event-engine-position.cpp
         src/services/loop-manager.cpp
         src/events/event-rule.cpp
         src/events/event-engine.cpp
