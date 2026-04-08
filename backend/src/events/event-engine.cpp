@@ -101,13 +101,8 @@ void EventEngine::firePosition(double prevPos, double currentPos, AppContext& ct
     if (!matchesPositionTrigger(rule, prevPos, currentPos)) continue;
     auto it = executors.find(rule.action.type);
     if (it == executors.end()) {
-      juce::Logger::writeToLog("[EventEngine] No executor for position action: " +
-                               juce::String(rule.action.type));
       continue;
     }
-    juce::Logger::writeToLog("[EventEngine] Position trigger fired at " +
-                             juce::String(rule.triggerParams.value("position", 0.0)) +
-                             "s → " + juce::String(rule.action.type));
     it->second->execute(rule.action, ctx);
   }
 }
