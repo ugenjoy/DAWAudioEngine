@@ -200,6 +200,8 @@ function Sequencer() {
     () => songEvents.filter((r) => r.trigger === 'position'),
     [songEvents],
   )
+  const positionTriggersRef = useRef(positionTriggers)
+  positionTriggersRef.current = positionTriggers
   const { send } = useWebSocket()
 
   const HEADER_HEIGHT = 22
@@ -644,6 +646,7 @@ function Sequencer() {
       activeTrackViews,
       hitTestClip,
       hitTestLoop,
+      hitTestPositionTrigger,
       isLiveMode,
       loops,
       send,
@@ -817,9 +820,16 @@ function Sequencer() {
     }
 
     if (draggingPositionTriggerRef.current) {
-      updateEvent('song', draggingPositionTriggerRef.current.ruleId, {
-        triggerParams: { position: draggingPositionTriggerRef.current.position },
-      })
+      const { ruleId, position } = draggingPositionTriggerRef.current
+      const rule = positionTriggersRef.current.find((r) => r.id === ruleId)
+      if (rule) {
+        updateEvent('song', ruleId, {
+          trigger: rule.trigger,
+          triggerParams: { ...(rule.triggerParams as Record<string, unknown>), position },
+          eventAction: rule.action,
+          enabled: rule.enabled,
+        })
+      }
       draggingPositionTriggerRef.current = null
       return
     }
@@ -835,7 +845,7 @@ function Sequencer() {
     draggingClipRef.current = null
     dragStartRef.current = null
     setIsDraggingClip(false)
-  }, [activeSong, isDraggingClip, send, addLoop, updateLoop])
+  }, [activeSong, isDraggingClip, send, addLoop, updateLoop, updateEvent])
 
   const handleContextMenu = useCallback(
     (e: MouseEvent) => {
