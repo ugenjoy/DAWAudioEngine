@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -9,6 +10,7 @@
 
 #include "events/action-executor.hpp"
 #include "events/event-rule.hpp"
+#include "model/marker.hpp"
 
 class AppContext;
 
@@ -45,6 +47,18 @@ class EventEngine {
   void clearRules();
 
   /**
+   * Update the marker position map used for resolving position triggers and seek actions.
+   * Must be called after song load and after any marker CRUD operation.
+   */
+  void loadMarkers(const std::vector<Marker>& markers);
+
+  /**
+   * Resolve a marker id to its position in seconds.
+   * Returns nullopt if the marker id is not found.
+   */
+  std::optional<double> resolveMarker(const std::string& markerId) const;
+
+  /**
    * Fire a trigger, executing all matching enabled rules.
    * @param trigger The trigger name (e.g. "song.loaded")
    * @param ctx Application context passed to executors
@@ -70,12 +84,12 @@ class EventEngine {
 
   /**
    * Returns true if the given position window ]prevPos, currentPos] contains
-   * the rule's trigger position.
+   * the rule's trigger position (resolved via the internal marker map).
    * Pure matching logic — no side effects. Ignores the enabled flag.
    */
-  static bool matchesPositionTrigger(const EventRule& rule,
-                                      double prevPos,
-                                      double currentPos);
+  bool matchesPositionTrigger(const EventRule& rule,
+                               double prevPos,
+                               double currentPos) const;
 
   /**
    * Called by the audio engine on each timer callback (JUCE message thread).
@@ -89,4 +103,5 @@ class EventEngine {
  private:
   std::unordered_map<std::string, std::unique_ptr<ActionExecutor>> executors;
   std::vector<EventRule> rules;  // Combined project + setlist + song rules
+  std::unordered_map<std::string, double> markerPositions;
 };

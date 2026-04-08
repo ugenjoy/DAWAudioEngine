@@ -3,6 +3,8 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_core/juce_core.h>
 
+#include "model/marker.hpp"
+
 void EventEngine::registerExecutor(std::unique_ptr<ActionExecutor> executor) {
   std::string type = executor->getActionType();
   executors[type] = std::move(executor);
@@ -25,6 +27,22 @@ void EventEngine::loadRules(const std::vector<EventRule>& projectRules,
 
 void EventEngine::clearRules() {
   rules.clear();
+}
+
+void EventEngine::loadMarkers(const std::vector<Marker>& markers) {
+  markerPositions.clear();
+  for (const auto& m : markers) {
+    markerPositions[m.id] = m.position;
+  }
+  juce::Logger::writeToLog(
+      "[EventEngine] Loaded " + juce::String((int)markerPositions.size()) +
+      " marker(s)");
+}
+
+std::optional<double> EventEngine::resolveMarker(const std::string& markerId) const {
+  auto it = markerPositions.find(markerId);
+  if (it == markerPositions.end()) return std::nullopt;
+  return it->second;
 }
 
 void EventEngine::fire(const std::string& trigger, AppContext& ctx) {
@@ -88,11 +106,18 @@ bool EventEngine::matchesMidiTrigger(const EventRule& rule,
 
 bool EventEngine::matchesPositionTrigger(const EventRule& rule,
                                           double prevPos,
-                                          double currentPos) {
+                                          double currentPos) const {
   if (rule.trigger != "position") return false;
-  double triggerPos = rule.triggerParams.value("position", -1.0);
-  if (triggerPos < 0) return false;
-  return prevPos < triggerPos && triggerPos <= currentPos;
+  std::string markerId = rule.triggerParams.value("markerId", std::string(""));
+  if (markerId.empty()) return false;
+  auto pos = resolveMarker(markerId);
+  if (!pos.has_value()) {
+    juce::Logger::writeToLog(
+        "[EventEngine] matchesPositionTrigger: marker '" +
+        juce::String(markerId) + "' not found, skipping");
+    return false;
+  }
+  return prevPos < pos.value() && pos.value() <= currentPos;
 }
 
 void EventEngine::firePosition(double prevPos, double currentPos, AppContext& ctx) {
