@@ -56,6 +56,8 @@ type SetlistCommand =
   | 'setlist.previous'
   | 'setlist.goTo'
 
+type MarkerCommand = 'marker.list' | 'marker.add' | 'marker.remove' | 'marker.update'
+
 type Command =
   | ProjectCommand
   | TransportCommand
@@ -68,6 +70,7 @@ type Command =
   | ClipCommand
   | SetlistCommand
   | LoopCommand
+  | MarkerCommand
 
 export interface WebSocketMessage {
   action: Command
