@@ -5,6 +5,7 @@ import ProjectHomePage from './pages/ProjectHomePage'
 import EditPage from './pages/EditPage'
 import LivePage from './pages/LivePage'
 import EventsPage from './pages/EventsPage'
+import MarkersPage from './pages/MarkersPage'
 import { WebSocketProvider } from './shared/contexts/websocket-provider'
 import { useWebSocket } from './shared/contexts/websocket-provider'
 import { ProjectsProvider } from './shared/contexts/projects-provider'
@@ -13,6 +14,7 @@ import { AudioDevicesProvider } from './shared/contexts/audio-devices-provider'
 import { ModeProvider } from './shared/contexts/mode-provider'
 import { EventsProvider } from './shared/contexts/events-provider'
 import { SetlistProvider } from './shared/contexts/setlist-provider'
+import { MarkersProvider } from './shared/contexts/markers-provider'
 import ConnectionPage from './pages/ConnectionPage'
 
 function RequireConnection({ children }: { children: React.ReactNode }) {
@@ -41,24 +43,27 @@ function App() {
           <ProjectProvider>
             <ModeProvider>
               <EventsProvider>
-                <SetlistProvider>
-                  <Routes>
-                    <Route path="connect" element={<ConnectionPage />} />
-                    <Route
-                      path="*"
-                      element={
-                        <RequireConnection>
-                          <Routes>
-                            <Route index element={<ProjectHomePage />} />
-                            <Route path="edit/:songId" element={<EditPage />} />
-                            <Route path="live" element={<LivePage />} />
-                            <Route path="events" element={<EventsPage />} />
-                          </Routes>
-                        </RequireConnection>
-                      }
-                    />
-                  </Routes>
-                </SetlistProvider>
+                <MarkersProvider>
+                  <SetlistProvider>
+                    <Routes>
+                      <Route path="connect" element={<ConnectionPage />} />
+                      <Route
+                        path="*"
+                        element={
+                          <RequireConnection>
+                            <Routes>
+                              <Route index element={<ProjectHomePage />} />
+                              <Route path="edit/:songId" element={<EditPage />} />
+                              <Route path="live" element={<LivePage />} />
+                              <Route path="events" element={<EventsPage />} />
+                              <Route path="markers" element={<MarkersPage />} />
+                            </Routes>
+                          </RequireConnection>
+                        }
+                      />
+                    </Routes>
+                  </SetlistProvider>
+                </MarkersProvider>
               </EventsProvider>
             </ModeProvider>
           </ProjectProvider>

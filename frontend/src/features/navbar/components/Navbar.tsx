@@ -6,7 +6,7 @@ import { useMode } from '@/shared/contexts/mode-provider'
 import { useSetlist } from '@/shared/contexts/setlist-provider'
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
-import { IconDeviceFloppy, IconHome, IconBroadcast, IconBolt } from '@tabler/icons-react'
+import { IconDeviceFloppy, IconHome, IconBroadcast, IconBolt, IconMapPin } from '@tabler/icons-react'
 import { AudioSettingsDialog } from '@/features/audio-settings/components/AudioSettingsDialog'
 import { NewSongDialog } from '@/features/songs/components/NewSongDialog'
 import { SongManagerDialog } from '@/features/songs/components/SongManagerDialog'
@@ -120,6 +120,15 @@ function Navbar() {
           title="Events"
         >
           <IconBolt size={16} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => navigate('/markers')}
+          disabled={isLiveMode}
+          title="Markers"
+        >
+          <IconMapPin size={16} />
         </Button>
         <AudioSettingsDialog />
         <div className="flex items-center gap-2">
