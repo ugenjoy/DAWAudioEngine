@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Song } from '@/shared/models/song'
 import { Loop } from '@/shared/models/loop'
+import type { EventRule, PositionTriggerParams } from '@/shared/models/event-rule'
 import { useInterpolatedPlayhead } from '@/features/sequencer/hooks/useInterpolatedPlayhead'
 
 const TRACK_COLORS = [
@@ -21,6 +22,7 @@ interface Props {
   playing: boolean
   loops: Loop[]
   activeLoop: Loop | null
+  positionTriggers?: EventRule[]
   pixelsPerSecond?: number
 }
 
@@ -31,6 +33,7 @@ export function LiveTimeline({
   playing,
   loops,
   activeLoop,
+  positionTriggers,
   pixelsPerSecond = 50,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -151,6 +154,33 @@ export function LiveTimeline({
       })
       ctx.globalAlpha = 1
 
+      // Position trigger markers
+      if (positionTriggers) {
+        for (const trigger of positionTriggers) {
+          const tp = trigger.triggerParams as PositionTriggerParams | undefined
+          if (tp?.position === undefined) continue
+          const x = center + (tp.position - position) * pps
+          if (x < 0 || x > width) continue
+
+          ctx.globalAlpha = trigger.enabled ? 1.0 : 0.4
+          ctx.strokeStyle = '#a855f7'
+          ctx.lineWidth = 2 * dpr
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, height)
+          ctx.stroke()
+
+          ctx.fillStyle = '#a855f7'
+          ctx.beginPath()
+          ctx.moveTo(x - 5 * dpr, 0)
+          ctx.lineTo(x + 5 * dpr, 0)
+          ctx.lineTo(x, 6 * dpr)
+          ctx.closePath()
+          ctx.fill()
+          ctx.globalAlpha = 1.0
+        }
+      }
+
       ctx.strokeStyle = '#ffffff'
       ctx.lineWidth = 2 * dpr
       ctx.beginPath()
@@ -166,7 +196,7 @@ export function LiveTimeline({
       cancelAnimationFrame(rafId)
       resizeObserver.disconnect()
     }
-  }, [song, pixelsPerSecond, loops, activeLoop])
+  }, [song, pixelsPerSecond, loops, activeLoop, positionTriggers])
 
   return <canvas ref={canvasRef} className="w-full h-full" />
 }

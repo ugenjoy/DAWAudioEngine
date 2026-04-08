@@ -1,6 +1,8 @@
 import { useSetlist } from '@/shared/contexts/setlist-provider'
 import { useProject } from '@/shared/contexts/project-provider'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
+import { useEvents } from '@/shared/contexts/events-provider'
+import { useMemo } from 'react'
 import { LiveHeader } from './LiveHeader'
 import { LiveTimeline } from './LiveTimeline'
 import { useNavigate } from 'react-router'
@@ -14,6 +16,11 @@ export function LiveView() {
   const { playheadPosRef, playheadUpdateRef, playing, loops, activeLoop } =
     useProject()
   const { send } = useWebSocket()
+  const { songEvents } = useEvents()
+  const positionTriggers = useMemo(
+    () => songEvents.filter((r) => r.trigger === 'position'),
+    [songEvents],
+  )
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -59,6 +66,7 @@ export function LiveView() {
           playing={playing}
           loops={loops}
           activeLoop={activeLoop}
+          positionTriggers={positionTriggers}
         />
       </div>
       <LiveTransport />
