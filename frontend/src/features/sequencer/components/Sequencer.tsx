@@ -1216,7 +1216,7 @@ function Sequencer() {
             }}
           >
             <div
-              className="absolute bg-popover border rounded-md shadow-md py-1 min-w-45"
+              className="absolute bg-popover border rounded-md shadow-md py-1 min-w-[180px]"
               style={{
                 left: positionTriggerContextMenu.x,
                 top: positionTriggerContextMenu.y,
@@ -1227,7 +1227,8 @@ function Sequencer() {
                 <>
                   <button
                     className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-default"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       updateEvent('song', positionTriggerContextMenu.existingRule!.id, {
                         triggerParams: { position: positionTriggerContextMenu.position },
                       })
@@ -1238,7 +1239,8 @@ function Sequencer() {
                   </button>
                   <button
                     className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-accent cursor-default"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation()
                       removeEvent('song', positionTriggerContextMenu.existingRule!.id)
                       setPositionTriggerContextMenu(null)
                     }}
@@ -1249,7 +1251,8 @@ function Sequencer() {
               ) : (
                 <button
                   className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-default"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation()
                     addEvent('song', 'position',
                       { position: positionTriggerContextMenu.position },
                       { type: 'transport.stop', params: {} },
