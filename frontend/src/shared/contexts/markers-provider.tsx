@@ -64,7 +64,7 @@ export function MarkersProvider({
       ws.addEventListener('message', onMessage)
       return () => ws.removeEventListener('message', onMessage)
     }
-  }, [ws, isConnected])
+  }, [ws, isConnected, send])
 
   function onMessage(ev: MessageEvent<unknown>) {
     if (typeof ev.data !== 'string') return
@@ -74,7 +74,7 @@ export function MarkersProvider({
         setMarkers(data.markers ?? [])
         break
       case 'song.loaded':
-        fetchMarkers()
+        send({ action: 'marker.list' })
         break
       case 'song.unloaded':
         setMarkers([])
