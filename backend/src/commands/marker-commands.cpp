@@ -72,16 +72,20 @@ void MarkerRemoveCommand::execute(AppContext& ctx) {
 
 // ── MarkerUpdateCommand ────────────────────────────────────────────────────
 
-MarkerUpdateCommand::MarkerUpdateCommand(Marker updated)
-    : updated(std::move(updated)) {}
+MarkerUpdateCommand::MarkerUpdateCommand(std::string markerId,
+                                         std::optional<std::string> name,
+                                         std::optional<double> position)
+    : markerId(std::move(markerId)),
+      name(std::move(name)),
+      position(std::move(position)) {}
 
 void MarkerUpdateCommand::execute(AppContext& ctx) {
   Song* song = ctx.getAudioEngine().getActiveSong();
-  bool ok = song && song->updateMarker(updated.id, updated);
+  bool ok = song && song->updateMarker(markerId, name, position);
   reloadEngineMarkers(ctx);
   broadcastMarkerList(ctx);
   juce::Logger::writeToLog("[MarkerUpdateCommand] Update '" +
-                           juce::String(updated.id) + "': " +
+                           juce::String(markerId) + "': " +
                            (ok ? "OK" : "not found"));
 }
 
@@ -113,9 +117,9 @@ REGISTER_EDIT_COMMAND_WITH_CREATOR(
     [](const nlohmann::json& payload) -> CommandPtr {
       std::string id = payload.value("markerId", "");
       if (id.empty()) return nullptr;
-      Marker m;
-      m.id       = id;
-      m.name     = payload.value("name",     std::string(""));
-      m.position = payload.value("position", 0.0);
-      return std::make_unique<MarkerUpdateCommand>(std::move(m));
+      std::optional<std::string> name;
+      std::optional<double>      position;
+      if (payload.contains("name"))     name     = payload["name"].get<std::string>();
+      if (payload.contains("position")) position = payload["position"].get<double>();
+      return std::make_unique<MarkerUpdateCommand>(std::move(id), std::move(name), position);
     });

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include "commands/command.hpp"
 #include "model/marker.hpp"
@@ -31,8 +32,12 @@ class MarkerRemoveCommand : public Command {
 /** Update name and/or position of an existing marker. Edit-mode only. */
 class MarkerUpdateCommand : public Command {
  public:
-  MarkerUpdateCommand(Marker updated);
+  MarkerUpdateCommand(std::string markerId,
+                      std::optional<std::string> name,
+                      std::optional<double> position);
   void execute(AppContext& ctx) override;
  private:
-  Marker updated;
+  std::string markerId;
+  std::optional<std::string> name;
+  std::optional<double> position;
 };

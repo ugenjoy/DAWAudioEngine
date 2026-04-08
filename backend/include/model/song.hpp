@@ -77,7 +77,9 @@ class Song {
   const std::vector<Marker>& getMarkers() const { return markers; }
   void addMarker(Marker m) { markers.push_back(std::move(m)); }
   bool removeMarker(const std::string& markerId);
-  bool updateMarker(const std::string& markerId, const Marker& updated);
+  bool updateMarker(const std::string& markerId,
+                    const std::optional<std::string>& name,
+                    const std::optional<double>& position);
 
  private:
   std::string id;

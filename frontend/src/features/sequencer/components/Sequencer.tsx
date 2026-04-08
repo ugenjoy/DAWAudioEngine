@@ -197,7 +197,7 @@ function Sequencer() {
   } = useProject()
   const { isLiveMode } = useMode()
   const { songEvents } = useEvents()
-  const { markers, addMarker, removeMarker } = useMarkers()
+  const { markers, addMarker, removeMarker, updateMarker } = useMarkers()
   const positionTriggers = useMemo(
     () => songEvents.filter((r) => r.trigger === 'position'),
     [songEvents],
@@ -819,7 +819,7 @@ function Sequencer() {
 
     if (draggingMarkerRef.current) {
       const { markerId, position } = draggingMarkerRef.current
-      send({ action: 'marker.update', markerId, position })
+      updateMarker(markerId, { position })
       draggingMarkerRef.current = null
       return
     }

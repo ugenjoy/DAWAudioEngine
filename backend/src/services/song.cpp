@@ -211,11 +211,13 @@ bool Song::removeMarker(const std::string& markerId) {
   return true;
 }
 
-bool Song::updateMarker(const std::string& markerId, const Marker& updated) {
+bool Song::updateMarker(const std::string& markerId,
+                        const std::optional<std::string>& name,
+                        const std::optional<double>& position) {
   auto it = std::find_if(markers.begin(), markers.end(),
                          [&](const Marker& m) { return m.id == markerId; });
   if (it == markers.end()) return false;
-  it->name     = updated.name;
-  it->position = updated.position;
+  if (name) it->name = *name;
+  if (position) it->position = *position;
   return true;
 }
