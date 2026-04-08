@@ -699,6 +699,21 @@ function Sequencer() {
         }
       }
 
+      // Existing end position drag
+      if (isDraggingEndPosition.current) {
+        endPositionDragRef.current = snapPosition(e.offsetX)
+        return
+      }
+
+      // Existing position trigger drag
+      if (draggingPositionTriggerRef.current) {
+        draggingPositionTriggerRef.current = {
+          ...draggingPositionTriggerRef.current,
+          position: snapPosition(e.offsetX),
+        }
+        return
+      }
+
       // Cursor hover feedback in header
       if (e.offsetY < HEADER_HEIGHT) {
         if (e.ctrlKey) {
@@ -717,21 +732,6 @@ function Sequencer() {
       }
 
       setHeaderCursor('default')
-
-      // Existing end position drag
-      if (isDraggingEndPosition.current) {
-        endPositionDragRef.current = snapPosition(e.offsetX)
-        return
-      }
-
-      // Existing position trigger drag
-      if (draggingPositionTriggerRef.current) {
-        draggingPositionTriggerRef.current = {
-          ...draggingPositionTriggerRef.current,
-          position: snapPosition(e.offsetX),
-        }
-        return
-      }
 
       // Existing clip drag
       if (!selectedClip || !dragStartRef.current) return
