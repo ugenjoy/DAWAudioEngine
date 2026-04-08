@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Song } from '@/shared/models/song'
 import { Loop } from '@/shared/models/loop'
 import type { EventRule, PositionTriggerParams } from '@/shared/models/event-rule'
+import type { Marker } from '@/shared/models/marker'
 import { useInterpolatedPlayhead } from '@/features/sequencer/hooks/useInterpolatedPlayhead'
 
 const TRACK_COLORS = [
@@ -23,6 +24,7 @@ interface Props {
   loops: Loop[]
   activeLoop: Loop | null
   positionTriggers?: EventRule[]
+  markers?: Marker[]
   pixelsPerSecond?: number
 }
 
@@ -34,6 +36,7 @@ export function LiveTimeline({
   loops,
   activeLoop,
   positionTriggers,
+  markers,
   pixelsPerSecond = 50,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -181,6 +184,36 @@ export function LiveTimeline({
         }
       }
 
+      // Draw markers (amber flags)
+      if (markers) {
+        for (const marker of markers) {
+          const x = center + (marker.position - position) * pps
+          if (x < 0 || x > width) continue
+
+          ctx.strokeStyle = '#f59e0b'
+          ctx.lineWidth = 1.5 * dpr
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x, height)
+          ctx.stroke()
+
+          // Flag triangle at top
+          ctx.fillStyle = '#f59e0b'
+          ctx.beginPath()
+          ctx.moveTo(x, 0)
+          ctx.lineTo(x + 10 * dpr, 0)
+          ctx.lineTo(x + 10 * dpr, 8 * dpr)
+          ctx.lineTo(x, 8 * dpr)
+          ctx.closePath()
+          ctx.fill()
+
+          // Label
+          ctx.fillStyle = '#000'
+          ctx.font = `bold ${9 * dpr}px sans-serif`
+          ctx.fillText(marker.name, x + 2 * dpr, 7 * dpr)
+        }
+      }
+
       ctx.strokeStyle = '#ffffff'
       ctx.lineWidth = 2 * dpr
       ctx.beginPath()
@@ -196,7 +229,7 @@ export function LiveTimeline({
       cancelAnimationFrame(rafId)
       resizeObserver.disconnect()
     }
-  }, [song, pixelsPerSecond, loops, activeLoop, positionTriggers])
+  }, [song, pixelsPerSecond, loops, activeLoop, positionTriggers, markers])
 
   return <canvas ref={canvasRef} className="w-full h-full" />
 }
