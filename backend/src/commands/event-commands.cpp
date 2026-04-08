@@ -4,11 +4,21 @@
 
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
+#include "events/event-engine.hpp"
 #include "commands/command-factory.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
-// ── Helper: build and broadcast the full event list ───────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+static void reloadEventEngineRules(AppContext& ctx) {
+  auto& songsManager = ctx.getSongsManager();
+  auto& audioEngine = ctx.getAudioEngine();
+  Song* activeSong = audioEngine.getActiveSong();
+  ctx.getEventEngine().loadRules(
+      songsManager.getProjectEventRules(), {},
+      activeSong ? activeSong->getEventRules() : std::vector<EventRule>{});
+}
 
 static void broadcastEventList(AppContext& ctx) {
   auto& songsManager = ctx.getSongsManager();
@@ -65,6 +75,7 @@ void EventAddCommand::execute(AppContext& ctx) {
   juce::Logger::writeToLog("[EventAddCommand] Added event rule '" +
                            juce::String(rule.id) + "' to " +
                            juce::String(scope));
+  reloadEventEngineRules(ctx);
   broadcastEventList(ctx);
 }
 
@@ -90,6 +101,7 @@ void EventRemoveCommand::execute(AppContext& ctx) {
   juce::Logger::writeToLog("[EventRemoveCommand] Remove '" +
                            juce::String(eventId) + "': " +
                            (removed ? "OK" : "not found"));
+  reloadEventEngineRules(ctx);
   broadcastEventList(ctx);
 }
 
@@ -115,6 +127,7 @@ void EventUpdateCommand::execute(AppContext& ctx) {
   juce::Logger::writeToLog("[EventUpdateCommand] Update '" +
                            juce::String(updated.id) + "': " +
                            (ok ? "OK" : "not found"));
+  reloadEventEngineRules(ctx);
   broadcastEventList(ctx);
 }
 
