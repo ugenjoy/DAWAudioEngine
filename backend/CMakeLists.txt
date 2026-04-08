@@ -97,6 +97,8 @@ target_sources(DAWAudioEngine PRIVATE
     src/events/loop-action-executor.cpp
     src/services/song-preloader.cpp
     src/model/setlist.cpp
+    src/model/marker.cpp
+    src/commands/marker-commands.cpp
     src/services/setlist-manager.cpp
     src/services/live-setlist-manager.cpp
     src/services/loop-manager.cpp
