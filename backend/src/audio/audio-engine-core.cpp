@@ -71,6 +71,7 @@ void AudioEngineCore::unloadSong() {
   activeSong = nullptr;
   playheadPosition.store(0.0, std::memory_order_relaxed);
   cursorPosition.store(0.0, std::memory_order_relaxed);
+  prevTimerPosition = 0.0;
   monitoringTrackCount.store(0, std::memory_order_relaxed);
   monitoredChannelMask.store(0, std::memory_order_relaxed);
   if (loopManager) loopManager->reset();
@@ -362,7 +363,7 @@ void AudioEngineCore::timerCallback() {
 
   const double currentPos = playheadPosition.load(std::memory_order_relaxed);
 
-  if (eventEngine != nullptr && appContext != nullptr) {
+  if (eventEngine != nullptr && appContext != nullptr && playing.load(std::memory_order_relaxed)) {
     eventEngine->firePosition(prevTimerPosition, currentPos, *appContext);
   }
   prevTimerPosition = currentPos;

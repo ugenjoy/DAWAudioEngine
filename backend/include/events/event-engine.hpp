@@ -78,11 +78,11 @@ class EventEngine {
                                       double currentPos);
 
   /**
-   * Called by the audio engine on each buffer cycle.
+   * Called by the audio engine on each timer callback (JUCE message thread).
    * Fires all enabled position-triggered rules whose position falls in
    * ]prevPos, currentPos].
-   * @param prevPos Position (in seconds) at the start of the buffer
-   * @param currentPos Position (in seconds) at the end of the buffer
+   * @param prevPos Position (in seconds) at the start of the timer interval
+   * @param currentPos Position (in seconds) at the end of the timer interval
    */
   void firePosition(double prevPos, double currentPos, AppContext& ctx);
 
