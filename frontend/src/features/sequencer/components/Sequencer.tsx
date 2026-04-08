@@ -41,6 +41,7 @@ import { IconPlus } from '@tabler/icons-react'
 import { uploadAudioClip } from '@/shared/services/audio-upload'
 import type { TrackView } from '@/shared/contexts/project-provider'
 import type { AudioInput } from '@/shared/models/audio-input'
+import type { EventRule } from '@/shared/models/event-rule'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -194,7 +195,7 @@ function Sequencer() {
     loops,
   } = useProject()
   const { isLiveMode } = useMode()
-  const { songEvents } = useEvents()
+  const { songEvents, addEvent, removeEvent, updateEvent } = useEvents()
   const positionTriggers = useMemo(
     () => songEvents.filter((r) => r.trigger === 'position'),
     [songEvents],
@@ -233,6 +234,12 @@ function Sequencer() {
     x: number
     y: number
     position: number
+  } | null>(null)
+  const [positionTriggerContextMenu, setPositionTriggerContextMenu] = useState<{
+    x: number
+    y: number
+    position: number
+    existingRule?: EventRule
   } | null>(null)
   const [dragTrackViews, setDragTrackViews] = useState<
     typeof trackViews | null
@@ -412,6 +419,20 @@ function Sequencer() {
       return null
     },
     [activeSong, activeTrackViews],
+  )
+
+  const hitTestPositionTrigger = useCallback(
+    (offsetX: number): EventRule | undefined => {
+      if (!activeSong) return undefined
+      const pixelsPerBeat = 20 * zoomRef.current
+      return positionTriggers.find((rule) => {
+        const tp = rule.triggerParams as { position?: number }
+        if (tp?.position === undefined) return false
+        const x = (tp.position / 60) * activeSong.tempo * pixelsPerBeat - scrollXRef.current
+        return Math.abs(offsetX - x) < 8
+      })
+    },
+    [activeSong, positionTriggers],
   )
 
   const hitTestLoop = useCallback(
@@ -792,10 +813,29 @@ function Sequencer() {
 
       if (e.offsetY < HEADER_HEIGHT) {
         e.preventDefault()
-        setEndPositionContextMenu({
+
+        // Priority 1: near end position handle
+        if (activeSong.endPosition !== undefined) {
+          const pixelsPerBeat = 20 * zoomRef.current
+          const endPosPx =
+            (activeSong.endPosition / 60) * activeSong.tempo * pixelsPerBeat -
+            scrollXRef.current
+          if (Math.abs(e.offsetX - endPosPx) < 8) {
+            setEndPositionContextMenu({
+              x: e.clientX,
+              y: e.clientY,
+              position: snapPosition(e.offsetX),
+            })
+            return
+          }
+        }
+
+        // Priority 2+3: position trigger (existing or empty spot)
+        setPositionTriggerContextMenu({
           x: e.clientX,
           y: e.clientY,
           position: snapPosition(e.offsetX),
+          existingRule: hitTestPositionTrigger(e.offsetX),
         })
         return
       }
@@ -807,7 +847,7 @@ function Sequencer() {
         setClipContextMenu({ x: e.clientX, y: e.clientY })
       }
     },
-    [activeSong, isLiveMode, hitTestClip, snapPosition],
+    [activeSong, isLiveMode, hitTestClip, hitTestPositionTrigger, snapPosition],
   )
 
   const removeSelectedClip = useCallback(() => {
@@ -1160,6 +1200,64 @@ function Sequencer() {
                   }}
                 >
                   Remove end position
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {positionTriggerContextMenu && (
+          <div
+            className="fixed inset-0 z-50"
+            onClick={() => setPositionTriggerContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setPositionTriggerContextMenu(null)
+            }}
+          >
+            <div
+              className="absolute bg-popover border rounded-md shadow-md py-1 min-w-45"
+              style={{
+                left: positionTriggerContextMenu.x,
+                top: positionTriggerContextMenu.y,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {positionTriggerContextMenu.existingRule ? (
+                <>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-default"
+                    onClick={() => {
+                      updateEvent('song', positionTriggerContextMenu.existingRule!.id, {
+                        triggerParams: { position: positionTriggerContextMenu.position },
+                      })
+                      setPositionTriggerContextMenu(null)
+                    }}
+                  >
+                    Move trigger here
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-accent cursor-default"
+                    onClick={() => {
+                      removeEvent('song', positionTriggerContextMenu.existingRule!.id)
+                      setPositionTriggerContextMenu(null)
+                    }}
+                  >
+                    Delete trigger
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-default"
+                  onClick={() => {
+                    addEvent('song', 'position',
+                      { position: positionTriggerContextMenu.position },
+                      { type: 'transport.stop', params: {} },
+                    )
+                    setPositionTriggerContextMenu(null)
+                  }}
+                >
+                  Add position trigger here
                 </button>
               )}
             </div>
