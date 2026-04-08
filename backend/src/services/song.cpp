@@ -77,6 +77,12 @@ nlohmann::json Song::toJson() const {
   }
   j["loops"] = loopsJson;
 
+  nlohmann::json markersJson = nlohmann::json::array();
+  for (const auto& m : markers) {
+    markersJson.push_back(m.toJson());
+  }
+  j["markers"] = markersJson;
+
   return j;
 }
 
@@ -141,6 +147,12 @@ std::unique_ptr<Song> Song::fromJson(const nlohmann::json& j,
     }
   }
 
+  if (j.contains("markers") && j["markers"].is_array()) {
+    for (const auto& mj : j["markers"]) {
+      song->markers.push_back(Marker::fromJson(mj));
+    }
+  }
+
   if (loadAudio) {
     song->loadState.store(SongLoadState::Loaded);
   }
@@ -188,5 +200,22 @@ bool Song::updateLoop(const std::string& loopId, double start, double end) {
   if (it == loops.end()) return false;
   it->start = start;
   it->end = end;
+  return true;
+}
+
+bool Song::removeMarker(const std::string& markerId) {
+  auto it = std::find_if(markers.begin(), markers.end(),
+                         [&](const Marker& m) { return m.id == markerId; });
+  if (it == markers.end()) return false;
+  markers.erase(it);
+  return true;
+}
+
+bool Song::updateMarker(const std::string& markerId, const Marker& updated) {
+  auto it = std::find_if(markers.begin(), markers.end(),
+                         [&](const Marker& m) { return m.id == markerId; });
+  if (it == markers.end()) return false;
+  it->name     = updated.name;
+  it->position = updated.position;
   return true;
 }

@@ -10,6 +10,7 @@
 #include "audio/metronome-track.hpp"
 #include "events/event-rule.hpp"
 #include "model/loop.hpp"
+#include "model/marker.hpp"
 #include "tracks-manager.hpp"
 
 enum class SongLoadState { MetadataOnly, Loading, Loaded };
@@ -72,6 +73,12 @@ class Song {
   bool updateLoop(const std::string& loopId, double start, double end);
   void setLoops(std::vector<Loop> l) { loops = std::move(l); }
 
+  // Markers (named positions)
+  const std::vector<Marker>& getMarkers() const { return markers; }
+  void addMarker(Marker m) { markers.push_back(std::move(m)); }
+  bool removeMarker(const std::string& markerId);
+  bool updateMarker(const std::string& markerId, const Marker& updated);
+
  private:
   std::string id;
   std::string name;
@@ -82,6 +89,7 @@ class Song {
   std::unique_ptr<MetronomeTrack> metronomeTrack;
   std::vector<EventRule> eventRules;
   std::vector<Loop> loops;
+  std::vector<Marker> markers;
 
   std::atomic<SongLoadState> loadState{SongLoadState::MetadataOnly};
 };
