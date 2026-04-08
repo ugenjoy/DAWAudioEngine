@@ -22,10 +22,14 @@ export interface MidiCcTriggerParams {
   threshold: number // fire when value >= threshold
 }
 
+export interface PositionTriggerParams {
+  position: number // seconds
+}
+
 export interface EventRule {
   id: string
-  trigger: 'song.loaded' | 'midi.note' | 'midi.cc' | string
-  triggerParams?: MidiNoteTriggerParams | MidiCcTriggerParams | Record<string, unknown>
+  trigger: 'song.loaded' | 'midi.note' | 'midi.cc' | 'position' | string
+  triggerParams?: MidiNoteTriggerParams | MidiCcTriggerParams | PositionTriggerParams | Record<string, unknown>
   action: EventAction
   enabled: boolean
 }
