@@ -51,6 +51,15 @@ void MidiInputManager::handleIncomingMidiMessage(juce::MidiInput* source,
 
   // Capture by value — message and device name are copied to the lambda
   std::string deviceName = source->getName().toStdString();
+
+  if (msg.isNoteOn()) {
+    juce::Logger::writeToLog(
+        "[MidiInputManager] Note On — device: '" + juce::String(deviceName) +
+        "' note: " + juce::String(msg.getNoteNumber()) +
+        " ch: " + juce::String(msg.getChannel()) +
+        " vel: " + juce::String(msg.getVelocity()));
+  }
+
   juce::MessageManager::callAsync([this, msg, deviceName]() {
     if (!running_.load() || engine_ == nullptr || ctx_ == nullptr) return;
     engine_->fireMidi(msg, deviceName, *ctx_);
