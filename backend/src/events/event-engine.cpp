@@ -13,11 +13,13 @@ void EventEngine::registerExecutor(std::unique_ptr<ActionExecutor> executor) {
 void EventEngine::loadRules(const std::vector<EventRule>& projectRules,
                             const std::vector<EventRule>& setlistRules,
                             const std::vector<EventRule>& songRules) {
-  rules.clear();
-  rules.insert(rules.end(), projectRules.begin(), projectRules.end());
-  rules.insert(rules.end(), setlistRules.begin(), setlistRules.end());
-  rules.insert(rules.end(), songRules.begin(), songRules.end());
-
+  {
+    juce::SpinLock::ScopedLockType lock(dataLock);
+    rules.clear();
+    rules.insert(rules.end(), projectRules.begin(), projectRules.end());
+    rules.insert(rules.end(), setlistRules.begin(), setlistRules.end());
+    rules.insert(rules.end(), songRules.begin(), songRules.end());
+  }
   juce::Logger::writeToLog(
       "[EventEngine] Loaded " + juce::String((int)rules.size()) +
       " rule(s) (" + juce::String((int)projectRules.size()) + " project, " +
@@ -26,13 +28,17 @@ void EventEngine::loadRules(const std::vector<EventRule>& projectRules,
 }
 
 void EventEngine::clearRules() {
+  juce::SpinLock::ScopedLockType lock(dataLock);
   rules.clear();
 }
 
 void EventEngine::loadMarkers(const std::vector<Marker>& markers) {
-  markerPositions.clear();
-  for (const auto& m : markers) {
-    markerPositions[m.id] = m.position;
+  {
+    juce::SpinLock::ScopedLockType lock(dataLock);
+    markerPositions.clear();
+    for (const auto& m : markers) {
+      markerPositions[m.id] = m.position;
+    }
   }
   juce::Logger::writeToLog(
       "[EventEngine] Loaded " + juce::String((int)markerPositions.size()) +
@@ -130,6 +136,37 @@ void EventEngine::firePosition(double prevPos, double currentPos, AppContext& ct
     }
     it->second->execute(rule.action, ctx);
   }
+}
+
+std::optional<double> EventEngine::checkSeekTrigger(double prevPos,
+                                                    double currPos) const {
+  const juce::SpinLock::ScopedTryLockType lock(dataLock);
+  if (!lock.isLocked()) return std::nullopt;
+
+  for (const auto& rule : rules) {
+    if (!rule.enabled) continue;
+    if (rule.trigger != "position") continue;
+    if (rule.action.type != "transport.seekToPosition") continue;
+
+    std::string triggerMarkerId =
+        rule.triggerParams.value("markerId", std::string(""));
+    if (triggerMarkerId.empty()) continue;
+
+    auto it = markerPositions.find(triggerMarkerId);
+    if (it == markerPositions.end()) continue;
+    double triggerPos = it->second;
+    if (!(prevPos < triggerPos && triggerPos <= currPos)) continue;
+
+    // Trigger matched — resolve the seek target marker
+    std::string targetMarkerId =
+        rule.action.params.value("markerId", std::string(""));
+    if (targetMarkerId.empty()) continue;
+
+    auto tit = markerPositions.find(targetMarkerId);
+    if (tit == markerPositions.end()) continue;
+    return tit->second;
+  }
+  return std::nullopt;
 }
 
 void EventEngine::fireMidi(const juce::MidiMessage& msg,

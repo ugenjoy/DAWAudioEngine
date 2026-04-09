@@ -256,9 +256,13 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
 
   if (isPlaying) {
     auto const& ctx = AudioContext::getInstance();
+    const double posBeforeAdvance =
+        playheadPosition.load(std::memory_order_relaxed);
     playheadPosition.store(
-        playheadPosition + (double)numSamples / ctx.sampleRate,
+        posBeforeAdvance + (double)numSamples / ctx.sampleRate,
         std::memory_order_relaxed);
+
+    bool positionOverridden = false;
 
     // Loop position check
     if (loopManager) {
@@ -268,6 +272,7 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
 
       if (loopResult.jumpTo.has_value()) {
         playheadPosition.store(*loopResult.jumpTo, std::memory_order_relaxed);
+        positionOverridden = true;
       }
 
       if (loopResult.activated) {
@@ -295,8 +300,30 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
         // keep audio running into the next song; "stop" transitions call
         // stop() from the message thread via the callback.
         playheadPosition.store(*endPos, std::memory_order_relaxed);
+        positionOverridden = true;
         auto cb = endPositionCallback;
         juce::MessageManager::callAsync([cb]() { cb(); });
+      }
+    }
+
+    // Seek trigger detection — audio-accurate (one buffer latency instead of
+    // one timer period). Skipped if the loop manager or end-position logic
+    // already overrode the playhead position this buffer.
+    if (!positionOverridden && eventEngine != nullptr && appContext != nullptr) {
+      double currPos = playheadPosition.load(std::memory_order_relaxed);
+      auto seekTarget = eventEngine->checkSeekTrigger(posBeforeAdvance, currPos);
+      if (seekTarget.has_value()) {
+        playheadPosition.store(*seekTarget, std::memory_order_relaxed);
+        // Signal timerCallback to re-sync prevTimerPosition (avoids double-fire)
+        audioSeekApplied.store(*seekTarget, std::memory_order_release);
+        if (wsServer != nullptr) {
+          auto* ws = wsServer;
+          double pos = *seekTarget;
+          juce::MessageManager::callAsync([ws, pos]() {
+            broadcast::send(*ws, "transport.playheadPosition",
+                            {{"position", pos}});
+          });
+        }
       }
     }
   }
@@ -360,6 +387,12 @@ void AudioEngineCore::unfreezeTracks() {
 
 void AudioEngineCore::timerCallback() {
   if (wsServer == nullptr || activeSong == nullptr) return;
+
+  // If the audio callback applied a seek this cycle, re-sync the timer
+  // baseline so firePosition doesn't re-fire the same trigger.
+  double seekApplied =
+      audioSeekApplied.exchange(-1.0, std::memory_order_acquire);
+  if (seekApplied >= 0.0) prevTimerPosition = seekApplied;
 
   const double currentPos = playheadPosition.load(std::memory_order_relaxed);
 

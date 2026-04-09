@@ -131,6 +131,9 @@ class AudioEngineCore : public juce::AudioIODeviceCallback,
   EventEngine* eventEngine = nullptr;
   AppContext* appContext = nullptr;
   double prevTimerPosition = 0.0;
+  // Set by the audio callback when a seek trigger fires; read and cleared by
+  // timerCallback to re-sync prevTimerPosition (avoids double-fire).
+  std::atomic<double> audioSeekApplied{-1.0};
 
   // Audio settings persistence
   void saveSettings();

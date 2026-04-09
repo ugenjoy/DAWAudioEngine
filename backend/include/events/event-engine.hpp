@@ -100,8 +100,22 @@ class EventEngine {
    */
   void firePosition(double prevPos, double currentPos, AppContext& ctx);
 
+  /**
+   * Called from the audio callback (real-time thread) after advancing the
+   * playhead. Checks for enabled position triggers whose action is
+   * transport.seekToPosition and that fall in ]prevPos, currentPos].
+   * Returns the resolved seek target if one fired, nullopt otherwise.
+   * Uses a non-blocking try-lock — returns nullopt if the data lock is
+   * contended (extremely rare; timer will catch the trigger instead).
+   */
+  std::optional<double> checkSeekTrigger(double prevPos, double currPos) const;
+
  private:
   std::unordered_map<std::string, std::unique_ptr<ActionExecutor>> executors;
   std::vector<EventRule> rules;  // Combined project + setlist + song rules
   std::unordered_map<std::string, double> markerPositions;
+  // Protects rules and markerPositions for cross-thread access:
+  // written on the message thread (loadRules/loadMarkers),
+  // read on the audio thread (checkSeekTrigger).
+  mutable juce::SpinLock dataLock;
 };
