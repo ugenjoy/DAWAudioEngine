@@ -125,8 +125,6 @@ void LiveSetlistManager::changeSong(int newIndex, AppContext& ctx, bool fireEven
   Song* song = sm.getSongById(songIds[newIndex]);
   if (!song) return;
 
-  // ctx.getAudioEngine().stop();
-
   // If song not loaded (not preloaded), load now — may have brief gap
   if (song->getLoadState() != SongLoadState::Loaded) {
     song->loadAudio(ctx.getProjectManager().getAudioDir());

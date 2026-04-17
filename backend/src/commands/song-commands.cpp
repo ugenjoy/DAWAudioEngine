@@ -36,6 +36,14 @@ void CreateSongCommand::execute(AppContext& ctx) {
                   {{"songs", songsManager.toJson()}});
 }
 
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "song.create", CreateSong,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string name = payload.value("name", "");
+      if (name.empty()) return nullptr;
+      return std::make_unique<CreateSongCommand>(name);
+    });
+
 // ── SetTempoCommand ─────────────────────────────────────────────────────────
 
 SetTempoCommand::SetTempoCommand(float tempo) : tempo(tempo) {}
@@ -49,6 +57,14 @@ void SetTempoCommand::execute(AppContext& ctx) {
   broadcast::send(ctx.getWebSocketServer(), "song.tempoChanged",
                   {{"tempo", tempo}});
 }
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "song.setTempo", SetTempo,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      float tempo = payload.value("tempo", 0.0f);
+      if (tempo < 20.0f || tempo > 999.0f) return nullptr;
+      return std::make_unique<SetTempoCommand>(tempo);
+    });
 
 // ── SetMetronomeMuteCommand ──────────────────────────────────────────────────
 
@@ -66,6 +82,13 @@ void SetMetronomeMuteCommand::execute(AppContext& ctx) {
   broadcast::send(ctx.getWebSocketServer(), "song.metronomeMuteChanged",
                   {{"mute", mute}});
 }
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "song.setMetronomeMute", SetMetronomeMute,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      bool mute = payload.value("mute", true);
+      return std::make_unique<SetMetronomeMuteCommand>(mute);
+    });
 
 // ── RenameSongCommand ───────────────────────────────────────────────────────
 
@@ -87,6 +110,15 @@ void RenameSongCommand::execute(AppContext& ctx) {
                   {{"songs", songsManager.toJson()}});
 }
 
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "song.rename", RenameSong,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string uuid = payload.value("uuid", "");
+      std::string name = payload.value("name", "");
+      if (uuid.empty() || name.empty()) return nullptr;
+      return std::make_unique<RenameSongCommand>(uuid, name);
+    });
+
 // ── ReorderSongCommand ─────────────────────────────────────────────────────
 
 ReorderSongCommand::ReorderSongCommand(std::string uuid, int index)
@@ -99,39 +131,6 @@ void ReorderSongCommand::execute(AppContext& ctx) {
   broadcast::send(ctx.getWebSocketServer(), "project.songsUpdated",
                   {{"songs", songsManager.toJson()}});
 }
-
-// Auto-registration
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "song.setTempo", SetTempo,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      float tempo = payload.value("tempo", 0.0f);
-      if (tempo < 20.0f || tempo > 999.0f) return nullptr;
-      return std::make_unique<SetTempoCommand>(tempo);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "song.setMetronomeMute", SetMetronomeMute,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      bool mute = payload.value("mute", true);
-      return std::make_unique<SetMetronomeMuteCommand>(mute);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "song.create", CreateSong,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string name = payload.value("name", "");
-      if (name.empty()) return nullptr;
-      return std::make_unique<CreateSongCommand>(name);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "song.rename", RenameSong,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string uuid = payload.value("uuid", "");
-      std::string name = payload.value("name", "");
-      if (uuid.empty() || name.empty()) return nullptr;
-      return std::make_unique<RenameSongCommand>(uuid, name);
-    });
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
     "song.reorder", ReorderSong,
@@ -158,8 +157,8 @@ void SetEndPositionCommand::execute(AppContext& ctx) {
   broadcast::send(ctx.getWebSocketServer(), "song.endPositionUpdated",
                   {{"songId", uuid},
                    {"endPosition", pos.has_value()
-                       ? nlohmann::json(pos.value())
-                       : nlohmann::json(nullptr)}});
+                                       ? nlohmann::json(pos.value())
+                                       : nlohmann::json(nullptr)}});
 }
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(

@@ -11,13 +11,19 @@
 
 void PlayCommand::execute(AppContext& ctx) { ctx.getAudioEngine().play(); }
 
+REGISTER_COMMAND("transport.play", PlayCommand);
+
 // ── PauseCommand ────────────────────────────────────────────────────────────
 
 void PauseCommand::execute(AppContext& ctx) { ctx.getAudioEngine().pause(); }
 
+REGISTER_COMMAND("transport.pause", PauseCommand);
+
 // ── StopCommand ─────────────────────────────────────────────────────────────
 
 void StopCommand::execute(AppContext& ctx) { ctx.getAudioEngine().stop(); }
+
+REGISTER_COMMAND("transport.stop", StopCommand);
 
 // ── SetPlayheadPositionCommand ──────────────────────────────────────────────
 
@@ -28,6 +34,13 @@ void SetPlayheadPositionCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().setPlayheadPosition(position);
 }
 
+REGISTER_COMMAND_WITH_CREATOR(
+    "transport.setPlayheadPosition", SetPlayheadPosition,
+    [](const nlohmann::json& payload) {
+      return std::make_unique<SetPlayheadPositionCommand>(
+          payload.value("position", 0.0));
+    });
+
 // ── SetCursorPositionCommand ────────────────────────────────────────────────
 
 SetCursorPositionCommand::SetCursorPositionCommand(double position)
@@ -36,6 +49,13 @@ SetCursorPositionCommand::SetCursorPositionCommand(double position)
 void SetCursorPositionCommand::execute(AppContext& ctx) {
   ctx.getAudioEngine().setCursorPosition(position);
 }
+
+REGISTER_COMMAND_WITH_CREATOR(
+    "transport.setCursorPosition", SetCursorPosition,
+    [](const nlohmann::json& payload) {
+      return std::make_unique<SetCursorPositionCommand>(
+          payload.value("position", 0.0));
+    });
 
 // ── SetMasterVolumeCommand ──────────────────────────────────────────────────
 
@@ -48,27 +68,6 @@ void SetMasterVolumeCommand::execute(AppContext& ctx) {
   broadcast::send(ctx.getWebSocketServer(), "transport.masterVolume",
                   {{"volume", ctx.getAudioEngine().getMasterVolume()}});
 }
-
-// Auto-registration
-REGISTER_COMMAND("transport.play", PlayCommand);
-
-REGISTER_COMMAND("transport.pause", PauseCommand);
-
-REGISTER_COMMAND("transport.stop", StopCommand);
-
-REGISTER_COMMAND_WITH_CREATOR(
-    "transport.setPlayheadPosition", SetPlayheadPosition,
-    [](const nlohmann::json& payload) {
-      return std::make_unique<SetPlayheadPositionCommand>(
-          payload.value("position", 0.0));
-    });
-
-REGISTER_COMMAND_WITH_CREATOR(
-    "transport.setCursorPosition", SetCursorPosition,
-    [](const nlohmann::json& payload) {
-      return std::make_unique<SetCursorPositionCommand>(
-          payload.value("position", 0.0));
-    });
 
 REGISTER_COMMAND_WITH_CREATOR(
     "transport.setMasterVolume", SetMasterVolume,

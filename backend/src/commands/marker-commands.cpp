@@ -1,6 +1,7 @@
 #include "commands/marker-commands.hpp"
 
 #include <juce_core/juce_core.h>
+
 #include <nlohmann/json.hpp>
 
 #include "app-context.hpp"
@@ -38,6 +39,8 @@ void MarkerListCommand::execute(AppContext& ctx) {
   juce::Logger::writeToLog("[MarkerListCommand] Listed markers");
 }
 
+REGISTER_EDIT_COMMAND("marker.list", MarkerListCommand);
+
 // ── MarkerAddCommand ───────────────────────────────────────────────────────
 
 MarkerAddCommand::MarkerAddCommand(Marker marker) : marker(std::move(marker)) {}
@@ -55,6 +58,17 @@ void MarkerAddCommand::execute(AppContext& ctx) {
                            juce::String(marker.id) + "'");
 }
 
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "marker.add", MarkerAdd,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      if (!payload.contains("name")) return nullptr;
+      Marker m;
+      m.id = juce::Uuid().toDashedString().toStdString();
+      m.name = payload["name"].get<std::string>();
+      m.position = payload.value("position", 0.0);
+      return std::make_unique<MarkerAddCommand>(std::move(m));
+    });
+
 // ── MarkerRemoveCommand ────────────────────────────────────────────────────
 
 MarkerRemoveCommand::MarkerRemoveCommand(std::string markerId)
@@ -69,6 +83,14 @@ void MarkerRemoveCommand::execute(AppContext& ctx) {
                            juce::String(markerId) + "': " +
                            (removed ? "OK" : "not found"));
 }
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "marker.remove", MarkerRemove,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string id = payload.value("markerId", "");
+      if (id.empty()) return nullptr;
+      return std::make_unique<MarkerRemoveCommand>(std::move(id));
+    });
 
 // ── MarkerUpdateCommand ────────────────────────────────────────────────────
 
@@ -89,37 +111,14 @@ void MarkerUpdateCommand::execute(AppContext& ctx) {
                            (ok ? "OK" : "not found"));
 }
 
-// ── Auto-registration ──────────────────────────────────────────────────────
-
-REGISTER_EDIT_COMMAND("marker.list", MarkerListCommand);
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "marker.add", MarkerAdd,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      if (!payload.contains("name")) return nullptr;
-      Marker m;
-      m.id       = juce::Uuid().toDashedString().toStdString();
-      m.name     = payload["name"].get<std::string>();
-      m.position = payload.value("position", 0.0);
-      return std::make_unique<MarkerAddCommand>(std::move(m));
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "marker.remove", MarkerRemove,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string id = payload.value("markerId", "");
-      if (id.empty()) return nullptr;
-      return std::make_unique<MarkerRemoveCommand>(std::move(id));
-    });
-
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
     "marker.update", MarkerUpdate,
     [](const nlohmann::json& payload) -> CommandPtr {
       std::string id = payload.value("markerId", "");
       if (id.empty()) return nullptr;
       std::optional<std::string> name;
-      std::optional<double>      position;
-      if (payload.contains("name"))     name     = payload["name"].get<std::string>();
+      std::optional<double> position;
+      if (payload.contains("name")) name = payload["name"].get<std::string>();
       if (payload.contains("position")) position = payload["position"].get<double>();
       return std::make_unique<MarkerUpdateCommand>(std::move(id), std::move(name), position);
     });

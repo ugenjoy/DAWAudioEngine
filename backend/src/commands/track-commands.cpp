@@ -32,6 +32,8 @@ void ListDevicesCommand::execute(AppContext& ctx) {
   reply(response.dump());
 }
 
+REGISTER_COMMAND("audio.listDevices", ListDevicesCommand);
+
 // ── SetAudioDeviceCommand ────────────────────────────────────────────────────
 
 SetAudioDeviceCommand::SetAudioDeviceCommand(std::string deviceType,
@@ -61,6 +63,17 @@ void SetAudioDeviceCommand::execute(AppContext& ctx) {
                   {{"inputs", ctx.getAudioEngine().getAvailableInputs()}});
 }
 
+REGISTER_COMMAND_WITH_CREATOR(
+    "audio.setDevice", SetAudioDevice,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      return std::make_unique<SetAudioDeviceCommand>(
+          payload.value("deviceType", ""),
+          payload.value("outputDevice", ""),
+          payload.value("inputDevice", ""),
+          payload.value("sampleRate", 0.0),
+          payload.value("bufferSize", 0));
+    });
+
 // ── ListInputsCommand ────────────────────────────────────────────────────────
 
 void ListInputsCommand::execute(AppContext& ctx) {
@@ -70,6 +83,8 @@ void ListInputsCommand::execute(AppContext& ctx) {
   response["inputs"] = ctx.getAudioEngine().getAvailableInputs();
   reply(response.dump());
 }
+
+REGISTER_COMMAND("audio.listInputs", ListInputsCommand);
 
 // ── SetTrackInputCommand ─────────────────────────────────────────────────────
 
@@ -94,6 +109,17 @@ void SetTrackInputCommand::execute(AppContext& ctx) {
   broadcast::send(ctx.getWebSocketServer(), "track.inputChanged",
                   {{"trackId", trackId}, {"inputChannel", inputChannel}, {"stereo", stereo}});
 }
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.setInput", SetTrackInput,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      int inputChannel = payload.value("inputChannel", -1);
+      bool stereo = payload.value("stereo", false);
+      return std::make_unique<SetTrackInputCommand>(trackId, inputChannel,
+                                                    stereo);
+    });
 
 // ── SetTrackMonitoringCommand ────────────────────────────────────────────────
 
@@ -125,6 +151,15 @@ void SetTrackMonitoringCommand::execute(AppContext& ctx) {
                   {{"trackId", trackId}, {"monitoring", monitoring}});
 }
 
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.setMonitoring", SetTrackMonitoring,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      bool monitoring = payload.value("monitoring", false);
+      return std::make_unique<SetTrackMonitoringCommand>(trackId, monitoring);
+    });
+
 // ── SetTrackMuteCommand ──────────────────────────────────────────────────────
 
 SetTrackMuteCommand::SetTrackMuteCommand(std::string trackId, bool mute)
@@ -142,6 +177,15 @@ void SetTrackMuteCommand::execute(AppContext& ctx) {
   broadcast::send(ctx.getWebSocketServer(), "track.muteChanged",
                   {{"trackId", trackId}, {"mute", mute}});
 }
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.setMute", SetTrackMute,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      bool mute = payload.value("mute", false);
+      return std::make_unique<SetTrackMuteCommand>(trackId, mute);
+    });
 
 // ── SetTrackSoloCommand ──────────────────────────────────────────────────────
 
@@ -161,6 +205,15 @@ void SetTrackSoloCommand::execute(AppContext& ctx) {
                   {{"trackId", trackId}, {"solo", solo}});
 }
 
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.setSolo", SetTrackSolo,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      bool solo = payload.value("solo", false);
+      return std::make_unique<SetTrackSoloCommand>(trackId, solo);
+    });
+
 // ── SetTrackVolumeCommand ────────────────────────────────────────────────────
 
 SetTrackVolumeCommand::SetTrackVolumeCommand(std::string trackId, float volume)
@@ -178,6 +231,15 @@ void SetTrackVolumeCommand::execute(AppContext& ctx) {
   broadcast::send(ctx.getWebSocketServer(), "track.volumeChanged",
                   {{"trackId", trackId}, {"volume", track->volume}});
 }
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.setVolume", SetTrackVolume,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      float volume = payload.value("volume", 0.4f);
+      return std::make_unique<SetTrackVolumeCommand>(trackId, volume);
+    });
 
 // ── AddTrackCommand ──────────────────────────────────────────────────────────
 
@@ -198,6 +260,13 @@ void AddTrackCommand::execute(AppContext& ctx) {
   broadcastTrackList(ctx);
 }
 
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.add", AddTrack,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string name = payload.value("name", "");
+      return std::make_unique<AddTrackCommand>(name);
+    });
+
 // ── RemoveTrackCommand ───────────────────────────────────────────────────────
 
 RemoveTrackCommand::RemoveTrackCommand(std::string trackId)
@@ -211,6 +280,14 @@ void RemoveTrackCommand::execute(AppContext& ctx) {
     broadcastTrackList(ctx);
   }
 }
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.remove", RemoveTrack,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      return std::make_unique<RemoveTrackCommand>(trackId);
+    });
 
 // ── RenameTrackCommand ───────────────────────────────────────────────────────
 
@@ -226,6 +303,15 @@ void RenameTrackCommand::execute(AppContext& ctx) {
   }
 }
 
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.rename", RenameTrack,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      std::string name = payload.value("name", "");
+      if (trackId.empty() || name.empty()) return nullptr;
+      return std::make_unique<RenameTrackCommand>(trackId, name);
+    });
+
 // ── ReorderTrackCommand ──────────────────────────────────────────────────────
 
 ReorderTrackCommand::ReorderTrackCommand(std::string trackId, int index)
@@ -239,6 +325,15 @@ void ReorderTrackCommand::execute(AppContext& ctx) {
     broadcastTrackList(ctx);
   }
 }
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "track.reorder", ReorderTrack,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string trackId = payload.value("trackId", "");
+      if (trackId.empty()) return nullptr;
+      int index = payload.value("index", 0);
+      return std::make_unique<ReorderTrackCommand>(trackId, index);
+    });
 
 // ── SetTrackColorCommand ─────────────────────────────────────────────────────
 
@@ -257,102 +352,6 @@ void SetTrackColorCommand::execute(AppContext& ctx) {
   broadcast::send(ctx.getWebSocketServer(), "track.colorChanged",
                   {{"trackId", trackId}, {"color", track->color}});
 }
-
-// Auto-registration
-REGISTER_COMMAND("audio.listDevices", ListDevicesCommand);
-
-REGISTER_COMMAND_WITH_CREATOR(
-    "audio.setDevice", SetAudioDevice,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      return std::make_unique<SetAudioDeviceCommand>(
-          payload.value("deviceType", ""),
-          payload.value("outputDevice", ""),
-          payload.value("inputDevice", ""),
-          payload.value("sampleRate", 0.0),
-          payload.value("bufferSize", 0));
-    });
-
-REGISTER_COMMAND("audio.listInputs", ListInputsCommand);
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "track.setInput", SetTrackInput,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string trackId = payload.value("trackId", "");
-      if (trackId.empty()) return nullptr;
-      int inputChannel = payload.value("inputChannel", -1);
-      bool stereo = payload.value("stereo", false);
-      return std::make_unique<SetTrackInputCommand>(trackId, inputChannel,
-                                                    stereo);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "track.setMonitoring", SetTrackMonitoring,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string trackId = payload.value("trackId", "");
-      if (trackId.empty()) return nullptr;
-      bool monitoring = payload.value("monitoring", false);
-      return std::make_unique<SetTrackMonitoringCommand>(trackId, monitoring);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "track.setMute", SetTrackMute,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string trackId = payload.value("trackId", "");
-      if (trackId.empty()) return nullptr;
-      bool mute = payload.value("mute", false);
-      return std::make_unique<SetTrackMuteCommand>(trackId, mute);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "track.setSolo", SetTrackSolo,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string trackId = payload.value("trackId", "");
-      if (trackId.empty()) return nullptr;
-      bool solo = payload.value("solo", false);
-      return std::make_unique<SetTrackSoloCommand>(trackId, solo);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "track.setVolume", SetTrackVolume,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string trackId = payload.value("trackId", "");
-      if (trackId.empty()) return nullptr;
-      float volume = payload.value("volume", 0.4f);
-      return std::make_unique<SetTrackVolumeCommand>(trackId, volume);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "track.add", AddTrack,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string name = payload.value("name", "");
-      return std::make_unique<AddTrackCommand>(name);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "track.remove", RemoveTrack,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string trackId = payload.value("trackId", "");
-      if (trackId.empty()) return nullptr;
-      return std::make_unique<RemoveTrackCommand>(trackId);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "track.rename", RenameTrack,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string trackId = payload.value("trackId", "");
-      std::string name = payload.value("name", "");
-      if (trackId.empty() || name.empty()) return nullptr;
-      return std::make_unique<RenameTrackCommand>(trackId, name);
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "track.reorder", ReorderTrack,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string trackId = payload.value("trackId", "");
-      if (trackId.empty()) return nullptr;
-      int index = payload.value("index", 0);
-      return std::make_unique<ReorderTrackCommand>(trackId, index);
-    });
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
     "track.setColor", SetTrackColor,

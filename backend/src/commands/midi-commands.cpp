@@ -22,6 +22,8 @@ void MidiListOutputsCommand::execute(AppContext& ctx) {
                            " MIDI output(s)");
 }
 
+REGISTER_COMMAND("midi.listOutputs", MidiListOutputsCommand);
+
 // ── MidiListInputsCommand ──────────────────────────────────────────────────
 
 void MidiListInputsCommand::execute(AppContext& ctx) {
@@ -32,6 +34,8 @@ void MidiListInputsCommand::execute(AppContext& ctx) {
                            juce::String((int)inputs.size()) +
                            " MIDI input(s)");
 }
+
+REGISTER_COMMAND("midi.listInputs", MidiListInputsCommand);
 
 // ── MidiSendCommand ────────────────────────────────────────────────────────
 
@@ -55,11 +59,6 @@ void MidiSendCommand::execute(AppContext& ctx) {
       "[MidiSendCommand] Send to '" + juce::String(deviceIdentifier) +
       "': " + (ok ? "OK" : "FAILED"));
 }
-
-// ── Auto-registration ──────────────────────────────────────────────────────
-
-REGISTER_COMMAND("midi.listOutputs", MidiListOutputsCommand);
-REGISTER_COMMAND("midi.listInputs", MidiListInputsCommand);
 
 REGISTER_COMMAND_WITH_CREATOR(
     "midi.send", MidiSend,

@@ -71,6 +71,14 @@ void LoadProjectCommand::execute(AppContext& ctx) {
   }
 }
 
+REGISTER_COMMAND_WITH_CREATOR("project.load", LoadProject,
+                              [](const nlohmann::json& payload) -> CommandPtr {
+                                std::string path = payload.value("path", "");
+                                if (path.empty()) return nullptr;
+                                return std::make_unique<LoadProjectCommand>(
+                                    path);
+                              });
+
 // ── SaveProjectCommand ───────────────────────────────────────────────────────
 
 SaveProjectCommand::SaveProjectCommand(std::string projectPath)
@@ -91,6 +99,14 @@ void SaveProjectCommand::execute(AppContext& ctx) {
                              juce::String(projectManager.getLastError()));
   }
 }
+
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "project.save", SaveProject,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string path = payload.value("path", "");
+      if (path.empty()) return nullptr;
+      return std::make_unique<SaveProjectCommand>(path);
+    });
 
 // ── GetLoadedProjectCommand ──────────────────────────────────────────────────
 
@@ -142,6 +158,8 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
                        : "none"));
 }
 
+REGISTER_COMMAND("project.getLoaded", GetLoadedProjectCommand);
+
 // ── ListProjectsCommand ──────────────────────────────────────────────────────
 
 void ListProjectsCommand::execute(AppContext& ctx) {
@@ -169,6 +187,8 @@ void ListProjectsCommand::execute(AppContext& ctx) {
                            juce::String((int)projects.size()) +
                            " projects from " + juce::String(directory));
 }
+
+REGISTER_COMMAND("project.list", ListProjectsCommand);
 
 // ── LoadSongCommand ──────────────────────────────────────────────────────────
 
@@ -231,27 +251,6 @@ void LoadSongCommand::execute(AppContext& ctx) {
     ctx.getSongPreloader().onSongChanged(nextSong, songs, audioDir);
   }
 }
-
-// Auto-registration
-REGISTER_COMMAND_WITH_CREATOR("project.load", LoadProject,
-                              [](const nlohmann::json& payload) -> CommandPtr {
-                                std::string path = payload.value("path", "");
-                                if (path.empty()) return nullptr;
-                                return std::make_unique<LoadProjectCommand>(
-                                    path);
-                              });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "project.save", SaveProject,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string path = payload.value("path", "");
-      if (path.empty()) return nullptr;
-      return std::make_unique<SaveProjectCommand>(path);
-    });
-
-REGISTER_COMMAND("project.getLoaded", GetLoadedProjectCommand);
-
-REGISTER_COMMAND("project.list", ListProjectsCommand);
 
 REGISTER_COMMAND_WITH_CREATOR("project.loadSong", LoadSong,
                               [](const nlohmann::json& payload) -> CommandPtr {

@@ -4,8 +4,8 @@
 
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
-#include "events/event-engine.hpp"
 #include "commands/command-factory.hpp"
+#include "events/event-engine.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
@@ -47,6 +47,8 @@ void EventListCommand::execute(AppContext& ctx) {
   juce::Logger::writeToLog("[EventListCommand] Listed events");
 }
 
+REGISTER_EDIT_COMMAND("event.list", EventListCommand);
+
 // ── EventAddCommand ────────────────────────────────────────────────────────
 
 EventAddCommand::EventAddCommand(std::string scope, EventRule rule)
@@ -79,6 +81,27 @@ void EventAddCommand::execute(AppContext& ctx) {
   broadcastEventList(ctx);
 }
 
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "event.add", EventAdd,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string scope = payload.value("scope", "");
+      if (scope.empty() || !payload.contains("trigger") ||
+          !payload.contains("eventAction")) {
+        return nullptr;
+      }
+
+      EventRule rule;
+      rule.id = juce::Uuid().toDashedString().toStdString();
+      rule.trigger = payload["trigger"].get<std::string>();
+      rule.triggerParams = payload.contains("triggerParams")
+                               ? payload["triggerParams"]
+                               : nlohmann::json::object();
+      rule.action = EventAction::fromJson(payload["eventAction"]);
+      rule.enabled = payload.value("enabled", true);
+
+      return std::make_unique<EventAddCommand>(scope, std::move(rule));
+    });
+
 // ── EventRemoveCommand ─────────────────────────────────────────────────────
 
 EventRemoveCommand::EventRemoveCommand(std::string scope, std::string eventId)
@@ -105,6 +128,15 @@ void EventRemoveCommand::execute(AppContext& ctx) {
   broadcastEventList(ctx);
 }
 
+REGISTER_EDIT_COMMAND_WITH_CREATOR(
+    "event.remove", EventRemove,
+    [](const nlohmann::json& payload) -> CommandPtr {
+      std::string scope = payload.value("scope", "");
+      std::string eventId = payload.value("eventId", "");
+      if (scope.empty() || eventId.empty()) return nullptr;
+      return std::make_unique<EventRemoveCommand>(scope, eventId);
+    });
+
 // ── EventUpdateCommand ─────────────────────────────────────────────────────
 
 EventUpdateCommand::EventUpdateCommand(std::string scope, EventRule updated)
@@ -130,40 +162,6 @@ void EventUpdateCommand::execute(AppContext& ctx) {
   reloadEventEngineRules(ctx);
   broadcastEventList(ctx);
 }
-
-// ── Auto-registration ──────────────────────────────────────────────────────
-
-REGISTER_EDIT_COMMAND("event.list", EventListCommand);
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "event.add", EventAdd,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string scope = payload.value("scope", "");
-      if (scope.empty() || !payload.contains("trigger") ||
-          !payload.contains("eventAction")) {
-        return nullptr;
-      }
-
-      EventRule rule;
-      rule.id = juce::Uuid().toDashedString().toStdString();
-      rule.trigger = payload["trigger"].get<std::string>();
-      rule.triggerParams = payload.contains("triggerParams")
-                               ? payload["triggerParams"]
-                               : nlohmann::json::object();
-      rule.action = EventAction::fromJson(payload["eventAction"]);
-      rule.enabled = payload.value("enabled", true);
-
-      return std::make_unique<EventAddCommand>(scope, std::move(rule));
-    });
-
-REGISTER_EDIT_COMMAND_WITH_CREATOR(
-    "event.remove", EventRemove,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string scope = payload.value("scope", "");
-      std::string eventId = payload.value("eventId", "");
-      if (scope.empty() || eventId.empty()) return nullptr;
-      return std::make_unique<EventRemoveCommand>(scope, eventId);
-    });
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
     "event.update", EventUpdate,

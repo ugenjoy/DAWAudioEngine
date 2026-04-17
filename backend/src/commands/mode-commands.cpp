@@ -15,6 +15,8 @@
 static constexpr int kEditPollIntervalMs = 1;
 static constexpr int kLivePollIntervalMs = 10;
 
+// ── SetEditModeCommand ──────────────────────────────────────────────────
+
 void SetEditModeCommand::execute(AppContext& ctx) {
   auto& modeManager = ctx.getModeManager();
 
@@ -43,6 +45,10 @@ void SetEditModeCommand::execute(AppContext& ctx) {
   ctx.getWebSocketServer().broadcast(broadcast.dump());
 }
 
+REGISTER_COMMAND("mode.setEdit", SetEditModeCommand);
+
+// ── SetLiveModeCommand ──────────────────────────────────────────────────
+
 void SetLiveModeCommand::execute(AppContext& ctx) {
   ctx.getModeManager().setMode(AppMode::Live);
 
@@ -67,6 +73,10 @@ void SetLiveModeCommand::execute(AppContext& ctx) {
   ctx.getWebSocketServer().broadcast(broadcast.dump());
 }
 
+REGISTER_COMMAND("mode.setLive", SetLiveModeCommand);
+
+// ── GetModeCommand ──────────────────────────────────────────────────
+
 void GetModeCommand::execute(AppContext& ctx) {
   std::string mode = ctx.getModeManager().isLiveMode() ? "live" : "edit";
   nlohmann::json response = {{"type", "response"},
@@ -75,7 +85,4 @@ void GetModeCommand::execute(AppContext& ctx) {
   reply(response.dump());
 }
 
-// Auto-registration — accessible in both Live and Edit
-REGISTER_COMMAND("mode.setEdit", SetEditModeCommand);
-REGISTER_COMMAND("mode.setLive", SetLiveModeCommand);
 REGISTER_COMMAND("mode.getMode", GetModeCommand);
