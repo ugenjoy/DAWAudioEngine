@@ -557,6 +557,10 @@ export function ProjectProvider({
         setIsDirty(true)
         break
       }
+      case 'marker.listUpdated': {
+        setIsDirty(true)
+        break
+      }
       case 'loop.listUpdated': {
         setIsDirty(true)
         const { loops: newLoops } = data as { loops: Loop[] }

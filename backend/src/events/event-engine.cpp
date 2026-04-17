@@ -52,8 +52,13 @@ std::optional<double> EventEngine::resolveMarker(const std::string& markerId) co
 }
 
 void EventEngine::fire(const std::string& trigger, AppContext& ctx) {
+  // Snapshot rules to guard against re-entrant loadRules() calls from executors
+  // (e.g. setlist.next → changeSong → loadRules) which would otherwise clear
+  // and resize the vector while we are still iterating over it.
+  const std::vector<EventRule> snapshot = rules;
+
   int fired = 0;
-  for (const auto& rule : rules) {
+  for (const auto& rule : snapshot) {
     if (!rule.enabled || rule.trigger != trigger) continue;
 
     // Skip gracefully if no executor is registered for this action type.
@@ -127,7 +132,10 @@ bool EventEngine::matchesPositionTrigger(const EventRule& rule,
 }
 
 void EventEngine::firePosition(double prevPos, double currentPos, AppContext& ctx) {
-  for (const auto& rule : rules) {
+  // Snapshot rules for the same reason as fire() — executors can call loadRules().
+  const std::vector<EventRule> snapshot = rules;
+
+  for (const auto& rule : snapshot) {
     if (!rule.enabled) continue;
     if (!matchesPositionTrigger(rule, prevPos, currentPos)) continue;
     auto it = executors.find(rule.action.type);
@@ -172,7 +180,16 @@ std::optional<double> EventEngine::checkSeekTrigger(double prevPos,
 void EventEngine::fireMidi(const juce::MidiMessage& msg,
                             const std::string& deviceName,
                             AppContext& ctx) {
-  for (const auto& rule : rules) {
+  // Snapshot rules before iterating: an executor such as setlist.next can call
+  // loadRules() via changeSong(), which clears and resizes the member vector
+  // while we are iterating over it.  Without a snapshot the iterator held by
+  // the range-for loop becomes invalid (the vector shrinks from N to M < N,
+  // positions M..N-1 are destroyed, but __end still points to the old end),
+  // leading to UB and a json type_error when destroyed EventRule objects are
+  // read past the new end of the vector.
+  const std::vector<EventRule> snapshot = rules;
+
+  for (const auto& rule : snapshot) {
     if (!rule.enabled) continue;
     if (!matchesMidiTrigger(rule, msg, deviceName)) continue;
 

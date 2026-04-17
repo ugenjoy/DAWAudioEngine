@@ -228,6 +228,7 @@ function Sequencer() {
     end: number
   } | null>(null)
   const [selectedLoopId, setSelectedLoopId] = useState<string | null>(null)
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null)
   const [headerCursor, setHeaderCursor] = useState<string>('default')
   const [clipContextMenu, setClipContextMenu] = useState<{
     x: number
@@ -263,6 +264,7 @@ function Sequencer() {
     positionTriggers,
     draggingMarkerRef,
     markers,
+    selectedMarkerId,
   )
 
   const tracksContainer = useRef<HTMLDivElement>(null)
@@ -525,6 +527,8 @@ function Sequencer() {
         // 3. Marker drag
         const markerHit = hitTestMarker(e.offsetX)
         if (markerHit) {
+          setSelectedMarkerId(markerHit.id)
+          setSelectedLoopId(null)
           draggingMarkerRef.current = {
             markerId: markerHit.id,
             position: markerHit.position,
@@ -567,6 +571,7 @@ function Sequencer() {
             setHeaderCursor('ew-resize')
           } else {
             setSelectedLoopId(loopHit.loopId)
+            setSelectedMarkerId(null)
             loopInteractionRef.current = {
               mode: 'moving',
               loopId: loopHit.loopId,
@@ -584,8 +589,9 @@ function Sequencer() {
           return
         }
 
-        // 4. Empty header → deselect loop, set playhead cursor
+        // 4. Empty header → deselect loop/marker, set playhead cursor
         setSelectedLoopId(null)
+        setSelectedMarkerId(null)
         const zoom = zoomRef.current
         const pixelsPerBeat = 20 * zoom
         let beatsPerLine: number
@@ -602,8 +608,9 @@ function Sequencer() {
         return
       }
 
-      // Below header: clip and track selection — always deselect loop
+      // Below header: clip and track selection — always deselect loop/marker
       setSelectedLoopId(null)
+      setSelectedMarkerId(null)
       const hit = hitTestClip(e.offsetX, e.offsetY)
       if (hit && !isLiveMode) {
         setSelectedClip({ trackId: hit.trackId, clipId: hit.clipId })
@@ -904,7 +911,10 @@ function Sequencer() {
         }
         case 'Delete': {
           e.preventDefault()
-          if (!isLiveMode && selectedLoopId) {
+          if (!isLiveMode && selectedMarkerId) {
+            removeMarker(selectedMarkerId)
+            setSelectedMarkerId(null)
+          } else if (!isLiveMode && selectedLoopId) {
             removeLoop(selectedLoopId)
             setSelectedLoopId(null)
           } else if (!isLiveMode && selectedClip) {
@@ -920,10 +930,12 @@ function Sequencer() {
       activeSong,
       playing,
       isLiveMode,
+      selectedMarkerId,
       selectedLoopId,
       selectedTrackId,
       selectedClip,
       removeSelectedClip,
+      removeMarker,
       removeLoop,
       send,
     ],

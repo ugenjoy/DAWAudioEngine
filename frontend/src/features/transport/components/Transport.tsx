@@ -27,6 +27,9 @@ export function Transport() {
     setMasterVolume,
     setTempo,
     setMetronomeMute,
+    activeLoop,
+    cancelLoop,
+    exitLoop,
   } = useProject()
   const { isLiveMode } = useMode()
   const displayRef = useRef<HTMLSpanElement>(null)
@@ -191,6 +194,30 @@ export function Transport() {
         </Button>
 
         <div className="flex-1" />
+
+        {activeLoop && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-amber-400">LOOP</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={cancelLoop}
+              title="Cancel loop (continue past end)"
+              className="text-amber-400 hover:text-amber-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={exitLoop}
+              title="Exit loop (jump to end)"
+              className="text-amber-400 hover:text-amber-300"
+            >
+              Exit
+            </Button>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <IconVolume size={14} className="text-muted-foreground shrink-0" />

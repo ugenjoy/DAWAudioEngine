@@ -73,8 +73,11 @@ export function MarkersProvider({
       case 'marker.listUpdated':
         setMarkers(data.markers ?? [])
         break
+      case 'project.currentLoaded':
+        setMarkers(data.activeSong?.markers ?? [])
+        break
       case 'song.loaded':
-        send({ action: 'marker.list' })
+        setMarkers(data.song?.markers ?? [])
         break
       case 'song.unloaded':
         setMarkers([])

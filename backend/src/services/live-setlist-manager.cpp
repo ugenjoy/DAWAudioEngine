@@ -138,6 +138,7 @@ void LiveSetlistManager::changeSong(int newIndex, AppContext& ctx, bool fireEven
   ctx.getEventEngine().loadRules(sm.getProjectEventRules(),
                                  setlistSnapshot.getEventRules(),
                                  song->getEventRules());
+  ctx.getEventEngine().loadMarkers(song->getMarkers());
   ctx.getEventEngine().fire("song.loaded", ctx);
 
   // Preload next

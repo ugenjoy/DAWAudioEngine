@@ -44,9 +44,10 @@ void LoadProjectCommand::execute(AppContext& ctx) {
       ctx.getLoopManager().reset();
       ctx.getLoopManager().setLoops(firstSong->getLoops());
 
-      // Load event rules and fire song.loaded trigger
+      // Load event rules, markers, and fire song.loaded trigger
       ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(), {},
                                      firstSong->getEventRules());
+      ctx.getEventEngine().loadMarkers(firstSong->getMarkers());
       ctx.getEventEngine().fire("song.loaded", ctx);
 
       // Preload next song if in live mode (default mode is Live)
@@ -108,7 +109,11 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
   nlohmann::json songJson = nullptr;
   if (activeSong != nullptr) songJson = activeSong->toJson();
 
-  std::string mode = ctx.getModeManager().isLiveMode() ? "live" : "edit";
+  // Use the live setlist state (not ModeManager) to determine the restore mode.
+  // ModeManager may have been reset to Edit by the frontend navigate-to-/
+  // before this command was processed, whereas liveSetlist.isActive() reliably
+  // reflects whether a live session is in progress.
+  std::string mode = isLive ? "live" : "edit";
 
   nlohmann::json response;
   response["type"] = "response";

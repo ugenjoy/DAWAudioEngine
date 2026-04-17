@@ -5,6 +5,7 @@
 #include "events/action-executor.hpp"
 #include "events/loop-action-executor.hpp"
 #include "services/loop-manager.hpp"
+#include "websocket/broadcast-helpers.hpp"
 
 class LoopCancelExecutor : public ActionExecutor {
  public:
@@ -13,6 +14,8 @@ class LoopCancelExecutor : public ActionExecutor {
     bool ok = ctx.getLoopManager().cancelActiveLoop();
     juce::Logger::writeToLog(
         juce::String("[LoopCancelExecutor] cancel: ") + (ok ? "OK" : "no active loop"));
+    if (ok)
+      broadcast::send(ctx.getWebSocketServer(), "loop.deactivated");
   }
 };
 
@@ -23,6 +26,9 @@ class LoopExitExecutor : public ActionExecutor {
     auto endPos = ctx.getLoopManager().exitActiveLoop();
     if (endPos.has_value()) {
       ctx.getAudioEngine().setPlayheadPosition(*endPos);
+      broadcast::send(ctx.getWebSocketServer(), "loop.deactivated");
+      broadcast::send(ctx.getWebSocketServer(), "transport.playheadPosition",
+                      {{"position", *endPos}});
       juce::Logger::writeToLog("[LoopExitExecutor] exit to " +
                                juce::String(*endPos));
     } else {

@@ -5,6 +5,7 @@
 #include "events/action-executor.hpp"
 #include "events/event-engine.hpp"
 #include "events/transport-action-executor.hpp"
+#include "websocket/broadcast-helpers.hpp"
 
 class TransportPlayExecutor : public ActionExecutor {
  public:
@@ -49,7 +50,11 @@ class TransportSeekExecutor : public ActionExecutor {
           "' not found");
       return;
     }
+    bool hadActiveLoop = ctx.getLoopManager().hasActiveLoop();
+    ctx.getLoopManager().reset();
     ctx.getAudioEngine().setPlayheadPosition(pos.value());
+    if (hadActiveLoop)
+      broadcast::send(ctx.getWebSocketServer(), "loop.deactivated");
     juce::Logger::writeToLog(
         "[TransportSeekExecutor] Seeked to " +
         juce::String(pos.value(), 3) + "s");

@@ -37,6 +37,7 @@ export function useSequencer(
   positionTriggers?: EventRule[],
   draggingMarkerRef?: RefObject<{ markerId: string; position: number } | null>,
   markers?: Marker[],
+  selectedMarkerId?: string | null,
 ) {
   const {
     activeSong,
@@ -374,21 +375,24 @@ export function useSequencer(
           const markerX = (pos / 60) * activeSong.tempo * pixelsPerBeat - scrollX
           if (markerX < 0 || markerX > width) continue
 
-          ctx.strokeStyle = '#f59e0b'
-          ctx.lineWidth = 1.5
+          const isSelected = selectedMarkerId === marker.id
+          ctx.globalAlpha = isSelected ? 1 : 0.85
+          ctx.strokeStyle = isSelected ? '#fff' : '#f59e0b'
+          ctx.lineWidth = isSelected ? 2 : 1.5
           ctx.beginPath()
           ctx.moveTo(markerX, 0)
           ctx.lineTo(markerX, headerHeight)
           ctx.stroke()
 
           // Flag
-          ctx.fillStyle = '#f59e0b'
+          ctx.fillStyle = isSelected ? '#fff' : '#f59e0b'
           ctx.fillRect(markerX, 0, 10, 8)
 
           // Label
-          ctx.fillStyle = '#000'
+          ctx.fillStyle = isSelected ? '#000' : '#000'
           ctx.font = 'bold 8px Arial'
           ctx.fillText(marker.name, markerX + 2, 7)
+          ctx.globalAlpha = 1
         }
       }
 
@@ -427,7 +431,7 @@ export function useSequencer(
       ctx.stroke()
 
     },
-    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef, loops, activeLoop, loopPreviewRef, selectedLoopId, positionTriggers, draggingMarkerRef, markers],
+    [activeSong, trackViews, selectedTrackId, selectedClip, endPositionDragRef, loops, activeLoop, loopPreviewRef, selectedLoopId, positionTriggers, draggingMarkerRef, markers, selectedMarkerId],
   )
   return { draw }
 }
