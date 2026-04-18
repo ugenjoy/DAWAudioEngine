@@ -120,6 +120,9 @@ void AudioEngineCore::loadSong(Song* newSong) {
 
 void AudioEngineCore::play() {
   if (activeSong && !playing) {
+    // Reset so the end-position check is active for the new session, even if a
+    // previous session ended and the async stop callback hasn't run yet.
+    endPositionFired.store(false, std::memory_order_relaxed);
     playing.store(true);
 
     startTimerHz(10);
@@ -296,15 +299,21 @@ void AudioEngineCore::audioDeviceIOCallbackWithContext(
       }
     }
 
-    if (!endPositionFired && endPositionCallback) {
+    if (endPositionFired.load(std::memory_order_relaxed)) {
+      // Persistent clamp: keep the playhead at end while the async stop
+      // callback is pending, preventing overshoot across multiple buffers.
+      // For "continue" transitions, loadSong() resets this flag and the
+      // clamp stops as soon as the next song is loaded.
+      auto endPos = activeSong->getEndPosition();
+      if (endPos.has_value()) {
+        playheadPosition.store(*endPos, std::memory_order_relaxed);
+        positionOverridden = true;
+      }
+    } else if (endPositionCallback) {
       auto endPos = activeSong->getEndPosition();
       if (endPos.has_value() &&
           playheadPosition.load(std::memory_order_relaxed) >= *endPos) {
-        endPositionFired = true;
-        // Clamp playhead at end position to prevent overshoot while the async
-        // callback is pending. playing is kept as-is: "continue" transitions
-        // keep audio running into the next song; "stop" transitions call
-        // stop() from the message thread via the callback.
+        endPositionFired.store(true, std::memory_order_relaxed);
         playheadPosition.store(*endPos, std::memory_order_relaxed);
         positionOverridden = true;
         auto cb = endPositionCallback;
