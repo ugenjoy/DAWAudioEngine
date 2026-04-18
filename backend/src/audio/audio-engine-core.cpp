@@ -3,6 +3,7 @@
 #include "audio/audio-context.hpp"
 #include "events/event-engine.hpp"
 #include "websocket/broadcast-helpers.hpp"
+#include "websocket/websocket-server.hpp"
 
 AudioEngineCore::AudioEngineCore()
     : playing(false),
@@ -147,7 +148,7 @@ void AudioEngineCore::pause() {
 
 void AudioEngineCore::stop() {
   if (activeSong) {
-    endPositionFired = false;
+    endPositionFired.store(false, std::memory_order_relaxed);
     bool hadActiveLoop = loopManager && loopManager->hasActiveLoop();
     if (loopManager) loopManager->reset();
     // Two-phase stop: first press returns to cursor position,
@@ -155,7 +156,8 @@ void AudioEngineCore::stop() {
     if (playing) {
       playing.store(false);
       stopTimer();
-      playheadPosition.store(cursorPosition, std::memory_order_relaxed);
+      playheadPosition.store(cursorPosition.load(std::memory_order_relaxed),
+                              std::memory_order_relaxed);
     } else {
       cursorPosition.store(0.0, std::memory_order_relaxed);
       playheadPosition.store(0.0, std::memory_order_relaxed);
@@ -416,13 +418,24 @@ void AudioEngineCore::timerCallback() {
 
   const double currentPos = playheadPosition.load(std::memory_order_relaxed);
 
+  double broadcastPos = currentPos;
   if (eventEngine != nullptr && appContext != nullptr && playing.load(std::memory_order_relaxed)) {
-    eventEngine->firePosition(prevTimerPosition, currentPos, *appContext);
+    auto snapPos = eventEngine->firePosition(prevTimerPosition, currentPos, *appContext);
+    if (snapPos.has_value()) {
+      // Pause snap: setPlayheadPosition stores the exact position and broadcasts it;
+      // override the final broadcast too so currentPos doesn't overwrite the snap.
+      setPlayheadPosition(*snapPos);
+      broadcastPos = *snapPos;
+    } else if (!playing.load(std::memory_order_relaxed)) {
+      // stop() fired during firePosition; use the updated playhead (cursor pos)
+      // instead of the pre-stop currentPos for the final broadcast.
+      broadcastPos = playheadPosition.load(std::memory_order_relaxed);
+    }
   }
   prevTimerPosition = currentPos;
 
   broadcast::send(*wsServer, "transport.playheadPosition",
-                  {{"position", currentPos}});
+                  {{"position", broadcastPos}});
 
   nlohmann::json levels = nlohmann::json::object();
   for (const auto& track : activeSong->getTracksManager()->getTracks()) {

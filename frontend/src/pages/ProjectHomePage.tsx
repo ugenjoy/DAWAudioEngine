@@ -1,11 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { IconPlayerPlay, IconEdit, IconPlus, IconTrash, IconX, IconArrowUp, IconArrowDown, IconGripVertical } from '@tabler/icons-react'
+import {
+  IconPlayerPlay,
+  IconEdit,
+  IconPlus,
+  IconTrash,
+  IconX,
+  IconArrowUp,
+  IconArrowDown,
+  IconGripVertical,
+} from '@tabler/icons-react'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { useProject } from '@/shared/contexts/project-provider'
 import { useSetlist } from '@/shared/contexts/setlist-provider'
 import ProjectsDialog from '@/features/projects/components/ProjectsDialog'
-import { Setlist, SetlistEntry, SetlistTransition } from '@/shared/models/setlist'
+import {
+  Setlist,
+  SetlistEntry,
+  SetlistTransition,
+} from '@/shared/models/setlist'
 import { Button } from '@/shared/shadcn/components/button'
 import { Input } from '@/shared/shadcn/components/input'
 import {
@@ -19,11 +32,20 @@ import {
 export default function ProjectHomePage() {
   const { isConnected } = useWebSocket()
   const { project } = useProject()
-  const { setlists, loadSetlist, loadSingle, createSetlist, updateSetlist, deleteSetlist } = useSetlist()
+  const {
+    setlists,
+    loadSetlist,
+    loadSingle,
+    createSetlist,
+    updateSetlist,
+    deleteSetlist,
+  } = useSetlist()
   const navigate = useNavigate()
 
   const [projectsDialogOpen, setProjectsDialogOpen] = useState(false)
-  const [editingSetlist, setEditingSetlist] = useState<Setlist | null | 'new'>(null)
+  const [editingSetlist, setEditingSetlist] = useState<Setlist | null | 'new'>(
+    null,
+  )
 
   // Setlist editor state
   const [editorName, setEditorName] = useState('')
@@ -104,7 +126,10 @@ export default function ProjectHomePage() {
 
   if (!project) {
     return (
-      <ProjectsDialog open={projectsDialogOpen} setOpen={setProjectsDialogOpen} />
+      <ProjectsDialog
+        open={projectsDialogOpen}
+        setOpen={setProjectsDialogOpen}
+      />
     )
   }
 
@@ -114,7 +139,11 @@ export default function ProjectHomePage() {
     <main className="flex flex-col h-screen">
       <header className="flex items-center justify-between px-4 py-2 border-b">
         <h1 className="font-semibold">{project.name}</h1>
-        <Button variant="outline" size="sm" onClick={() => setProjectsDialogOpen(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setProjectsDialogOpen(true)}
+        >
           Change project
         </Button>
       </header>
@@ -127,27 +156,40 @@ export default function ProjectHomePage() {
           </div>
           <ul className="flex-1 overflow-y-auto space-y-2 px-4 pb-4">
             {availableSongs.map((song) => (
-              <li key={song.id}
+              <li
+                key={song.id}
                 draggable={editingSetlist !== null}
                 onDragStart={(e) => {
                   e.dataTransfer.setData('songId', song.id)
                   e.dataTransfer.effectAllowed = 'copy'
                 }}
-                className="flex items-center justify-between rounded-md border px-4 py-2 cursor-default">
+                className="flex items-center justify-between rounded-md border px-4 py-2 cursor-default"
+              >
                 {editingSetlist !== null && (
                   <IconGripVertical className="size-4 text-muted-foreground mr-2 shrink-0 cursor-grab" />
                 )}
                 <span className="flex-1 min-w-0 truncate">
                   {song.name}
-                  <span className="text-muted-foreground text-sm ml-2">{song.tempo} BPM</span>
+                  <span className="text-muted-foreground text-sm ml-2">
+                    {song.tempo} BPM
+                  </span>
                 </span>
                 <div className="flex gap-2 shrink-0">
-                  <Button size="sm" variant="outline"
-                    onClick={() => { loadSingle(song.id); navigate('/live') }}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      loadSingle(song.id)
+                      navigate('/live')
+                    }}
+                  >
                     <IconPlayerPlay className="size-4" />
                   </Button>
-                  <Button size="sm" variant="outline"
-                    onClick={() => navigate(`/edit/${song.id}`)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/edit/${song.id}`)}
+                  >
                     <IconEdit className="size-4" />
                   </Button>
                 </div>
@@ -158,9 +200,11 @@ export default function ProjectHomePage() {
 
         {/* Setlists panel or inline editor */}
         {editingSetlist !== null ? (
-          <section className="flex-1 flex flex-col"
+          <section
+            className="flex-1 flex flex-col"
             onDragOver={(e) => e.preventDefault()}
-            onDrop={onDropSong}>
+            onDrop={onDropSong}
+          >
             <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b">
               <h2 className="text-lg font-medium">
                 {editingSetlist === 'new' ? 'New setlist' : 'Edit setlist'}
@@ -182,35 +226,60 @@ export default function ProjectHomePage() {
               {editorEntries.map((entry, i) => {
                 const song = availableSongs.find((s) => s.id === entry.songId)
                 return (
-                  <li key={i}
+                  <li
+                    key={i}
                     draggable
                     onDragStart={() => onDragStart(i)}
                     onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => { e.stopPropagation(); onDrop(i) }}
-                    className="flex items-center gap-2 border rounded px-3 py-2 cursor-grab bg-background">
+                    onDrop={(e) => {
+                      e.stopPropagation()
+                      onDrop(i)
+                    }}
+                    className="flex items-center gap-2 border rounded px-3 py-2 cursor-grab bg-background"
+                  >
                     <IconGripVertical className="size-4 text-muted-foreground shrink-0" />
-                    <span className="flex-1 text-sm truncate">{song?.name ?? entry.songId}</span>
+                    <span className="flex-1 text-sm truncate">
+                      {song?.name ?? entry.songId}
+                    </span>
                     <Select
                       value={entry.transition}
-                      onValueChange={(v) => setTransition(i, v as SetlistTransition)}>
+                      onValueChange={(v) =>
+                        setTransition(i, v as SetlistTransition)
+                      }
+                    >
                       <SelectTrigger className="w-28 h-7 text-xs shrink-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="stop">Stop</SelectItem>
+                        <SelectItem value="pause">Pause</SelectItem>
                         <SelectItem value="continue">Continue</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button size="icon" variant="ghost" className="size-7 shrink-0"
-                      onClick={() => moveEntry(i, -1)} disabled={i === 0}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 shrink-0"
+                      onClick={() => moveEntry(i, -1)}
+                      disabled={i === 0}
+                    >
                       <IconArrowUp className="size-3" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="size-7 shrink-0"
-                      onClick={() => moveEntry(i, 1)} disabled={i === editorEntries.length - 1}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 shrink-0"
+                      onClick={() => moveEntry(i, 1)}
+                      disabled={i === editorEntries.length - 1}
+                    >
                       <IconArrowDown className="size-3" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="size-7 shrink-0"
-                      onClick={() => removeEntry(i)}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 shrink-0"
+                      onClick={() => removeEntry(i)}
+                    >
                       <IconTrash className="size-3" />
                     </Button>
                   </li>
@@ -230,15 +299,29 @@ export default function ProjectHomePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {availableSongs.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex gap-2 px-4 pb-4">
-              <Button variant="outline" className="flex-1" onClick={closeEditor}>Cancel</Button>
-              <Button className="flex-1" onClick={saveEditor} disabled={!editorName.trim()}>Save</Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={closeEditor}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={saveEditor}
+                disabled={!editorName.trim()}
+              >
+                Save
+              </Button>
             </div>
           </section>
         ) : (
@@ -251,23 +334,39 @@ export default function ProjectHomePage() {
             </div>
             <ul className="flex-1 overflow-y-auto space-y-2 px-4 pb-4">
               {setlists.map((sl) => (
-                <li key={sl.id}
-                  className="flex items-center justify-between rounded-md border px-4 py-2">
+                <li
+                  key={sl.id}
+                  className="flex items-center justify-between rounded-md border px-4 py-2"
+                >
                   <span className="min-w-0 truncate">
                     {sl.name}
-                    <span className="text-muted-foreground text-sm ml-2">{sl.entries.length} songs</span>
+                    <span className="text-muted-foreground text-sm ml-2">
+                      {sl.entries.length} songs
+                    </span>
                   </span>
                   <div className="flex gap-2 shrink-0">
-                    <Button size="sm" variant="outline"
-                      onClick={() => { loadSetlist(sl.id); navigate('/live') }}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        loadSetlist(sl.id)
+                        navigate('/live')
+                      }}
+                    >
                       <IconPlayerPlay className="size-4" />
                     </Button>
-                    <Button size="sm" variant="outline"
-                      onClick={() => openEditor(sl)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEditor(sl)}
+                    >
                       <IconEdit className="size-4" />
                     </Button>
-                    <Button size="sm" variant="destructive"
-                      onClick={() => deleteSetlist(sl.id)}>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteSetlist(sl.id)}
+                    >
                       <IconTrash className="size-4" />
                     </Button>
                   </div>
@@ -278,7 +377,10 @@ export default function ProjectHomePage() {
         )}
       </div>
 
-      <ProjectsDialog open={projectsDialogOpen} setOpen={setProjectsDialogOpen} />
+      <ProjectsDialog
+        open={projectsDialogOpen}
+        setOpen={setProjectsDialogOpen}
+      />
     </main>
   )
 }

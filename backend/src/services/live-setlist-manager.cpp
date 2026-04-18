@@ -99,14 +99,17 @@ void LiveSetlistManager::onSongEndReached(AppContext& ctx) {
     if (currentIndex + 1 < static_cast<int>(songIds.size())) {
       changeSong(currentIndex + 1, ctx);
     } else {
-      // Last song: fire ended event
+      // Last song with continue: fire ended event
       ctx.getEventEngine().fire("setlist.ended", ctx);
       broadcast::send(ctx.getWebSocketServer(), "setlist.ended",
                       {{"setlist", setlistSnapshot.toJson()}});
     }
   } else {
-    // Stop transition: halt playback at the end position
-    ctx.getAudioEngine().pause();
+    // Stop: return playhead to cursor. Pause: stay at end position.
+    if (transition == SetlistTransition::Stop)
+      ctx.getAudioEngine().stop();
+    else
+      ctx.getAudioEngine().pause();
 
     if (currentIndex + 1 >= static_cast<int>(songIds.size())) {
       ctx.getEventEngine().fire("setlist.ended", ctx);

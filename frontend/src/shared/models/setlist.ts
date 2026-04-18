@@ -1,6 +1,6 @@
 import { EventRule } from './event-rule'
 
-export type SetlistTransition = 'stop' | 'continue'
+export type SetlistTransition = 'stop' | 'pause' | 'continue'
 
 export interface SetlistEntry {
   songId: string

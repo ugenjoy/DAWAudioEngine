@@ -5,18 +5,19 @@
 // ── SetlistEntry ──────────────────────────────────────────────────────────
 
 nlohmann::json SetlistEntry::toJson() const {
-  return {
-    {"songId", songId},
-    {"transition", transition == SetlistTransition::Continue ? "continue" : "stop"}
-  };
+  std::string t = "stop";
+  if (transition == SetlistTransition::Continue) t = "continue";
+  else if (transition == SetlistTransition::Pause) t = "pause";
+  return {{"songId", songId}, {"transition", t}};
 }
 
 SetlistEntry SetlistEntry::fromJson(const nlohmann::json& j) {
   SetlistEntry e;
   e.songId = j.value("songId", "");
   std::string t = j.value("transition", "stop");
-  e.transition = (t == "continue") ? SetlistTransition::Continue
-                                   : SetlistTransition::Stop;
+  if (t == "continue") e.transition = SetlistTransition::Continue;
+  else if (t == "pause") e.transition = SetlistTransition::Pause;
+  else e.transition = SetlistTransition::Stop;
   return e;
 }
 

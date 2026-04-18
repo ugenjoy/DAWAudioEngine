@@ -131,9 +131,11 @@ bool EventEngine::matchesPositionTrigger(const EventRule& rule,
   return prevPos < pos.value() && pos.value() <= currentPos;
 }
 
-void EventEngine::firePosition(double prevPos, double currentPos, AppContext& ctx) {
+std::optional<double> EventEngine::firePosition(double prevPos, double currentPos, AppContext& ctx) {
   // Snapshot rules for the same reason as fire() — executors can call loadRules().
   const std::vector<EventRule> snapshot = rules;
+
+  std::optional<double> pauseSnapPos;
 
   for (const auto& rule : snapshot) {
     if (!rule.enabled) continue;
@@ -143,7 +145,21 @@ void EventEngine::firePosition(double prevPos, double currentPos, AppContext& ct
       continue;
     }
     it->second->execute(rule.action, ctx);
+
+    // After pause: record the exact trigger position so the caller
+    // (timerCallback) can snap the playhead to it, compensating for the
+    // ~100ms drift introduced by the 10 Hz timer resolution.
+    if (rule.action.type == "transport.pause") {
+      std::string markerId =
+          rule.triggerParams.value("markerId", std::string(""));
+      auto pos = resolveMarker(markerId);
+      if (pos.has_value()) {
+        pauseSnapPos = pos;
+      }
+    }
   }
+
+  return pauseSnapPos;
 }
 
 std::optional<double> EventEngine::checkSeekTrigger(double prevPos,

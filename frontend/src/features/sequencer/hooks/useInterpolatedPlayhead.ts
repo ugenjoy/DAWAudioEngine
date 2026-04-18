@@ -16,8 +16,16 @@ export function useInterpolatedPlayhead(
 
   useEffect(() => {
     if (!playing) {
-      interpolatedPos.current = playheadPosRef.current
-      return
+      // Keep interpolatedPos in sync with server position updates while paused/stopped.
+      // transport.playheadPosition can arrive slightly after transport.pause/stop, so
+      // a RAF loop ensures the canvas always reflects the latest server value.
+      let rafId: number
+      function syncTick() {
+        interpolatedPos.current = playheadPosRef.current
+        rafId = requestAnimationFrame(syncTick)
+      }
+      rafId = requestAnimationFrame(syncTick)
+      return () => cancelAnimationFrame(rafId)
     }
 
     lastCount.current = playheadUpdateRef.current

@@ -97,8 +97,10 @@ class EventEngine {
    * ]prevPos, currentPos].
    * @param prevPos Position (in seconds) at the start of the timer interval
    * @param currentPos Position (in seconds) at the end of the timer interval
+   * @return The exact trigger position to snap to if a transport.pause action
+   *         fired (compensates for 10 Hz timer drift), nullopt otherwise.
    */
-  void firePosition(double prevPos, double currentPos, AppContext& ctx);
+  std::optional<double> firePosition(double prevPos, double currentPos, AppContext& ctx);
 
   /**
    * Called from the audio callback (real-time thread) after advancing the

@@ -7,7 +7,7 @@
 
 #include "events/event-rule.hpp"
 
-enum class SetlistTransition { Stop, Continue };
+enum class SetlistTransition { Stop, Pause, Continue };
 
 struct SetlistEntry {
   std::string songId;

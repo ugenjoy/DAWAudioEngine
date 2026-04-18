@@ -16,7 +16,8 @@
 #include "audio/metronome-track.hpp"
 #include "model/song.hpp"
 #include "services/loop-manager.hpp"
-#include "websocket/websocket-server.hpp"
+
+class WebSocketServer;
 
 // TODO: [MEDIUM] Add error callback system:
 // - std::function<void(const String& error)> errorCallback;
