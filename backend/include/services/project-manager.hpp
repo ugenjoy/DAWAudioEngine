@@ -5,8 +5,9 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-#include "songs-manager.hpp"
+#include "model/project.hpp"
 #include "services/setlist-manager.hpp"
+#include "services/songs-manager.hpp"
 
 /**
  * @file project-manager.hpp
@@ -26,6 +27,22 @@ class ProjectManager {
  public:
   ProjectManager();
   ~ProjectManager();
+
+  /**
+   * @brief Create a new project on disk with a specific name.
+   *
+   * Resets the in-memory project metadata so the persisted JSON contains the
+   * provided name (and a fresh UUID), then delegates to saveProject().
+   *
+   * @param projectPath Absolute path to the project folder (must end with .dawproj)
+   * @param name Human-readable project name
+   * @param songsManager Songs to serialize (typically empty on creation)
+   * @param setlistManager Optional setlists to serialize
+   * @return true if the project was created and saved successfully
+   */
+  bool createProject(const std::string& projectPath, const std::string& name,
+                     const SongsManager& songsManager,
+                     const SetlistManager* setlistManager = nullptr);
 
   /**
    * @brief Save the current project to disk
@@ -55,28 +72,35 @@ class ProjectManager {
   std::string getLastError() const { return lastError; }
 
   /**
+   * @brief Access the metadata of the currently loaded (or last saved) project.
+   * Its `songs` and `setlists` pointer vectors are left empty; query the
+   * SongsManager / SetlistManager directly for their contents.
+   */
+  const Project& getCurrentProject() const { return currentProject; }
+
+  /**
    * @brief Get the currently loaded project path
    * @return Path to the loaded project, or empty string if no project is loaded
    */
-  std::string getCurrentProjectPath() const { return currentProjectPath; }
+  std::string getCurrentProjectPath() const { return currentProject.path; }
 
   /**
    * @brief Check if a project is currently loaded
    * @return true if a project is loaded, false otherwise
    */
-  bool hasLoadedProject() const { return !currentProjectPath.empty(); }
+  bool hasLoadedProject() const { return !currentProject.path.empty(); }
 
   /**
    * @brief Get the UUID of the currently loaded project
    * @return UUID string, or empty string if no project is loaded
    */
-  std::string getCurrentProjectId() const { return currentProjectId; }
+  std::string getCurrentProjectId() const { return currentProject.id; }
 
   /**
    * @brief Get the audio directory for the currently loaded project
    * @return Absolute path to the audio/ subdirectory
    */
-  std::string getAudioDir() const { return currentProjectPath + "/audio"; }
+  std::string getAudioDir() const { return currentProject.path + "/audio"; }
 
   /**
    * @brief Get the default projects directory path (~/daw/projects/)
@@ -95,8 +119,7 @@ class ProjectManager {
   /**
    * @brief Get a .dawproj project
    * @param path Path of the project
-   * @return JSON of project metadata (name, path, lastModified,
-   * songsCount)
+   * @return JSON of project metadata (id, name, path, lastModified, songs)
    */
   nlohmann::json getProject(const std::string& path);
 
@@ -109,12 +132,13 @@ class ProjectManager {
   bool createProjectStructure(const juce::File& projectFolder);
 
   /**
-   * @brief Serialize the entire project to JSON
+   * @brief Serialize the entire project to JSON for on-disk storage
    * @param songsManager The SongsManager to serialize
    * @return JSON object representing the project
    */
-  nlohmann::json serializeProject(const SongsManager& songsManager,
-                                  const SetlistManager* setlistManager = nullptr) const;
+  nlohmann::json serializeProject(
+      const SongsManager& songsManager,
+      const SetlistManager* setlistManager = nullptr) const;
 
   /**
    * @brief Deserialize project from JSON
@@ -127,7 +151,5 @@ class ProjectManager {
                           SetlistManager* setlistManager = nullptr);
 
   std::string lastError;
-  std::string currentProjectPath;
-  std::string currentProjectId;
-  std::string currentProjectName;
+  Project currentProject;
 };

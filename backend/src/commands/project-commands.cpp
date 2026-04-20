@@ -13,6 +13,61 @@
 #include "services/songs-manager.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
+// ── CreateProjectCommand ───────────────────────────────────────────────────────
+
+CreateProjectCommand::CreateProjectCommand(std::string name)
+    : name(std::move(name)) {}
+
+void CreateProjectCommand::execute(AppContext& ctx) {
+  auto& projectManager = ctx.getProjectManager();
+  auto& songsManager = ctx.getSongsManager();
+  auto& audioEngine = ctx.getAudioEngine();
+  auto& wsServer = ctx.getWebSocketServer();
+
+  // Stop playback and detach any loaded song
+  audioEngine.stop();
+  audioEngine.unloadSong();
+
+  // Reset managers to an empty state
+  songsManager.loadFromJson(nlohmann::json::array());
+  songsManager.setProjectEventRules({});
+  ctx.getSetlistManager().clear();
+  ctx.getEventEngine().loadRules({}, {}, {});
+  ctx.getLoopManager().reset();
+
+  // Build the project path: ~/daw/projects/<name>.dawproj
+  std::string projectsDir = ProjectManager::getDefaultProjectsDirectory();
+  juce::File dir(projectsDir);
+  if (!dir.exists()) dir.createDirectory();
+
+  std::string projectPath = projectsDir + "/" + name + ".dawproj";
+
+  if (projectManager.createProject(projectPath, name, songsManager,
+                                   &ctx.getSetlistManager())) {
+    juce::Logger::writeToLog("[CreateProjectCommand] Project created: " +
+                             juce::String(projectPath));
+
+    nlohmann::json project = projectManager.getProject(projectPath);
+    broadcast::send(wsServer, "project.created",
+                    {{"project", project},
+                     {"setlists", ctx.getSetlistManager().toJson()}});
+  } else {
+    juce::Logger::writeToLog("[CreateProjectCommand] Failed to create project: " +
+                             juce::String(projectManager.getLastError()));
+
+    broadcast::send(wsServer, "project.createFailed",
+                    {{"name", name}, {"error", projectManager.getLastError()}});
+  }
+}
+
+REGISTER_COMMAND_WITH_CREATOR("project.create", CreateProject,
+                              [](const nlohmann::json& payload) -> CommandPtr {
+                                std::string name = payload.value("name", "");
+                                if (name.empty()) return nullptr;
+                                return std::make_unique<CreateProjectCommand>(
+                                    name);
+                              });
+
 // ── LoadProjectCommand ───────────────────────────────────────────────────────
 
 LoadProjectCommand::LoadProjectCommand(std::string projectPath)

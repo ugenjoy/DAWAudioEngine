@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useProject } from '@/shared/contexts/project-provider'
 import { useProjects } from '@/shared/contexts/projects-provider'
 import { Card } from '@/shared/shadcn/components/card'
@@ -7,7 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/shared/shadcn/components/dialog'
-import { IconLoader } from '@tabler/icons-react'
+import { Button } from '@/shared/shadcn/components/button'
+import { Input } from '@/shared/shadcn/components/input'
+import { IconLoader, IconPlus } from '@tabler/icons-react'
 
 interface ProjectDialogProps {
   open: boolean
@@ -16,7 +19,16 @@ interface ProjectDialogProps {
 
 function ProjectsDialog({ open, setOpen }: Readonly<ProjectDialogProps>) {
   const { projects } = useProjects()
-  const { loadProject, isLoading } = useProject()
+  const { loadProject, createProject, isLoading } = useProject()
+  const [newName, setNewName] = useState('')
+
+  function handleCreate() {
+    const trimmed = newName.trim()
+    if (!trimmed || isLoading) return
+    createProject(trimmed)
+    setNewName('')
+    setOpen(false)
+  }
 
   return (
     <Dialog
@@ -27,20 +39,40 @@ function ProjectsDialog({ open, setOpen }: Readonly<ProjectDialogProps>) {
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Load a project</DialogTitle>
+          <DialogTitle>Projects</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-row justify-start gap-2 ">
-          {isLoading && (
-            <div className="absolute left-0 right-0 top-0 z-10 bottom-0 bg-background/65 flex justify-center items-center">
-              <IconLoader className="animate-spin" size={32} />
-            </div>
-          )}
-          {projects.map((p) => {
-            return (
+
+        {isLoading && (
+          <div className="absolute left-0 right-0 top-0 z-10 bottom-0 bg-background/65 flex justify-center items-center">
+            <IconLoader className="animate-spin" size={32} />
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <Input
+            placeholder="New project name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+          />
+          <Button onClick={handleCreate} disabled={!newName.trim() || isLoading}>
+            <IconPlus className="size-4 mr-1" />
+            Create
+          </Button>
+        </div>
+
+        {projects.length > 0 && (
+          <div className="flex flex-row flex-wrap justify-start gap-2">
+            {projects.map((p) => (
               <Card
                 key={p.id}
                 className="flex flex-col p-4 gap-2 w-fit hover:bg-accent hover:cursor-pointer relative"
-                onClick={() => !isLoading && loadProject(p.path)}
+                onClick={() => {
+                  if (!isLoading) {
+                    loadProject(p.path)
+                    setOpen(false)
+                  }
+                }}
               >
                 <h3 className="text-lg font-semibold">{p.name}</h3>
                 <p>songs: {p.songs.length}</p>
@@ -48,9 +80,9 @@ function ProjectsDialog({ open, setOpen }: Readonly<ProjectDialogProps>) {
                   last modified: {new Date(p.lastModified).toLocaleDateString()}
                 </p>
               </Card>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

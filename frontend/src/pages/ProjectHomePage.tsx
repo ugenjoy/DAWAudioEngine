@@ -31,7 +31,7 @@ import {
 
 export default function ProjectHomePage() {
   const { isConnected } = useWebSocket()
-  const { project } = useProject()
+  const { project, createSong } = useProject()
   const {
     setlists,
     loadSetlist,
@@ -51,6 +51,23 @@ export default function ProjectHomePage() {
   const [editorName, setEditorName] = useState('')
   const [editorEntries, setEditorEntries] = useState<SetlistEntry[]>([])
   const dragIndex = useRef<number | null>(null)
+
+  // New-song inline editor state
+  const [creatingSong, setCreatingSong] = useState(false)
+  const [newSongName, setNewSongName] = useState('')
+
+  function submitNewSong() {
+    const trimmed = newSongName.trim()
+    if (!trimmed) return
+    createSong(trimmed)
+    setNewSongName('')
+    setCreatingSong(false)
+  }
+
+  function cancelNewSong() {
+    setNewSongName('')
+    setCreatingSong(false)
+  }
 
   useEffect(() => {
     setProjectsDialogOpen(isConnected && project === null)
@@ -151,9 +168,39 @@ export default function ProjectHomePage() {
       <div className="flex flex-1 min-h-0">
         {/* Songs panel */}
         <section className="flex-1 flex flex-col border-r">
-          <div className="px-4 pt-4 pb-2">
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <h2 className="text-lg font-medium">Songs</h2>
+            <Button
+              size="sm"
+              onClick={() => setCreatingSong(true)}
+              disabled={creatingSong}
+            >
+              <IconPlus className="size-4 mr-1" /> New song
+            </Button>
           </div>
+          {creatingSong && (
+            <div className="flex gap-2 px-4 pb-2">
+              <Input
+                autoFocus
+                placeholder="Song name"
+                value={newSongName}
+                onChange={(e) => setNewSongName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitNewSong()
+                  else if (e.key === 'Escape') cancelNewSong()
+                }}
+              />
+              <Button
+                onClick={submitNewSong}
+                disabled={!newSongName.trim()}
+              >
+                Create
+              </Button>
+              <Button variant="outline" onClick={cancelNewSong}>
+                Cancel
+              </Button>
+            </div>
+          )}
           <ul className="flex-1 overflow-y-auto space-y-2 px-4 pb-4">
             {availableSongs.map((song) => (
               <li

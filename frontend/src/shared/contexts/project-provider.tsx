@@ -30,6 +30,7 @@ type ProjectProviderProps = {
 type ProjectProviderState = {
   project: Project | null
   loadProject: (path: string) => void
+  createProject: (name: string) => void
   isLoading: boolean
   songLoading: boolean
   playheadPosRef: React.RefObject<number>
@@ -78,6 +79,7 @@ type ProjectProviderState = {
 const initialState: ProjectProviderState = {
   project: null,
   loadProject: () => null,
+  createProject: () => null,
   isLoading: false,
   songLoading: false,
   playheadPosRef: { current: 0 },
@@ -153,6 +155,14 @@ export function ProjectProvider({
   const loadProject = useCallback(
     (path: string) => {
       send({ action: 'project.load', path: path })
+      setIsLoading(true)
+    },
+    [send],
+  )
+
+  const createProject = useCallback(
+    (name: string) => {
+      send({ action: 'project.create', name })
       setIsLoading(true)
     },
     [send],
@@ -415,8 +425,12 @@ export function ProjectProvider({
         }
         break
       }
-      case 'project.loaded': {
+      case 'project.loaded':
+      case 'project.created': {
         if (data.project !== undefined) setProject(data.project)
+        setActiveSong(undefined)
+        setLoops([])
+        setActiveLoop(null)
         setIsDirty(false)
         setIsLoading(false)
         break
@@ -598,6 +612,7 @@ export function ProjectProvider({
   const value = {
     project,
     loadProject,
+    createProject,
     isLoading,
     songLoading,
     playheadPosRef,

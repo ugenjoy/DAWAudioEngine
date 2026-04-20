@@ -1,7 +1,18 @@
 #pragma once
 
 #include <string>
+
 #include "commands/command.hpp"
+
+class CreateProjectCommand : public Command {
+ public:
+  explicit CreateProjectCommand(std::string name);
+
+  void execute(AppContext& ctx) override;
+
+ private:
+  std::string name;
+};
 
 class LoadProjectCommand : public Command {
  public:

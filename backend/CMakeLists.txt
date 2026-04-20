@@ -98,6 +98,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/services/song-preloader.cpp
     src/model/setlist.cpp
     src/model/marker.cpp
+    src/model/project.cpp
     src/commands/marker-commands.cpp
     src/services/setlist-manager.cpp
     src/services/live-setlist-manager.cpp

@@ -8,7 +8,6 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
 import { IconDeviceFloppy, IconHome, IconBroadcast, IconBolt, IconMapPin } from '@tabler/icons-react'
 import { AudioSettingsDialog } from '@/features/audio-settings/components/AudioSettingsDialog'
-import { NewSongDialog } from '@/features/songs/components/NewSongDialog'
 import { SongManagerDialog } from '@/features/songs/components/SongManagerDialog'
 import { useNavigateGuarded } from '@/shared/hooks/useNavigateGuarded'
 import { ConfirmStopDialog } from '@/shared/components/ConfirmStopDialog'
@@ -54,22 +53,17 @@ function Navbar() {
           {project?.name ?? 'Open project'}
         </h2>
         {!isLiveMode && (
-          <>
-            <Button
-              variant="ghost"
-              onClick={saveProject}
-              title={
-                isDirty ? 'Save project (unsaved changes)' : 'Save project'
-              }
-              className="relative"
-            >
-              <IconDeviceFloppy size={16} />
-              {isDirty && (
-                <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-400" />
-              )}
-            </Button>
-            <NewSongDialog />
-          </>
+          <Button
+            variant="ghost"
+            onClick={saveProject}
+            title={isDirty ? 'Save project (unsaved changes)' : 'Save project'}
+            className="relative"
+          >
+            <IconDeviceFloppy size={16} />
+            {isDirty && (
+              <span className="absolute top-1 right-1 size-1.5 rounded-full bg-orange-400" />
+            )}
+          </Button>
         )}
       </div>
 

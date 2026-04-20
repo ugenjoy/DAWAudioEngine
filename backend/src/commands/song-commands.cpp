@@ -19,6 +19,9 @@ CreateSongCommand::CreateSongCommand(std::string name)
 void CreateSongCommand::execute(AppContext& ctx) {
   auto& songsManager = ctx.getSongsManager();
   auto& audioEngine = ctx.getAudioEngine();
+  auto& projectManager = ctx.getProjectManager();
+  auto& setlistManager = ctx.getSetlistManager();
+  auto& wsServer = ctx.getWebSocketServer();
 
   auto song = std::make_unique<Song>();
   song->setName(name);
@@ -32,8 +35,18 @@ void CreateSongCommand::execute(AppContext& ctx) {
                                  raw->getEventRules());
   ctx.getEventEngine().fire("song.loaded", ctx);
 
-  broadcast::send(ctx.getWebSocketServer(), "project.songsUpdated",
+  broadcast::send(wsServer, "project.songsUpdated",
                   {{"songs", songsManager.toJson()}});
+
+  // Persist immediately so the new song survives a restart without forcing
+  // the user to hit the save button. `project.saved` clears the dirty flag
+  // that `project.songsUpdated` just set on the frontend.
+  if (projectManager.hasLoadedProject()) {
+    const std::string path = projectManager.getCurrentProjectPath();
+    if (projectManager.saveProject(path, songsManager, &setlistManager)) {
+      broadcast::send(wsServer, "project.saved", {{"path", path}});
+    }
+  }
 }
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(

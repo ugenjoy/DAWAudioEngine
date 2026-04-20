@@ -28,6 +28,9 @@ class SetlistManager {
   Setlist* findById(const std::string& id);
   const std::vector<Setlist>& getAll() const { return setlists; }
 
+  /** Return non-owning pointers into the managed storage. */
+  std::vector<Setlist*> getList();
+
   /** Remove all entries that reference a deleted songId. */
   void purgeSong(const std::string& songId);
 

@@ -2,13 +2,20 @@
 
 #include <fstream>
 
-ProjectManager::ProjectManager()
-    : lastError(""),
-      currentProjectPath(""),
-      currentProjectId(""),
-      currentProjectName("") {}
+ProjectManager::ProjectManager() : lastError("") {}
 
 ProjectManager::~ProjectManager() = default;
+
+bool ProjectManager::createProject(const std::string& projectPath,
+                                   const std::string& name,
+                                   const SongsManager& songsManager,
+                                   const SetlistManager* setlistManager) {
+  // Reset current project metadata so saveProject persists the given name
+  // alongside a freshly generated UUID.
+  currentProject = Project{};
+  currentProject.name = name;
+  return saveProject(projectPath, songsManager, setlistManager);
+}
 
 bool ProjectManager::saveProject(const std::string& projectPath,
                                  const SongsManager& songsManager,
@@ -30,9 +37,10 @@ bool ProjectManager::saveProject(const std::string& projectPath,
   }
 
   // Generate a UUID if the project doesn't have one yet
-  if (currentProjectId.empty()) {
-    currentProjectId = juce::Uuid().toString().toStdString();
+  if (currentProject.id.empty()) {
+    currentProject.id = juce::Uuid().toString().toStdString();
   }
+  currentProject.path = projectPath;
 
   // Serialize the project to JSON
   nlohmann::json projectJson = serializeProject(songsManager, setlistManager);
@@ -53,7 +61,6 @@ bool ProjectManager::saveProject(const std::string& projectPath,
     return false;
   }
 
-  currentProjectPath = projectPath;
   return true;
 }
 
@@ -94,11 +101,11 @@ bool ProjectManager::loadProject(const std::string& projectPath,
     return false;
   }
 
-  currentProjectPath = projectPath;
+  currentProject.path = projectPath;
 
-  // Derive name from folder if not set during deserialization
-  if (currentProjectName.empty()) {
-    currentProjectName =
+  // Derive name from folder if not set during deserialization (legacy projects)
+  if (currentProject.name.empty()) {
+    currentProject.name =
         projectFolder.getFileNameWithoutExtension().toStdString();
   }
 
@@ -144,34 +151,39 @@ bool ProjectManager::createProjectStructure(const juce::File& projectFolder) {
 nlohmann::json ProjectManager::serializeProject(
     const SongsManager& songsManager,
     const SetlistManager* setlistManager) const {
-  nlohmann::json projectJson;
+  // Build a transient Project view with pointers into the managers, then
+  // rely on Project::toJson for the core payload.
+  Project view;
+  view.id = currentProject.id;
+  view.name = currentProject.name;
+  view.path = currentProject.path;
+  view.songs = const_cast<SongsManager&>(songsManager).getSongList();
+  if (setlistManager) {
+    view.setlists = const_cast<SetlistManager*>(setlistManager)->getList();
+  }
 
-  // Project metadata
-  projectJson["id"] = currentProjectId;
-  projectJson["name"] = currentProjectName;
+  nlohmann::json projectJson = view.toJson();
+
+  // `path` is a filesystem concern — don't persist it inside project.json so
+  // the project folder stays portable across machines.
+  projectJson.erase("path");
+
   projectJson["version"] = "1.0.0";
-
-  // Serialize songs
-  projectJson["songs"] = songsManager.toJson();
+  projectJson["events"] = songsManager.projectEventsToJson();
 
   // Strip waveform data from clips (regenerated on load from audio files)
-  for (auto& song : projectJson["songs"]) {
-    if (song.contains("tracks")) {
-      for (auto& track : song["tracks"]) {
-        if (track.contains("clips")) {
-          for (auto& clip : track["clips"]) {
-            clip.erase("waveform");
+  if (projectJson.contains("songs")) {
+    for (auto& song : projectJson["songs"]) {
+      if (song.contains("tracks")) {
+        for (auto& track : song["tracks"]) {
+          if (track.contains("clips")) {
+            for (auto& clip : track["clips"]) {
+              clip.erase("waveform");
+            }
           }
         }
       }
     }
-  }
-
-  // Serialize project-level events
-  projectJson["events"] = songsManager.projectEventsToJson();
-
-  if (setlistManager) {
-    projectJson["setlists"] = setlistManager->toJson();
   }
 
   return projectJson;
@@ -210,47 +222,38 @@ nlohmann::json ProjectManager::getProject(const std::string& path) {
     return project;
   }
 
-  std::string folderName = dir.getFileNameWithoutExtension().toStdString();
-  project["path"] = dir.getFullPathName().toStdString();
+  const std::string folderName =
+      dir.getFileNameWithoutExtension().toStdString();
+  const std::string fullPath = dir.getFullPathName().toStdString();
 
   juce::File projectFile = dir.getChildFile("project.json");
-  if (projectFile.existsAsFile()) {
-    // Get last modified time as ISO 8601
-    juce::Time modTime = projectFile.getLastModificationTime();
-    project["lastModified"] = modTime.toISO8601(true).toStdString();
-
-    // Read project metadata from project.json
-    try {
-      std::string jsonString = projectFile.loadFileAsString().toStdString();
-      nlohmann::json projectJson = nlohmann::json::parse(jsonString);
-
-      if (projectJson.contains("id") && projectJson["id"].is_string()) {
-        project["id"] = projectJson["id"].get<std::string>();
-      } else {
-        project["id"] = nullptr;
-      }
-
-      // Use name from project.json if present, otherwise fallback to folder name
-      if (projectJson.contains("name") && projectJson["name"].is_string()) {
-        project["name"] = projectJson["name"].get<std::string>();
-      } else {
-        project["name"] = folderName;
-      }
-
-      if (projectJson.contains("songs") && projectJson["songs"].is_array()) {
-        project["songs"] = projectJson["songs"];
-      } else {
-        project["songs"] = 0;
-      }
-    } catch (...) {
-      project["name"] = folderName;
-      project["id"] = nullptr;
-      project["songs"] = -1;
-    }
-  } else {
+  if (!projectFile.existsAsFile()) {
+    project["id"] = nullptr;
     project["name"] = folderName;
+    project["path"] = fullPath;
     project["lastModified"] = nullptr;
-    project["songs"] = -1;
+    project["songs"] = nlohmann::json::array();
+    return project;
+  }
+
+  project["lastModified"] =
+      projectFile.getLastModificationTime().toISO8601(true).toStdString();
+
+  try {
+    std::string jsonString = projectFile.loadFileAsString().toStdString();
+    nlohmann::json projectJson = nlohmann::json::parse(jsonString);
+
+    Project meta = Project::fromJson(projectJson);
+    project["id"] = meta.id.empty() ? nlohmann::json(nullptr)
+                                    : nlohmann::json(meta.id);
+    project["name"] = meta.name.empty() ? folderName : meta.name;
+    project["path"] = fullPath;
+    project["songs"] = projectJson.value("songs", nlohmann::json::array());
+  } catch (...) {
+    project["id"] = nullptr;
+    project["name"] = folderName;
+    project["path"] = fullPath;
+    project["songs"] = nlohmann::json::array();
   }
 
   return project;
@@ -259,19 +262,15 @@ nlohmann::json ProjectManager::getProject(const std::string& path) {
 void ProjectManager::deserializeProject(const nlohmann::json& projectJson,
                                         SongsManager& songsManager,
                                         SetlistManager* setlistManager) {
-  // Load project UUID, or generate one if missing (backward compatibility)
-  if (projectJson.contains("id") && projectJson["id"].is_string()) {
-    currentProjectId = projectJson["id"].get<std::string>();
-  } else {
-    currentProjectId = juce::Uuid().toString().toStdString();
+  // Parse project metadata (id, name) from the stored JSON.
+  Project meta = Project::fromJson(projectJson);
+
+  // Fall back to a freshly generated UUID for legacy files missing an id.
+  if (meta.id.empty()) {
+    meta.id = juce::Uuid().toString().toStdString();
   }
 
-  // Load project name (may be empty; loadProject() will fallback to folder name)
-  if (projectJson.contains("name") && projectJson["name"].is_string()) {
-    currentProjectName = projectJson["name"].get<std::string>();
-  } else {
-    currentProjectName = "";
-  }
+  currentProject = std::move(meta);
 
   // Check version (for future compatibility)
   if (projectJson.contains("version")) {

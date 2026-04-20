@@ -39,6 +39,13 @@ Setlist* SetlistManager::findById(const std::string& id) {
   return nullptr;
 }
 
+std::vector<Setlist*> SetlistManager::getList() {
+  std::vector<Setlist*> result;
+  result.reserve(setlists.size());
+  for (auto& s : setlists) result.push_back(&s);
+  return result;
+}
+
 void SetlistManager::purgeSong(const std::string& songId) {
   for (auto& setlist : setlists) {
     auto entries = setlist.getEntries();

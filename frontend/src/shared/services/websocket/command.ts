@@ -1,4 +1,5 @@
 type ProjectCommand =
+  | 'project.create'
   | 'project.load'
   | 'project.save'
   | 'project.getLoaded'
@@ -27,7 +28,14 @@ type TrackCommand =
   | 'track.reorder'
   | 'track.setColor'
 
-type SongCommand = 'song.setTempo' | 'song.setMetronomeMute' | 'song.create' | 'song.rename' | 'song.reorder' | 'song.setEndPosition' | 'song.delete'
+type SongCommand =
+  | 'song.setTempo'
+  | 'song.setMetronomeMute'
+  | 'song.create'
+  | 'song.rename'
+  | 'song.reorder'
+  | 'song.setEndPosition'
+  | 'song.delete'
 
 type ModeCommand = 'mode.setEdit' | 'mode.setLive' | 'mode.getMode'
 
@@ -56,7 +64,11 @@ type SetlistCommand =
   | 'setlist.previous'
   | 'setlist.goTo'
 
-type MarkerCommand = 'marker.list' | 'marker.add' | 'marker.remove' | 'marker.update'
+type MarkerCommand =
+  | 'marker.list'
+  | 'marker.add'
+  | 'marker.remove'
+  | 'marker.update'
 
 type Command =
   | ProjectCommand
