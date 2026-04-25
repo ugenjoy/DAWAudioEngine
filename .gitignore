@@ -85,3 +85,4 @@ core.*
 .claude
 CLAUDE.md
 docs
+.worktrees
