@@ -1,5 +1,6 @@
 #include "model/project.hpp"
 
+#include <cassert>
 #include <juce_core/juce_core.h>
 
 // ---------------------------------------------------------------------------
@@ -222,22 +223,38 @@ const std::string& Project::getName() const { return name; }
 const std::string& Project::getPath() const { return path; }
 const std::string& Project::getLastModified() const { return lastModified; }
 
-std::string Project::getAudioDir() const { return path + "/audio"; }
+std::string Project::getAudioDir() const {
+  return juce::File(path).getChildFile("audio").getFullPathName().toStdString();
+}
 
 // ---------------------------------------------------------------------------
 // Contents accessors
 // ---------------------------------------------------------------------------
 
-SongsManager& Project::songs() { return *songsManager; }
-const SongsManager& Project::songs() const { return *songsManager; }
-SetlistManager& Project::setlists() { return *setlistManager; }
-const SetlistManager& Project::setlists() const { return *setlistManager; }
+SongsManager& Project::songs() {
+  assert(songsManager && "songs() called on a readMetadata snapshot");
+  return *songsManager;
+}
+const SongsManager& Project::songs() const {
+  assert(songsManager && "songs() called on a readMetadata snapshot");
+  return *songsManager;
+}
+SetlistManager& Project::setlists() {
+  assert(setlistManager && "setlists() called on a readMetadata snapshot");
+  return *setlistManager;
+}
+const SetlistManager& Project::setlists() const {
+  assert(setlistManager && "setlists() called on a readMetadata snapshot");
+  return *setlistManager;
+}
 
 const std::vector<EventRule>& Project::getEventRules() const {
+  assert(songsManager && "getEventRules() called on a readMetadata snapshot");
   return songsManager->getProjectEventRules();
 }
 
 void Project::setEventRules(std::vector<EventRule> rules) {
+  assert(songsManager && "setEventRules() called on a readMetadata snapshot");
   songsManager->setProjectEventRules(std::move(rules));
 }
 
