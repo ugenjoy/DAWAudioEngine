@@ -13,6 +13,7 @@ import { ProjectProvider } from './shared/contexts/project-provider'
 import { AudioDevicesProvider } from './shared/contexts/audio-devices-provider'
 import { ModeProvider } from './shared/contexts/mode-provider'
 import { EventsProvider } from './shared/contexts/events-provider'
+import { SessionProvider } from './shared/contexts/session-provider'
 import { SetlistProvider } from './shared/contexts/setlist-provider'
 import { MarkersProvider } from './shared/contexts/markers-provider'
 import ConnectionPage from './pages/ConnectionPage'
@@ -40,33 +41,35 @@ function App() {
     <WebSocketProvider>
       <AudioDevicesProvider>
         <ProjectsProvider>
-          <ProjectProvider>
-            <ModeProvider>
-              <EventsProvider>
-                <MarkersProvider>
-                  <SetlistProvider>
-                    <Routes>
-                      <Route path="connect" element={<ConnectionPage />} />
-                      <Route
-                        path="*"
-                        element={
-                          <RequireConnection>
-                            <Routes>
-                              <Route index element={<ProjectHomePage />} />
-                              <Route path="edit/:songId" element={<EditPage />} />
-                              <Route path="live" element={<LivePage />} />
-                              <Route path="events" element={<EventsPage />} />
-                              <Route path="markers" element={<MarkersPage />} />
-                            </Routes>
-                          </RequireConnection>
-                        }
-                      />
-                    </Routes>
-                  </SetlistProvider>
-                </MarkersProvider>
-              </EventsProvider>
-            </ModeProvider>
-          </ProjectProvider>
+          <SessionProvider>
+            <ProjectProvider>
+              <ModeProvider>
+                <EventsProvider>
+                  <MarkersProvider>
+                    <SetlistProvider>
+                      <Routes>
+                        <Route path="connect" element={<ConnectionPage />} />
+                        <Route
+                          path="*"
+                          element={
+                            <RequireConnection>
+                              <Routes>
+                                <Route index element={<ProjectHomePage />} />
+                                <Route path="edit/:songId" element={<EditPage />} />
+                                <Route path="live" element={<LivePage />} />
+                                <Route path="events" element={<EventsPage />} />
+                                <Route path="markers" element={<MarkersPage />} />
+                              </Routes>
+                            </RequireConnection>
+                          }
+                        />
+                      </Routes>
+                    </SetlistProvider>
+                  </MarkersProvider>
+                </EventsProvider>
+              </ModeProvider>
+            </ProjectProvider>
+          </SessionProvider>
         </ProjectsProvider>
       </AudioDevicesProvider>
     </WebSocketProvider>
