@@ -39,6 +39,11 @@ void SetEditModeCommand::execute(AppContext& ctx) {
   ctx.getSongPreloader().onLiveModeExited();
   ctx.getLiveSetlistManager().unload(ctx);
 
+  Song* activeSong = ctx.getAudioEngine().getActiveSong();
+  if (activeSong) {
+    ctx.getSession().startEditing(activeSong->getId());
+  }
+
   nlohmann::json broadcast = {{"type", "broadcast"},
                               {"event", "mode.changed"},
                               {"mode", "edit"}};
@@ -51,6 +56,7 @@ REGISTER_COMMAND("mode.setEdit", SetEditModeCommand);
 
 void SetLiveModeCommand::execute(AppContext& ctx) {
   ctx.getModeManager().setMode(AppMode::Live);
+  ctx.getSession().stopActivity();
 
   // Live optimizations: slower polling, freeze tracks
   // Monitoring remains functional — the channel mask already avoids unnecessary copies

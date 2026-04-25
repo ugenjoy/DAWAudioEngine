@@ -47,6 +47,10 @@ void CreateProjectCommand::execute(AppContext& ctx) {
     juce::Logger::writeToLog("[CreateProjectCommand] Project created: " +
                              juce::String(projectPath));
 
+    if (auto proj = Project::loadFromDisk(projectPath)) {
+      ctx.getSession().openProject(std::move(proj));
+    }
+
     Project project = projectManager.getProject(projectPath);
     broadcast::send(wsServer, "project.created",
                     {{"project", project.toJson()},
@@ -87,6 +91,10 @@ void LoadProjectCommand::execute(AppContext& ctx) {
   if (projectManager.loadProject(projectPath, songsManager, &ctx.getSetlistManager())) {
     juce::Logger::writeToLog("[LoadProjectCommand] Project loaded: " +
                              juce::String(projectPath));
+
+    if (auto proj = Project::loadFromDisk(projectPath)) {
+      ctx.getSession().openProject(std::move(proj));
+    }
 
     // Load first song into audio engine if available
     if (auto* firstSong = songsManager.getSong(0)) {
