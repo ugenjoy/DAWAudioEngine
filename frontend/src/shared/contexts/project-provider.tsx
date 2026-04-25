@@ -6,7 +6,6 @@ import {
   useCallback,
   useRef,
 } from 'react'
-import { useNavigate } from 'react-router'
 import { Project } from '../models/project'
 import { useWebSocket } from './websocket-provider'
 import { Song } from '../models/song'
@@ -128,8 +127,6 @@ export function ProjectProvider({
   ...props
 }: Readonly<ProjectProviderProps>) {
   const { ws, isConnected, send } = useWebSocket()
-  const navigate = useNavigate()
-  const hasRestoredRef = useRef(false)
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [activeSong, setActiveSong] = useState<Song>()
@@ -154,7 +151,7 @@ export function ProjectProvider({
 
   const loadProject = useCallback(
     (path: string) => {
-      send({ action: 'project.load', path: path })
+      send({ action: 'session.openProject', path })
       setIsLoading(true)
     },
     [send],
@@ -316,7 +313,7 @@ export function ProjectProvider({
 
   const loadSong = useCallback(
     (uuid: string) => {
-      send({ action: 'project.loadSong', uuid })
+      send({ action: 'session.startEditing', songId: uuid })
     },
     [send],
   )
@@ -398,6 +395,7 @@ export function ProjectProvider({
     if (typeof ev.data !== 'string') return
     const data = JSON.parse(ev.data)
     switch (data.event) {
+      case 'session.currentState':
       case 'project.currentLoaded': {
         if (data.project !== undefined) setProject(data.project)
         if (data.activeSong !== undefined) {
@@ -413,16 +411,7 @@ export function ProjectProvider({
           cursorPosRef.current = data.cursorPosition
         if (data.isPlaying !== undefined) setPlaying(data.isPlaying)
         if (data.masterVolume !== undefined) setMasterVolume(data.masterVolume)
-
-        // Restore route on first load after refresh
-        if (!hasRestoredRef.current && data.hasProject) {
-          hasRestoredRef.current = true
-          if (data.mode === 'live' && data.setlist) {
-            navigate('/live')
-          } else if (data.mode === 'edit' && data.activeSong?.id) {
-            navigate(`/edit/${data.activeSong.id}`)
-          }
-        }
+        setIsLoading(false)
         break
       }
       case 'project.loaded':

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
 import {
   IconPlayerPlay,
   IconEdit,
@@ -13,6 +12,7 @@ import {
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { useProject } from '@/shared/contexts/project-provider'
 import { useSetlist } from '@/shared/contexts/setlist-provider'
+import { useSession } from '@/shared/contexts/session-provider'
 import ProjectsDialog from '@/features/projects/components/ProjectsDialog'
 import {
   Setlist,
@@ -34,13 +34,11 @@ export default function ProjectHomePage() {
   const { project, createSong } = useProject()
   const {
     setlists,
-    loadSetlist,
-    loadSingle,
     createSetlist,
     updateSetlist,
     deleteSetlist,
   } = useSetlist()
-  const navigate = useNavigate()
+  const { startEditing, startPerforming } = useSession()
 
   const [projectsDialogOpen, setProjectsDialogOpen] = useState(false)
   const [editingSetlist, setEditingSetlist] = useState<Setlist | null | 'new'>(
@@ -225,17 +223,14 @@ export default function ProjectHomePage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      loadSingle(song.id)
-                      navigate('/live')
-                    }}
+                    onClick={() => startEditing(song.id)}
                   >
                     <IconPlayerPlay className="size-4" />
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => navigate(`/edit/${song.id}`)}
+                    onClick={() => startEditing(song.id)}
                   >
                     <IconEdit className="size-4" />
                   </Button>
@@ -395,10 +390,7 @@ export default function ProjectHomePage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        loadSetlist(sl.id)
-                        navigate('/live')
-                      }}
+                      onClick={() => startPerforming(sl.id)}
                     >
                       <IconPlayerPlay className="size-4" />
                     </Button>

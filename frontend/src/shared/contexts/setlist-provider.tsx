@@ -9,6 +9,7 @@ import { useWebSocket } from './websocket-provider'
 import { Setlist, SetlistEntry } from '../models/setlist'
 import { EventRule } from '../models/event-rule'
 import { Song } from '../models/song'
+import type { Project } from '../models/project'
 
 type SetlistProviderState = {
   setlists: Setlist[]
@@ -81,6 +82,22 @@ export function SetlistProvider({
         setCurrentIndex(data.currentIndex)
         setCurrentSong(data.song)
         break
+      case 'session.changed': {
+        const activity = data.activity as string | undefined
+        const performing = data.performing as { setlistId?: string; currentIndex?: number; song?: Song } | undefined
+        const proj = data.project as (Project & { setlists?: Setlist[] }) | undefined
+        if (activity === 'performing' && performing) {
+          const setlistId = performing.setlistId
+          setActiveSetlist(proj?.setlists?.find((s: Setlist) => s.id === setlistId) ?? null)
+          setCurrentIndex(performing.currentIndex ?? 0)
+          setCurrentSong(performing.song ?? null)
+        } else if (activity !== 'performing') {
+          setActiveSetlist(null)
+          setCurrentSong(null)
+        }
+        if (proj?.setlists) setSetlists(proj.setlists)
+        break
+      }
       case 'project.currentLoaded':
         if (data.setlist) {
           setActiveSetlist(data.setlist)
@@ -94,12 +111,12 @@ export function SetlistProvider({
     }
   }
 
-  const advance = useCallback(() => send({ action: 'setlist.advance' }), [send])
-  const previous = useCallback(() => send({ action: 'setlist.previous' }), [send])
-  const goTo = useCallback((index: number) => send({ action: 'setlist.goTo', index }), [send])
-  const loadSetlist = useCallback((setlistId: string) => send({ action: 'setlist.load', setlistId }), [send])
+  const advance = useCallback(() => send({ action: 'session.advance' }), [send])
+  const previous = useCallback(() => send({ action: 'session.previous' }), [send])
+  const goTo = useCallback((index: number) => send({ action: 'session.goTo', index }), [send])
+  const loadSetlist = useCallback((setlistId: string) => send({ action: 'session.startPerforming', setlistId }), [send])
   const loadSingle = useCallback((songId: string) => send({ action: 'setlist.loadSingle', songId }), [send])
-  const unload = useCallback(() => send({ action: 'setlist.unload' }), [send])
+  const unload = useCallback(() => send({ action: 'session.stopActivity' }), [send])
 
   const createSetlist = useCallback(
     (name: string, entries: SetlistEntry[], events: EventRule[]) =>

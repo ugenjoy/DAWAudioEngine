@@ -2,7 +2,7 @@ import { Button } from '@/shared/shadcn/components/button'
 import { useWebSocket } from '@/shared/contexts/websocket-provider'
 import { cn } from '@/shared/shadcn/lib/utils'
 import { useProject } from '@/shared/contexts/project-provider'
-import { useMode } from '@/shared/contexts/mode-provider'
+import { useSession } from '@/shared/contexts/session-provider'
 import { useSetlist } from '@/shared/contexts/setlist-provider'
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
@@ -15,7 +15,8 @@ import { ConfirmStopDialog } from '@/shared/components/ConfirmStopDialog'
 function Navbar() {
   const { isConnected } = useWebSocket()
   const { activeSong, project, isDirty, saveProject } = useProject()
-  const { isLiveMode } = useMode()
+  const { session } = useSession()
+  const isLiveMode = session.activity === 'performing'
   const { loadSingle } = useSetlist()
   const navigate = useNavigate()
   const location = useLocation()
