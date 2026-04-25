@@ -72,8 +72,8 @@ void WebSocketServer::run() {
           std::string action = msg.value("action", "");
 
           // Reject edit-only commands when not in Edit mode
-          bool editAllowed = appContext_ ? appContext_->getSession().isEdit()
-                                        : !modeManager.isLiveMode();
+          bool editAllowed = appContext ? appContext->getSession().isEdit()
+                                       : !modeManager.isLiveMode();
           if (!editAllowed && commandFactory.isEditOnly(action)) {
             json error = {{"type", "error"},
                           {"code", "edit_only"},

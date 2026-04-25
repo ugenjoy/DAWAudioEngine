@@ -5,6 +5,7 @@
 #include "app-context.hpp"
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
+#include "events/event-engine.hpp"
 #include "model/project.hpp"
 #include "model/song.hpp"
 #include "services/live-setlist-manager.hpp"
