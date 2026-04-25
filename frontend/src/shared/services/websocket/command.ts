@@ -70,6 +70,17 @@ type MarkerCommand =
   | 'marker.remove'
   | 'marker.update'
 
+type SessionCommand =
+  | 'session.get'
+  | 'session.openProject'
+  | 'session.closeProject'
+  | 'session.startEditing'
+  | 'session.startPerforming'
+  | 'session.stopActivity'
+  | 'session.advance'
+  | 'session.previous'
+  | 'session.goTo'
+
 type Command =
   | ProjectCommand
   | TransportCommand
@@ -83,6 +94,7 @@ type Command =
   | SetlistCommand
   | LoopCommand
   | MarkerCommand
+  | SessionCommand
 
 export interface WebSocketMessage {
   action: Command
