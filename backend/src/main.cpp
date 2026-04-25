@@ -42,6 +42,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     liveSetlistManager = std::make_unique<LiveSetlistManager>();
     loopManager = std::make_unique<LoopManager>();
     session = std::make_unique<Session>();
+    modeManager->setSession(session.get());
 
     // Create and configure event engine
     eventEngine = std::make_unique<EventEngine>();
