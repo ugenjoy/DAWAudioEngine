@@ -47,9 +47,9 @@ void CreateProjectCommand::execute(AppContext& ctx) {
     juce::Logger::writeToLog("[CreateProjectCommand] Project created: " +
                              juce::String(projectPath));
 
-    nlohmann::json project = projectManager.getProject(projectPath);
+    Project project = projectManager.getProject(projectPath);
     broadcast::send(wsServer, "project.created",
-                    {{"project", project},
+                    {{"project", project.toJson()},
                      {"setlists", ctx.getSetlistManager().toJson()}});
   } else {
     juce::Logger::writeToLog("[CreateProjectCommand] Failed to create project: " +
@@ -112,10 +112,10 @@ void LoadProjectCommand::execute(AppContext& ctx) {
       }
     }
 
-    nlohmann::json project = projectManager.getProject(projectPath);
+    Project project = projectManager.getProject(projectPath);
 
     broadcast::send(wsServer, "project.loaded",
-                    {{"project", project},
+                    {{"project", project.toJson()},
                      {"setlists", ctx.getSetlistManager().toJson()}});
   } else {
     juce::Logger::writeToLog("[LoadProjectCommand] Failed to load project: " +
@@ -169,7 +169,7 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
   auto& projectManager = ctx.getProjectManager();
   auto& audioEngine = ctx.getAudioEngine();
 
-  nlohmann::json project =
+  Project project =
       projectManager.getProject(projectManager.getCurrentProjectPath());
 
   // Include active song in edit mode (for route restore) or during a live session
@@ -190,7 +190,7 @@ void GetLoadedProjectCommand::execute(AppContext& ctx) {
   response["type"] = "response";
   response["event"] = "project.currentLoaded";
   response["hasProject"] = projectManager.hasLoadedProject();
-  response["project"] = project;
+  response["project"] = project.toJson();
   response["mode"] = mode;
   response["activeSong"] = songJson;
   response["playheadPosition"] = audioEngine.getPlayheadPosition();
@@ -228,13 +228,18 @@ void ListProjectsCommand::execute(AppContext& ctx) {
     dir.createDirectory();
   }
 
-  nlohmann::json projects = projectManager.listProjects(directory);
+  std::vector<Project> projects = projectManager.listProjects(directory);
+
+  nlohmann::json projectsJson = nlohmann::json::array();
+  for (const auto& p : projects) {
+    projectsJson.push_back(p.toJson());
+  }
 
   nlohmann::json response;
   response["type"] = "response";
   response["event"] = "project.listed";
   response["directory"] = directory;
-  response["projects"] = projects;
+  response["projects"] = projectsJson;
 
   reply(response.dump());
 

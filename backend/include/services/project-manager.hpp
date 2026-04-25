@@ -111,17 +111,16 @@ class ProjectManager {
   /**
    * @brief List all .dawproj projects in a given directory
    * @param directory Path to scan for projects
-   * @return JSON array of project metadata (name, path, lastModified,
-   * songsCount)
+   * @return Vector of standalone Project snapshots (metadata + owned songs)
    */
-  nlohmann::json listProjects(const std::string& directory);
+  std::vector<Project> listProjects(const std::string& directory);
 
   /**
-   * @brief Get a .dawproj project
+   * @brief Read a .dawproj project folder as a standalone snapshot
    * @param path Path of the project
-   * @return JSON of project metadata (id, name, path, lastModified, songs)
+   * @return Project populated from project.json (empty Project on error)
    */
-  nlohmann::json getProject(const std::string& path);
+  Project getProject(const std::string& path);
 
  private:
   /**

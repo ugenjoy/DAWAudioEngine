@@ -5,8 +5,14 @@
 
 nlohmann::json Project::toJson() const {
   nlohmann::json songsJson = nlohmann::json::array();
-  for (const auto* s : songs) {
-    if (s) songsJson.push_back(s->toJson());
+  if (!songs.empty()) {
+    for (const auto* s : songs) {
+      if (s) songsJson.push_back(s->toJson());
+    }
+  } else {
+    for (const auto& s : ownedSongs) {
+      if (s) songsJson.push_back(s->toJson());
+    }
   }
 
   nlohmann::json setlistsJson = nlohmann::json::array();
@@ -18,6 +24,7 @@ nlohmann::json Project::toJson() const {
       {"id", id},
       {"name", name},
       {"path", path},
+      {"lastModified", lastModified},
       {"songs", songsJson},
       {"setlists", setlistsJson},
   };
@@ -28,10 +35,16 @@ Project Project::fromJson(const nlohmann::json& j) {
   p.id = j.value("id", "");
   p.name = j.value("name", "");
   p.path = j.value("path", "");
-  // `songs` and `setlists` are intentionally not populated: the struct holds
-  // non-owning pointers into manager-owned storage. Callers must load the
-  // backing objects via SongsManager::loadFromJson / SetlistManager::loadFromJson
-  // and then attach pointers to those managers' entries if a full view is
-  // needed.
+  p.lastModified = j.value("lastModified", "");
+
+  // Parse songs as owned metadata-only instances (no audio loaded).
+  // Callers working with the currently-loaded project should instead route
+  // songs through SongsManager and attach pointers to `songs` directly.
+  if (j.contains("songs") && j["songs"].is_array()) {
+    for (const auto& songJson : j["songs"]) {
+      p.ownedSongs.push_back(Song::fromJson(songJson, "", false));
+    }
+  }
+
   return p;
 }
