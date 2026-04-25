@@ -1,12 +1,11 @@
 #pragma once
 
-#include "services/setlist-manager.hpp"
+#include <cassert>
 #include "services/live-setlist-manager.hpp"
 #include "services/loop-manager.hpp"
+#include "services/project-manager.hpp"
 
 class AudioEngineCore;
-class SongsManager;
-class ProjectManager;
 class WebSocketServer;
 class ModeManager;
 class CommandProcessor;
@@ -25,39 +24,43 @@ class MidiInputManager;
 class AppContext {
  public:
   AppContext(AudioEngineCore& audioEngine,
-             SongsManager& songsManager,
              ProjectManager& projectManager,
              WebSocketServer& wsServer,
              ModeManager& modeManager,
              EventEngine& eventEngine,
              MidiOutputManager& midiOutputManager,
              SongPreloader& songPreloader,
-             SetlistManager& setlistManager,
              LiveSetlistManager& liveSetlistManager,
              LoopManager& loopManager,
              MidiInputManager& midiInputManager)
       : audioEngine(audioEngine),
-        songsManager(songsManager),
         projectManager(projectManager),
         wsServer(wsServer),
         modeManager(modeManager),
         eventEngine(eventEngine),
         midiOutputManager(midiOutputManager),
         songPreloader(songPreloader),
-        setlistManager(setlistManager),
         liveSetlistManager(liveSetlistManager),
         loopManager(loopManager),
         midiInputManager(midiInputManager) {}
 
   AudioEngineCore& getAudioEngine() { return audioEngine; }
-  SongsManager& getSongsManager() { return songsManager; }
+  SongsManager& getSongsManager() {
+    assert(projectManager.getCurrentProjectRef() &&
+           "getSongsManager() called with no project loaded");
+    return projectManager.getCurrentProjectRef()->songs();
+  }
   ProjectManager& getProjectManager() { return projectManager; }
   WebSocketServer& getWebSocketServer() { return wsServer; }
   ModeManager& getModeManager() { return modeManager; }
   EventEngine& getEventEngine() { return eventEngine; }
   MidiOutputManager& getMidiOutputManager() { return midiOutputManager; }
   SongPreloader& getSongPreloader() { return songPreloader; }
-  SetlistManager& getSetlistManager() { return setlistManager; }
+  SetlistManager& getSetlistManager() {
+    assert(projectManager.getCurrentProjectRef() &&
+           "getSetlistManager() called with no project loaded");
+    return projectManager.getCurrentProjectRef()->setlists();
+  }
   LiveSetlistManager& getLiveSetlistManager() { return liveSetlistManager; }
   LoopManager& getLoopManager() { return loopManager; }
   MidiInputManager& getMidiInputManager() { return midiInputManager; }
@@ -70,14 +73,12 @@ class AppContext {
 
  private:
   AudioEngineCore& audioEngine;
-  SongsManager& songsManager;
   ProjectManager& projectManager;
   WebSocketServer& wsServer;
   ModeManager& modeManager;
   EventEngine& eventEngine;
   MidiOutputManager& midiOutputManager;
   SongPreloader& songPreloader;
-  SetlistManager& setlistManager;
   LiveSetlistManager& liveSetlistManager;
   LoopManager& loopManager;
   MidiInputManager& midiInputManager;

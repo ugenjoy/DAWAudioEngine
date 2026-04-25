@@ -14,9 +14,7 @@
 #include "services/midi-output-manager.hpp"
 #include "services/mode-manager.hpp"
 #include "services/project-manager.hpp"
-#include "services/setlist-manager.hpp"
 #include "services/song-preloader.hpp"
-#include "services/songs-manager.hpp"
 #include "websocket/websocket-server.hpp"
 
 class AudioEngineApplication : public juce::JUCEApplication,
@@ -34,13 +32,11 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
     // Create core components
     audioEngine = std::make_unique<AudioEngineCore>();
-    songsManager = std::make_unique<SongsManager>();
     projectManager = std::make_unique<ProjectManager>();
     modeManager = std::make_unique<ModeManager>();
     midiOutputManager = std::make_unique<MidiOutputManager>();
     midiInputManager = std::make_unique<MidiInputManager>();
     songPreloader = std::make_unique<SongPreloader>();
-    setlistManager = std::make_unique<SetlistManager>();
     liveSetlistManager = std::make_unique<LiveSetlistManager>();
     loopManager = std::make_unique<LoopManager>();
 
@@ -72,9 +68,9 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
     // Create application context
     appContext = std::make_unique<AppContext>(
-        *audioEngine, *songsManager, *projectManager, *wsServer, *modeManager,
+        *audioEngine, *projectManager, *wsServer, *modeManager,
         *eventEngine, *midiOutputManager, *songPreloader,
-        *setlistManager, *liveSetlistManager, *loopManager, *midiInputManager);
+        *liveSetlistManager, *loopManager, *midiInputManager);
 
     audioEngine->setLoopManager(loopManager.get());
     audioEngine->setEventEngine(eventEngine.get(), appContext.get());
@@ -124,12 +120,10 @@ class AudioEngineApplication : public juce::JUCEApplication,
     midiInputManager->shutdown();
     appContext.reset();
     audioEngine.reset();
-    songsManager.reset();
     projectManager.reset();
     modeManager.reset();
     midiOutputManager.reset();
     songPreloader.reset();
-    setlistManager.reset();
     liveSetlistManager.reset();
     loopManager.reset();
     midiInputManager.reset();
@@ -148,13 +142,11 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
  private:
   std::unique_ptr<AudioEngineCore> audioEngine;
-  std::unique_ptr<SongsManager> songsManager;
   std::unique_ptr<ProjectManager> projectManager;
   std::unique_ptr<ModeManager> modeManager;
   std::unique_ptr<MidiOutputManager> midiOutputManager;
   std::unique_ptr<MidiInputManager> midiInputManager;
   std::unique_ptr<SongPreloader> songPreloader;
-  std::unique_ptr<SetlistManager> setlistManager;
   std::unique_ptr<LiveSetlistManager> liveSetlistManager;
   std::unique_ptr<LoopManager> loopManager;
   std::unique_ptr<EventEngine> eventEngine;
