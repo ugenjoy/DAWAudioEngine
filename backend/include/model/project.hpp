@@ -34,11 +34,11 @@ class Project {
   // ---------------------------------------------------------------------------
 
   /** Create a brand-new project under parentDir and return it. */
-  static std::unique_ptr<Project> createNew(std::string name,
-                                            std::string parentDir);
+  [[nodiscard]] static std::unique_ptr<Project> createNew(std::string name,
+                                                          std::string parentDir);
 
   /** Load a full project from its directory path (no audio loaded). */
-  static std::unique_ptr<Project> loadFromDisk(std::string path);
+  [[nodiscard]] static std::unique_ptr<Project> loadFromDisk(std::string path);
 
   /**
    * Read only the identity fields from a project directory.
@@ -53,7 +53,7 @@ class Project {
   // ---------------------------------------------------------------------------
 
   /** Serialise the project to disk. Returns false on failure. */
-  bool save();
+  [[nodiscard]] bool save();
 
   /** Human-readable description of the last error (empty if none). */
   const std::string& getLastError() const;
@@ -75,7 +75,9 @@ class Project {
   // ---------------------------------------------------------------------------
 
   SongsManager& songs();
+  const SongsManager& songs() const;
   SetlistManager& setlists();
+  const SetlistManager& setlists() const;
 
   const std::vector<EventRule>& getEventRules() const;
   void setEventRules(std::vector<EventRule> rules);
