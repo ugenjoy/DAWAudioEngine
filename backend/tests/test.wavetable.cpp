@@ -1,6 +1,6 @@
 #include <juce_core/juce_core.h>
 #include <cmath>
-#include "../include/wave-table.hpp"
+#include "audio/dsp/wave-table.hpp"
 
 /**
  * Unit tests for the WaveTable class

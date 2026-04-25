@@ -1,0 +1,44 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "version": "1.0.0",
+  "songs": [
+    {
+      "id": "demo-song-1",
+      "tempo": 160,
+      "tracks": [
+        {
+          "type": "AudioFileTrack",
+          "id": "audio-track",
+          "volume": 0.3,
+          "pan": 0.2,
+          "mute": false,
+          "clips": [
+            {
+              "position": 3,
+              "duration": 2,
+              "offset": 0,
+              "fadeIn": 0.1,
+              "fadeOut": 0.1,
+              "gain": 1,
+              "fileName": "audio-1"
+            },
+            {
+              "position": 6,
+              "duration": 2,
+              "offset": 0,
+              "fadeIn": 0.1,
+              "fadeOut": 0.1,
+              "gain": 1,
+              "fileName": "audio-2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "demo-song-2",
+      "tempo": 90,
+      "tracks": []
+    }
+  ]
+}

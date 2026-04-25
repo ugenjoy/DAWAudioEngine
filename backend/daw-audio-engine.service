@@ -1,0 +1,46 @@
+[Unit]
+Description=DAW Audio Engine - Real-time audio processing with WebSocket API
+After=network.target jack-audio.service
+Wants=network.target jack-audio.service
+
+[Service]
+Type=simple
+User=ugo
+Group=audio
+
+WorkingDirectory=/home/ugo/daw/backend/build
+ExecStart=/home/ugo/daw/backend/build/DAWAudioEngine_artefacts/Release/DAWAudioEngine
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+# Real-time audio scheduling
+Nice=-15
+CPUSchedulingPolicy=fifo
+CPUSchedulingPriority=70
+
+# Resource limits for audio
+LimitRTPRIO=95
+LimitMEMLOCK=infinity
+LimitNOFILE=65536
+
+# Environment
+Environment=HOME=/home/ugo
+
+# Security hardening
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ugo/daw
+PrivateTmp=true
+NoNewPrivileges=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=daw-audio-engine
+
+[Install]
+WantedBy=multi-user.target

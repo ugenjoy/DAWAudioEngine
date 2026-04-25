@@ -15,6 +15,18 @@ option(BUILD_TESTS "Build unit tests" OFF)
 # JUCE
 add_subdirectory(JUCE)
 
+# Check for JACK audio support (optional)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JACK jack)
+
+if(JACK_FOUND)
+    message(STATUS "JACK Audio Connection Kit found - enabling JACK support")
+    set(JUCE_JACK_ENABLED 1)
+else()
+    message(STATUS "JACK not found - using ALSA only")
+    set(JUCE_JACK_ENABLED 0)
+endif()
+
 # Crow (WebSocket server) + ASIO dependency
 include(FetchContent)
 
@@ -35,6 +47,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(crow)
 
+# Fetch nlohmann/json
+include(FetchContent)
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_MakeAvailable(json)
+
 # Console application
 juce_add_console_app(DAWAudioEngine 
     PRODUCT_NAME "DAW Audio Engine")
@@ -42,9 +62,47 @@ juce_add_console_app(DAWAudioEngine
 # Source files (explicit listing is better than GLOB)
 target_sources(DAWAudioEngine PRIVATE
     src/main.cpp
-    src/audio-engine-core.cpp
-    src/audio-track.cpp
-    src/beat-track.cpp
+    src/audio/audio-engine-core.cpp
+    src/audio/audio-track.cpp
+    src/audio/metronome-track.cpp
+    src/audio/audio-file-track.cpp
+    src/audio/audio-clip.cpp                                                                                           
+    src/services/song.cpp
+    src/services/tracks-manager.cpp
+    src/services/songs-manager.cpp
+    src/services/project-manager.cpp
+    src/services/clips-manager.cpp
+    src/websocket/websocket-server.cpp
+    src/commands/command-factory.cpp
+    src/commands/command-queue.cpp
+    src/commands/command-processor.cpp
+    src/commands/transport-commands.cpp
+    src/commands/project-commands.cpp
+    src/commands/track-commands.cpp
+    src/commands/mode-commands.cpp
+    src/commands/song-commands.cpp
+    src/commands/midi-commands.cpp
+    src/commands/event-commands.cpp
+    src/commands/clip-commands.cpp
+    src/commands/setlist-commands.cpp
+    src/commands/loop-commands.cpp
+    src/services/mode-manager.cpp
+    src/services/midi-output-manager.cpp
+    src/services/midi-input-manager.cpp
+    src/events/event-rule.cpp
+    src/events/event-engine.cpp
+    src/events/midi-action-executor.cpp
+    src/events/transport-action-executor.cpp
+    src/events/setlist-action-executor.cpp
+    src/events/loop-action-executor.cpp
+    src/services/song-preloader.cpp
+    src/model/setlist.cpp
+    src/model/marker.cpp
+    src/model/project.cpp
+    src/commands/marker-commands.cpp
+    src/services/setlist-manager.cpp
+    src/services/live-setlist-manager.cpp
+    src/services/loop-manager.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE
@@ -55,7 +113,7 @@ target_compile_definitions(DAWAudioEngine PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_ALSA=1
-    JUCE_JACK=1
+    JUCE_JACK=${JUCE_JACK_ENABLED}
     JUCE_APPLICATION_NAME_STRING="DAW Audio Engine"
     JUCE_APPLICATION_VERSION_STRING="1.0.0")
 
@@ -67,7 +125,14 @@ target_link_libraries(DAWAudioEngine PRIVATE
     juce::juce_audio_utils
     juce::juce_core
     juce::juce_events
-    Crow::Crow)
+    Crow::Crow
+    nlohmann_json::nlohmann_json)
+
+# Link JACK if available
+if(JACK_FOUND)
+    target_link_libraries(DAWAudioEngine PRIVATE ${JACK_LIBRARIES})
+    target_include_directories(DAWAudioEngine PRIVATE ${JACK_INCLUDE_DIRS})
+endif()
 
 # Unit tests
 if(BUILD_TESTS)
@@ -102,9 +167,12 @@ if(BUILD_TESTS)
     target_sources(DAWAudioEngine_Tests PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}/test_main.cpp
         tests/test.wavetable.cpp
-        tests/test.beattrack.cpp
-        src/audio-track.cpp
-        src/beat-track.cpp
+        tests/test.loop-manager.cpp
+        tests/test.event-engine-midi.cpp
+        tests/test.event-engine-position.cpp
+        src/services/loop-manager.cpp
+        src/events/event-rule.cpp
+        src/events/event-engine.cpp
     )
     
     target_include_directories(DAWAudioEngine_Tests PRIVATE
@@ -114,7 +182,7 @@ if(BUILD_TESTS)
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_ALSA=1
-        JUCE_JACK=1
+        JUCE_JACK=${JUCE_JACK_ENABLED}
         JUCE_APPLICATION_NAME_STRING="DAW Audio Engine Tests"
         JUCE_APPLICATION_VERSION_STRING="1.0.0")
     
@@ -124,12 +192,17 @@ if(BUILD_TESTS)
         juce::juce_audio_formats
         juce::juce_audio_utils
         juce::juce_core
-        juce::juce_events)
-    
+        juce::juce_events
+        nlohmann_json::nlohmann_json)
+
+    # Link JACK if available (for tests)
+    if(JACK_FOUND)
+        target_link_libraries(DAWAudioEngine_Tests PRIVATE ${JACK_LIBRARIES})
+        target_include_directories(DAWAudioEngine_Tests PRIVATE ${JACK_INCLUDE_DIRS})
+    endif()
+
     # Register tests with CTest
-    add_test(NAME WaveTableTests 
-             COMMAND DAWAudioEngine_Tests)
-    add_test(NAME BeatTrackTests 
+    add_test(NAME WaveTableTests
              COMMAND DAWAudioEngine_Tests)
     
     message(STATUS "Unit tests enabled")

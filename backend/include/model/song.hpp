@@ -1,0 +1,97 @@
+#pragma once
+
+#include <juce_core/juce_core.h>
+
+#include <atomic>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <vector>
+
+#include "audio/metronome-track.hpp"
+#include "events/event-rule.hpp"
+#include "model/loop.hpp"
+#include "model/marker.hpp"
+#include "tracks-manager.hpp"
+
+enum class SongLoadState { MetadataOnly, Loading, Loaded };
+
+class Song {
+ public:
+  Song();
+  ~Song();
+
+  void addTrack(std::unique_ptr<AudioTrack>);
+  bool removeTrack(const std::string& trackId);
+
+  void render(juce::AudioBuffer<float>& mixBuffer,
+              juce::AudioBuffer<float>& trackBuffer,
+              const juce::AudioBuffer<float>& inputBuffer, int numSamples,
+              double position, bool isPlaying);
+
+  void loadAudio(const std::string& audioDir);
+  void unloadAudio();
+  SongLoadState getLoadState() const { return loadState.load(); }
+
+  // Serialization
+  nlohmann::json toJson() const;
+  static std::unique_ptr<Song> fromJson(const nlohmann::json& j,
+                                        const std::string& audioDir,
+                                        bool loadAudio = true);
+
+  // Setters / Getters
+  std::string getId() const { return id; }
+  std::string getName() const { return name; }
+  void setName(const std::string& n) { name = n; }
+
+  void sampleRateChanged();
+
+  void freezeAllTracks(float tempo, double sampleRate);
+  void unfreezeAllTracks();
+
+  float getTempo() const { return tempo; }
+  void setTempo(float newTempo) { tempo = newTempo; }
+
+  std::optional<double> getEndPosition() const { return endPosition; }
+  void setEndPosition(std::optional<double> pos) { endPosition = pos; }
+
+  TracksManager* getTracksManager() const { return tracksManager.get(); }
+  MetronomeTrack* getMetronomeTrack() const { return metronomeTrack.get(); }
+
+  // Event rules (song-level)
+  const std::vector<EventRule>& getEventRules() const { return eventRules; }
+  void setEventRules(std::vector<EventRule> rules) {
+    eventRules = std::move(rules);
+  }
+  void addEventRule(EventRule rule) { eventRules.push_back(std::move(rule)); }
+  bool removeEventRule(const std::string& ruleId);
+  bool updateEventRule(const std::string& ruleId, const EventRule& updated);
+
+  // Loop regions
+  const std::vector<Loop>& getLoops() const { return loops; }
+  Loop addLoop(double start, double end);
+  bool removeLoop(const std::string& loopId);
+  bool updateLoop(const std::string& loopId, double start, double end);
+  void setLoops(std::vector<Loop> l) { loops = std::move(l); }
+
+  // Markers (named positions)
+  const std::vector<Marker>& getMarkers() const { return markers; }
+  void addMarker(Marker m) { markers.push_back(std::move(m)); }
+  bool removeMarker(const std::string& markerId);
+  bool updateMarker(const std::string& markerId,
+                    const std::optional<std::string>& name,
+                    const std::optional<double>& position);
+
+ private:
+  std::string id;
+  std::string name;
+  float tempo;
+  std::optional<double> endPosition;  // seconds; nullopt = end of last clip
+
+  std::unique_ptr<TracksManager> tracksManager;
+  std::unique_ptr<MetronomeTrack> metronomeTrack;
+  std::vector<EventRule> eventRules;
+  std::vector<Loop> loops;
+  std::vector<Marker> markers;
+
+  std::atomic<SongLoadState> loadState{SongLoadState::MetadataOnly};
+};

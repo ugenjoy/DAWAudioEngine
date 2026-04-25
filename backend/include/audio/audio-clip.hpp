@@ -1,0 +1,54 @@
+#pragma once
+
+#include <juce_audio_basics/juce_audio_basics.h>
+#include <juce_audio_utils/juce_audio_utils.h>
+#include <juce_core/juce_core.h>
+
+#include <nlohmann/json.hpp>
+#include <string>
+
+class AudioClip {
+ public:
+  explicit AudioClip();
+  ~AudioClip();
+
+  void loadAudioFile(const std::string& audioDir);
+  void unloadAudio();
+
+  void renderBlock(juce::AudioBuffer<float>& buffer, int startSample,
+                   int numSamples, double startTime);
+
+  void setGain(float gain);
+
+  std::string getClipType() const { return "AudioClip"; }
+  std::string getId() const { return id; }
+  std::string getFileName() const { return fileName; }
+  bool isLoaded() const { return loaded; }
+
+  void setName(const std::string& n) { name = n; }
+  void setFileName(const std::string& fn) { fileName = fn; }
+  void setPosition(double p) { position = p; }
+
+  nlohmann::json toJson() const;
+  static std::unique_ptr<AudioClip> fromJson(const nlohmann::json& j,
+                                              const std::string& audioDir,
+                                              bool loadAudio = true);
+
+ private:
+  std::string id;
+  std::string name;
+  std::string fileName;
+  float gain;
+
+  double position;
+  double duration;
+  double offset;
+
+  juce::AudioFormatManager formatManager;
+  juce::AudioBuffer<float> audioData;
+  bool loaded = false;
+
+  // Waveform overview: interleaved [min, max, min, max, ...] at 200 points/sec
+  std::vector<float> waveformPeaks;
+  void generateWaveformPeaks(int pointsPerSecond = 200);
+};

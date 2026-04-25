@@ -1,10 +1,16 @@
-.PHONY: clean tests build
+.PHONY: clean tests build run watch
 
 clean:
 	rm -rf build/*
 
 tests:
-	cd /home/ugo/dev/daw/backend && mkdir -p build && cd build && cmake .. -DBUILD_TESTS=ON && make -j$(nproc) && ctest --output-on-failure --verbose
+	mkdir -p build && cd build && cmake .. -DBUILD_TESTS=ON && make -j$(nproc) && ctest --output-on-failure
 
 build:
-	mkdir -p build && cd build && cmake .. && make -j$(nproc)
+	mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
+
+run:
+	./build/DAWAudioEngine_artefacts/Release/DAWAudioEngine
+
+watch:
+	watchexec -r -e cpp,hpp "cd build && make -j$$(nproc) && ./DAWAudioEngine_artefacts/Release/DAWAudioEngine"

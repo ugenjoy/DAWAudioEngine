@@ -1,34 +1,57 @@
-# frontend
+# DAW Frontend
 
-An Electron application with React and TypeScript
+Desktop application built with Tauri, React 19, and TypeScript.
 
-## Recommended IDE Setup
-
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
-
-## Project Setup
-
-### Install
+## Setup
 
 ```bash
-$ pnpm install
+pnpm install
 ```
 
-### Development
+## Development
 
 ```bash
-$ pnpm dev
+pnpm dev          # Tauri dev mode with hot reload
 ```
 
-### Build
+The backend must be running on `ws://localhost:8080/ws` for the app to function.
 
+## Scripts
+
+| Command | Description |
+|---|---|
+| `pnpm dev` | Start dev server with hot reload |
+| `pnpm build` | Production build |
+| `pnpm build:linux` | Linux package |
+| `pnpm build:win` | Windows package |
+| `pnpm build:mac` | macOS package |
+| `pnpm lint` | ESLint check |
+| `pnpm format` | Prettier format |
+
+Type checking:
 ```bash
-# For windows
-$ pnpm build:win
-
-# For macOS
-$ pnpm build:mac
-
-# For Linux
-$ pnpm build:linux
+npx tsc --noEmit
 ```
+
+## Project Structure
+
+```
+src/
+├── features/           Feature-based modules
+│   ├── audio-settings/ Audio device configuration
+│   ├── events/         Programmable events (MIDI triggers)
+│   ├── navbar/         Navigation bar + mode toggle
+│   ├── projects/       Project browser
+│   ├── sequencer/      Track timeline (canvas rendering)
+│   ├── transport/      Playback controls
+│   └── websocket/      Connection management
+├── pages/              Top-level pages
+├── shared/
+│   ├── contexts/       React contexts (WebSocket, Project, Mode, etc.)
+│   ├── models/         TypeScript interfaces
+│   ├── services/       WebSocket command definitions
+│   └── shadcn/         UI component library
+└── App.tsx             Root component
+```
+
+See [ARCHITECTURE.md](../ARCHITECTURE.md) for detailed architecture documentation.
