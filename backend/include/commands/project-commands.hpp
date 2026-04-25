@@ -14,16 +14,6 @@ class CreateProjectCommand : public Command {
   std::string name;
 };
 
-class LoadProjectCommand : public Command {
- public:
-  explicit LoadProjectCommand(std::string projectPath);
-
-  void execute(AppContext& ctx) override;
-
- private:
-  std::string projectPath;
-};
-
 class SaveProjectCommand : public Command {
  public:
   explicit SaveProjectCommand(std::string projectPath);
@@ -42,14 +32,4 @@ class GetLoadedProjectCommand : public Command {
 class ListProjectsCommand : public Command {
  public:
   void execute(AppContext& ctx) override;
-};
-
-class LoadSongCommand : public Command {
- public:
-  explicit LoadSongCommand(std::string uuid);
-
-  void execute(AppContext& ctx) override;
-
- private:
-  std::string uuid;
 };

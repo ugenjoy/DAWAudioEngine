@@ -10,18 +10,18 @@
 #include "audio/audio-engine-core.hpp"
 #include "audio/audio-file-track.hpp"
 #include "model/song.hpp"
-#include "services/project-manager.hpp"
+#include "services/session.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
 using json = nlohmann::json;
 
 WebSocketServer::WebSocketServer(CommandQueue& commandQueue,
                                  const CommandFactory& commandFactory,
-                                 const ModeManager& modeManager,
+                                 Session& session,
                                  int port)
     : commandQueue(commandQueue),
       commandFactory(commandFactory),
-      modeManager(modeManager),
+      session(session),
       port(port) {}
 
 WebSocketServer::~WebSocketServer() { stop(); }
@@ -73,7 +73,7 @@ void WebSocketServer::run() {
 
           // Reject edit-only commands when not in Edit mode
           bool editAllowed = appContext ? appContext->getSession().isEdit()
-                                       : !modeManager.isLiveMode();
+                                       : !session.isLive();
           if (!editAllowed && commandFactory.isEditOnly(action)) {
             json error = {{"type", "error"},
                           {"code", "edit_only"},
@@ -152,7 +152,7 @@ void WebSocketServer::run() {
           return res;
         }
 
-        if (!appContext->getProjectManager().hasLoadedProject()) {
+        if (!appContext->getSession().getProject()) {
           res.code = 400;
           res.body = json({{"error", "No project loaded"}}).dump();
           return res;
@@ -224,7 +224,9 @@ void WebSocketServer::run() {
         clip->setFileName(uniqueFileName);
 
         // Write file to project audio directory
-        std::string audioDir = appContext->getProjectManager().getCurrentProjectPath() + "/audio";
+        std::string audioDir = appContext->getSession().getProject()
+                                   ? appContext->getSession().getProject()->getAudioDir()
+                                   : "";
         std::string filePath = audioDir + "/" + uniqueFileName;
 
         {

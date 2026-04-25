@@ -70,7 +70,6 @@ target_sources(DAWAudioEngine PRIVATE
     src/services/song.cpp
     src/services/tracks-manager.cpp
     src/services/songs-manager.cpp
-    src/services/project-manager.cpp
     src/services/project-repository.cpp
     src/services/clips-manager.cpp
     src/websocket/websocket-server.cpp
@@ -80,7 +79,6 @@ target_sources(DAWAudioEngine PRIVATE
     src/commands/transport-commands.cpp
     src/commands/project-commands.cpp
     src/commands/track-commands.cpp
-    src/commands/mode-commands.cpp
     src/commands/song-commands.cpp
     src/commands/midi-commands.cpp
     src/commands/event-commands.cpp
@@ -88,7 +86,6 @@ target_sources(DAWAudioEngine PRIVATE
     src/commands/setlist-commands.cpp
     src/commands/session-commands.cpp
     src/commands/loop-commands.cpp
-    src/services/mode-manager.cpp
     src/services/midi-output-manager.cpp
     src/services/midi-input-manager.cpp
     src/events/event-rule.cpp
@@ -103,7 +100,6 @@ target_sources(DAWAudioEngine PRIVATE
     src/model/project.cpp
     src/commands/marker-commands.cpp
     src/services/setlist-manager.cpp
-    src/services/live-setlist-manager.cpp
     src/services/loop-manager.cpp
     src/services/session.cpp
 )

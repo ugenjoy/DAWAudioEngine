@@ -6,27 +6,32 @@
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
 #include "events/event-engine.hpp"
-#include "services/songs-manager.hpp"
+#include "services/session.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 static void reloadEventEngineRules(AppContext& ctx) {
-  auto& songsManager = ctx.getSongsManager();
+  auto* project = ctx.getSession().getProject();
   auto& audioEngine = ctx.getAudioEngine();
   Song* activeSong = audioEngine.getActiveSong();
+  const auto& projectRules =
+      project ? project->songs().getProjectEventRules()
+              : std::vector<EventRule>{};
   ctx.getEventEngine().loadRules(
-      songsManager.getProjectEventRules(), {},
+      projectRules, {},
       activeSong ? activeSong->getEventRules() : std::vector<EventRule>{});
 }
 
 static void broadcastEventList(AppContext& ctx) {
-  auto& songsManager = ctx.getSongsManager();
+  auto* project = ctx.getSession().getProject();
   auto& audioEngine = ctx.getAudioEngine();
 
   nlohmann::json projectEventsJson = nlohmann::json::array();
-  for (const auto& rule : songsManager.getProjectEventRules()) {
-    projectEventsJson.push_back(rule.toJson());
+  if (project) {
+    for (const auto& rule : project->songs().getProjectEventRules()) {
+      projectEventsJson.push_back(rule.toJson());
+    }
   }
 
   nlohmann::json songEventsJson = nlohmann::json::array();
@@ -55,11 +60,16 @@ EventAddCommand::EventAddCommand(std::string scope, EventRule rule)
     : scope(std::move(scope)), rule(std::move(rule)) {}
 
 void EventAddCommand::execute(AppContext& ctx) {
-  auto& songsManager = ctx.getSongsManager();
+  auto* project = ctx.getSession().getProject();
   auto& audioEngine = ctx.getAudioEngine();
 
   if (scope == "project") {
-    songsManager.addProjectEventRule(rule);
+    if (!project) {
+      juce::Logger::writeToLog(
+          "[EventAddCommand] No project loaded for project-level event");
+      return;
+    }
+    project->songs().addProjectEventRule(rule);
   } else if (scope == "song") {
     Song* activeSong = audioEngine.getActiveSong();
     if (!activeSong) {
@@ -108,12 +118,12 @@ EventRemoveCommand::EventRemoveCommand(std::string scope, std::string eventId)
     : scope(std::move(scope)), eventId(std::move(eventId)) {}
 
 void EventRemoveCommand::execute(AppContext& ctx) {
-  auto& songsManager = ctx.getSongsManager();
+  auto* project = ctx.getSession().getProject();
   auto& audioEngine = ctx.getAudioEngine();
   bool removed = false;
 
   if (scope == "project") {
-    removed = songsManager.removeProjectEventRule(eventId);
+    if (project) removed = project->songs().removeProjectEventRule(eventId);
   } else if (scope == "song") {
     Song* activeSong = audioEngine.getActiveSong();
     if (activeSong) {
@@ -143,12 +153,12 @@ EventUpdateCommand::EventUpdateCommand(std::string scope, EventRule updated)
     : scope(std::move(scope)), updated(std::move(updated)) {}
 
 void EventUpdateCommand::execute(AppContext& ctx) {
-  auto& songsManager = ctx.getSongsManager();
+  auto* project = ctx.getSession().getProject();
   auto& audioEngine = ctx.getAudioEngine();
   bool ok = false;
 
   if (scope == "project") {
-    ok = songsManager.updateProjectEventRule(updated.id, updated);
+    if (project) ok = project->songs().updateProjectEventRule(updated.id, updated);
   } else if (scope == "song") {
     Song* activeSong = audioEngine.getActiveSong();
     if (activeSong) {

@@ -5,16 +5,16 @@
 #include "app-context.hpp"
 #include "commands/command-factory.hpp"
 #include "events/event-rule.hpp"
-#include "services/project-manager.hpp"
-#include "services/setlist-manager.hpp"
-#include "services/songs-manager.hpp"
+#include "services/session.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
 // ── ListSetlistsCommand ──────────────────────────────────────────────────────
 
 void ListSetlistsCommand::execute(AppContext& ctx) {
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
   broadcast::send(ctx.getWebSocketServer(), "setlist.listUpdated",
-                  {{"setlists", ctx.getSetlistManager().toJson()}});
+                  {{"setlists", project->setlists().toJson()}});
 }
 
 REGISTER_COMMAND(
@@ -30,15 +30,16 @@ CreateSetlistCommand::CreateSetlistCommand(std::string name,
       events(std::move(events)) {}
 
 void CreateSetlistCommand::execute(AppContext& ctx) {
-  auto& setlistManager = ctx.getSetlistManager();
-  setlistManager.create(name, entries, events);
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
 
-  ctx.getProjectManager().saveProject(
-      ctx.getProjectManager().getCurrentProjectPath(),
-      ctx.getSongsManager(), &setlistManager);
+  auto& setlists = project->setlists();
+  setlists.create(name, entries, events);
+
+  project->save();
 
   broadcast::send(ctx.getWebSocketServer(), "setlist.listUpdated",
-                  {{"setlists", setlistManager.toJson()}});
+                  {{"setlists", setlists.toJson()}});
 }
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
@@ -74,15 +75,16 @@ UpdateSetlistCommand::UpdateSetlistCommand(
       events(std::move(events)) {}
 
 void UpdateSetlistCommand::execute(AppContext& ctx) {
-  auto& setlistManager = ctx.getSetlistManager();
-  if (!setlistManager.update(id, name, entries, events)) return;
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
 
-  ctx.getProjectManager().saveProject(
-      ctx.getProjectManager().getCurrentProjectPath(),
-      ctx.getSongsManager(), &setlistManager);
+  auto& setlists = project->setlists();
+  if (!setlists.update(id, name, entries, events)) return;
+
+  project->save();
 
   broadcast::send(ctx.getWebSocketServer(), "setlist.listUpdated",
-                  {{"setlists", setlistManager.toJson()}});
+                  {{"setlists", setlists.toJson()}});
 }
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
@@ -120,15 +122,16 @@ DeleteSetlistCommand::DeleteSetlistCommand(std::string id)
     : id(std::move(id)) {}
 
 void DeleteSetlistCommand::execute(AppContext& ctx) {
-  auto& setlistManager = ctx.getSetlistManager();
-  if (!setlistManager.remove(id)) return;
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
 
-  ctx.getProjectManager().saveProject(
-      ctx.getProjectManager().getCurrentProjectPath(),
-      ctx.getSongsManager(), &setlistManager);
+  auto& setlists = project->setlists();
+  if (!setlists.remove(id)) return;
+
+  project->save();
 
   broadcast::send(ctx.getWebSocketServer(), "setlist.listUpdated",
-                  {{"setlists", setlistManager.toJson()}});
+                  {{"setlists", setlists.toJson()}});
 }
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
@@ -137,94 +140,4 @@ REGISTER_EDIT_COMMAND_WITH_CREATOR(
       std::string id = payload.value("setlistId", "");
       if (id.empty()) return nullptr;
       return std::make_unique<DeleteSetlistCommand>(id);
-    });
-
-// ── LoadSetlistCommand ───────────────────────────────────────────────────────
-
-LoadSetlistCommand::LoadSetlistCommand(std::string setlistId)
-    : setlistId(std::move(setlistId)) {}
-
-void LoadSetlistCommand::execute(AppContext& ctx) {
-  auto* setlist = ctx.getSetlistManager().findById(setlistId);
-  if (!setlist) return;
-
-  auto& songsManager = ctx.getSongsManager();
-  std::vector<Song*> songs;
-  for (const auto& entry : setlist->getEntries()) {
-    Song* song = songsManager.getSongById(entry.songId);
-    if (song) songs.push_back(song);
-  }
-
-  ctx.getLiveSetlistManager().load(*setlist, songs, ctx);
-}
-
-REGISTER_COMMAND_WITH_CREATOR(
-    "setlist.load", LoadSetlist,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string id = payload.value("setlistId", "");
-      if (id.empty()) return nullptr;
-      return std::make_unique<LoadSetlistCommand>(id);
-    });
-
-// ── LoadSingleSongLiveCommand ────────────────────────────────────────────────
-
-LoadSingleSongLiveCommand::LoadSingleSongLiveCommand(std::string songId)
-    : songId(std::move(songId)) {}
-
-void LoadSingleSongLiveCommand::execute(AppContext& ctx) {
-  Song* song = ctx.getSongsManager().getSongById(songId);
-  if (!song) return;
-
-  ctx.getLiveSetlistManager().loadSingle(song, ctx);
-}
-
-REGISTER_COMMAND_WITH_CREATOR(
-    "setlist.loadSingle", LoadSingleSongLive,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      std::string id = payload.value("songId", "");
-      if (id.empty()) return nullptr;
-      return std::make_unique<LoadSingleSongLiveCommand>(id);
-    });
-
-// ── UnloadSetlistCommand ─────────────────────────────────────────────────────
-
-void UnloadSetlistCommand::execute(AppContext& ctx) {
-  ctx.getLiveSetlistManager().unload(ctx);
-}
-
-REGISTER_COMMAND(
-    "setlist.unload", UnloadSetlistCommand);
-
-// ── AdvanceSetlistCommand ────────────────────────────────────────────────────
-
-void AdvanceSetlistCommand::execute(AppContext& ctx) {
-  ctx.getLiveSetlistManager().advance(ctx);
-}
-
-REGISTER_COMMAND(
-    "setlist.advance", AdvanceSetlistCommand);
-
-// ── PreviousSetlistCommand ───────────────────────────────────────────────────
-
-void PreviousSetlistCommand::execute(AppContext& ctx) {
-  ctx.getLiveSetlistManager().previous(ctx);
-}
-
-REGISTER_COMMAND(
-    "setlist.previous", PreviousSetlistCommand);
-
-// ── GoToSetlistCommand ───────────────────────────────────────────────────────
-
-GoToSetlistCommand::GoToSetlistCommand(int index) : index(index) {}
-
-void GoToSetlistCommand::execute(AppContext& ctx) {
-  ctx.getLiveSetlistManager().goTo(index, ctx);
-}
-
-REGISTER_COMMAND_WITH_CREATOR(
-    "setlist.goTo", GoToSetlist,
-    [](const nlohmann::json& payload) -> CommandPtr {
-      if (!payload.contains("index")) return nullptr;
-      int index = payload.value("index", 0);
-      return std::make_unique<GoToSetlistCommand>(index);
     });

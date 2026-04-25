@@ -6,9 +6,7 @@
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
 #include "events/event-engine.hpp"
-#include "services/project-manager.hpp"
-#include "services/setlist-manager.hpp"
-#include "services/songs-manager.hpp"
+#include "services/session.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
 // ── CreateSongCommand ────────────────────────────────────────────────────────
@@ -17,35 +15,31 @@ CreateSongCommand::CreateSongCommand(std::string name)
     : name(std::move(name)) {}
 
 void CreateSongCommand::execute(AppContext& ctx) {
-  auto& songsManager = ctx.getSongsManager();
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
+
+  auto& songs = project->songs();
   auto& audioEngine = ctx.getAudioEngine();
-  auto& projectManager = ctx.getProjectManager();
-  auto& setlistManager = ctx.getSetlistManager();
   auto& wsServer = ctx.getWebSocketServer();
 
   auto song = std::make_unique<Song>();
   song->setName(name);
   Song* raw = song.get();
-  songsManager.addSong(std::move(song));
+  songs.addSong(std::move(song));
 
   audioEngine.stop();
   audioEngine.loadSong(raw);
 
-  ctx.getEventEngine().loadRules(songsManager.getProjectEventRules(), {},
+  ctx.getEventEngine().loadRules(project->songs().getProjectEventRules(), {},
                                  raw->getEventRules());
   ctx.getEventEngine().fire("song.loaded", ctx);
 
   broadcast::send(wsServer, "project.songsUpdated",
-                  {{"songs", songsManager.toJson()}});
+                  {{"songs", songs.toJson()}});
 
-  // Persist immediately so the new song survives a restart without forcing
-  // the user to hit the save button. `project.saved` clears the dirty flag
-  // that `project.songsUpdated` just set on the frontend.
-  if (projectManager.hasLoadedProject()) {
-    const std::string path = projectManager.getCurrentProjectPath();
-    if (projectManager.saveProject(path, songsManager, &setlistManager)) {
-      broadcast::send(wsServer, "project.saved", {{"path", path}});
-    }
+  // Persist immediately so the new song survives a restart
+  if (project->save()) {
+    broadcast::send(wsServer, "project.saved", {{"path", project->getPath()}});
   }
 }
 
@@ -109,8 +103,11 @@ RenameSongCommand::RenameSongCommand(std::string uuid, std::string name)
     : uuid(std::move(uuid)), name(std::move(name)) {}
 
 void RenameSongCommand::execute(AppContext& ctx) {
-  auto& songsManager = ctx.getSongsManager();
-  if (!songsManager.renameSong(uuid, name)) return;
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
+
+  auto& songs = project->songs();
+  if (!songs.renameSong(uuid, name)) return;
 
   // If the renamed song is the active song, broadcast song update too
   auto* activeSong = ctx.getAudioEngine().getActiveSong();
@@ -120,7 +117,7 @@ void RenameSongCommand::execute(AppContext& ctx) {
   }
 
   broadcast::send(ctx.getWebSocketServer(), "project.songsUpdated",
-                  {{"songs", songsManager.toJson()}});
+                  {{"songs", songs.toJson()}});
 }
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
@@ -138,11 +135,14 @@ ReorderSongCommand::ReorderSongCommand(std::string uuid, int index)
     : uuid(std::move(uuid)), index(index) {}
 
 void ReorderSongCommand::execute(AppContext& ctx) {
-  auto& songsManager = ctx.getSongsManager();
-  if (!songsManager.reorderSong(uuid, index)) return;
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
+
+  auto& songs = project->songs();
+  if (!songs.reorderSong(uuid, index)) return;
 
   broadcast::send(ctx.getWebSocketServer(), "project.songsUpdated",
-                  {{"songs", songsManager.toJson()}});
+                  {{"songs", songs.toJson()}});
 }
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(
@@ -161,11 +161,13 @@ SetEndPositionCommand::SetEndPositionCommand(std::string uuid,
     : uuid(std::move(uuid)), pos(pos) {}
 
 void SetEndPositionCommand::execute(AppContext& ctx) {
-  auto& sm = ctx.getSongsManager();
-  if (!sm.setEndPosition(uuid, pos)) return;
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
 
-  ctx.getProjectManager().saveProject(
-      ctx.getProjectManager().getCurrentProjectPath(), sm, nullptr);
+  auto& songs = project->songs();
+  if (!songs.setEndPosition(uuid, pos)) return;
+
+  project->save();
 
   broadcast::send(ctx.getWebSocketServer(), "song.endPositionUpdated",
                   {{"songId", uuid},
@@ -191,24 +193,26 @@ DeleteSongCommand::DeleteSongCommand(std::string uuid)
     : uuid(std::move(uuid)) {}
 
 void DeleteSongCommand::execute(AppContext& ctx) {
-  auto& sm = ctx.getSongsManager();
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
+
+  auto& songs = project->songs();
   auto* active = ctx.getAudioEngine().getActiveSong();
   // Don't delete the active song
   if (active && active->getId() == uuid) return;
-  if (!sm.removeSong(uuid)) return;
+  if (!songs.removeSong(uuid)) return;
 
   // Purge deleted song from all setlists and persist
-  auto& setlistManager = ctx.getSetlistManager();
-  setlistManager.purgeSong(uuid);
-  ctx.getProjectManager().saveProject(
-      ctx.getProjectManager().getCurrentProjectPath(), sm, &setlistManager);
+  auto& setlists = project->setlists();
+  setlists.purgeSong(uuid);
+  project->save();
 
   broadcast::send(ctx.getWebSocketServer(), "song.deleted",
                   {{"songId", uuid}});
   broadcast::send(ctx.getWebSocketServer(), "project.songsUpdated",
-                  {{"songs", sm.toJson()}});
+                  {{"songs", songs.toJson()}});
   broadcast::send(ctx.getWebSocketServer(), "setlist.listUpdated",
-                  {{"setlists", setlistManager.toJson()}});
+                  {{"setlists", setlists.toJson()}});
 }
 
 REGISTER_EDIT_COMMAND_WITH_CREATOR(

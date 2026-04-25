@@ -8,7 +8,7 @@
 #include "audio/audio-file-track.hpp"
 #include "commands/command-factory.hpp"
 #include "model/song.hpp"
-#include "services/project-manager.hpp"
+#include "services/session.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
 namespace {
@@ -40,8 +40,10 @@ void AddClipCommand::execute(AppContext& ctx) {
   auto* fileTrack = dynamic_cast<AudioFileTrack*>(track);
   if (!fileTrack) return;
 
-  // Resolve audio directory from project path
-  std::string audioDir = ctx.getProjectManager().getCurrentProjectPath() + "/audio";
+  // Resolve audio directory from project
+  auto* project = ctx.getSession().getProject();
+  if (!project) return;
+  std::string audioDir = project->getAudioDir();
 
   auto clip = std::make_unique<AudioClip>();
   clip->setFileName(fileName);

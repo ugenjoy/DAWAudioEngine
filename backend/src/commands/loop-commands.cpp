@@ -6,8 +6,7 @@
 #include "audio/audio-engine-core.hpp"
 #include "commands/command-factory.hpp"
 #include "services/loop-manager.hpp"
-#include "services/project-manager.hpp"
-#include "services/songs-manager.hpp"
+#include "services/session.hpp"
 #include "websocket/broadcast-helpers.hpp"
 
 // ── Helper ────────────────────────────────────────────────────────────────────
@@ -26,9 +25,8 @@ static void saveAndBroadcast(AppContext& ctx) {
 
   ctx.getLoopManager().setLoops(song->getLoops());
 
-  ctx.getProjectManager().saveProject(
-      ctx.getProjectManager().getCurrentProjectPath(),
-      ctx.getSongsManager(), &ctx.getSetlistManager());
+  auto* project = ctx.getSession().getProject();
+  if (project) project->save();
 
   broadcast::send(ctx.getWebSocketServer(), "loop.listUpdated",
                   {{"loops", loopsToJson(song->getLoops())}});

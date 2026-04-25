@@ -12,9 +12,9 @@
 
 #include "commands/command-factory.hpp"
 #include "commands/command-queue.hpp"
-#include "services/mode-manager.hpp"
 
 class AppContext;
+class Session;
 
 /**
  * WebSocket server for client communication.
@@ -28,7 +28,7 @@ class WebSocketServer {
  public:
   WebSocketServer(CommandQueue& commandQueue,
                   const CommandFactory& commandFactory,
-                  const ModeManager& modeManager,
+                  Session& session,
                   int port = 8080);
   ~WebSocketServer();
 
@@ -63,7 +63,7 @@ class WebSocketServer {
 
   CommandQueue& commandQueue;
   const CommandFactory& commandFactory;
-  const ModeManager& modeManager;
+  Session& session;
   int port;
   std::atomic<bool> running{false};
   std::atomic<bool> threadExited{false};

@@ -9,11 +9,8 @@
 #include "events/setlist-action-executor.hpp"
 #include "events/loop-action-executor.hpp"
 #include "services/midi-input-manager.hpp"
-#include "services/live-setlist-manager.hpp"
 #include "services/loop-manager.hpp"
 #include "services/midi-output-manager.hpp"
-#include "services/mode-manager.hpp"
-#include "services/project-manager.hpp"
 #include "services/session.hpp"
 #include "services/song-preloader.hpp"
 #include "websocket/broadcast-helpers.hpp"
@@ -34,15 +31,11 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
     // Create core components
     audioEngine = std::make_unique<AudioEngineCore>();
-    projectManager = std::make_unique<ProjectManager>();
-    modeManager = std::make_unique<ModeManager>();
     midiOutputManager = std::make_unique<MidiOutputManager>();
     midiInputManager = std::make_unique<MidiInputManager>();
     songPreloader = std::make_unique<SongPreloader>();
-    liveSetlistManager = std::make_unique<LiveSetlistManager>();
     loopManager = std::make_unique<LoopManager>();
     session = std::make_unique<Session>();
-    modeManager->setSession(session.get());
 
     // Create and configure event engine
     eventEngine = std::make_unique<EventEngine>();
@@ -54,24 +47,17 @@ class AudioEngineApplication : public juce::JUCEApplication,
     for (auto& exec : createLoopActionExecutors())
       eventEngine->registerExecutor(std::move(exec));
 
-    // Connect ModeManager to AudioEngineCore playback state
-    modeManager->setPlayingStateProvider(
-        [this]() { return audioEngine->isPlaying(); });
-
     // Create command factory (auto-registered commands)
     commandFactory = CommandFactory::create();
 
     // Create command queue
     commandQueue = std::make_unique<CommandQueue>();
 
-    // Create WebSocket server with mode filtering support
+    // Create WebSocket server — uses session for edit-only command gating
     wsServer = std::make_unique<WebSocketServer>(*commandQueue, *commandFactory,
-                                                 *modeManager, 8080);
+                                                 *session, 8080);
 
     audioEngine->setWebSocketServer(wsServer.get());
-
-    // Wire Session into LiveSetlistManager for performing-state sync
-    liveSetlistManager->setSession(session.get());
 
     // Wire Session audio callbacks (used by onSongEndReached)
     session->setAudioCallbacks(
@@ -92,9 +78,8 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
     // Create application context
     appContext = std::make_unique<AppContext>(
-        *audioEngine, *projectManager, *wsServer, *modeManager,
-        *eventEngine, *midiOutputManager, *songPreloader,
-        *liveSetlistManager, *loopManager, *midiInputManager, *session);
+        *audioEngine, *wsServer, *eventEngine, *midiOutputManager,
+        *songPreloader, *loopManager, *midiInputManager, *session);
 
     audioEngine->setLoopManager(loopManager.get());
     audioEngine->setEventEngine(eventEngine.get(), appContext.get());
@@ -141,11 +126,8 @@ class AudioEngineApplication : public juce::JUCEApplication,
     session.reset();
     appContext.reset();
     audioEngine.reset();
-    projectManager.reset();
-    modeManager.reset();
     midiOutputManager.reset();
     songPreloader.reset();
-    liveSetlistManager.reset();
     loopManager.reset();
     midiInputManager.reset();
     eventEngine.reset();
@@ -153,7 +135,6 @@ class AudioEngineApplication : public juce::JUCEApplication,
   }
 
   void timerCallback() override {
-    // Check if WebSocket server thread has exited (e.g., due to Ctrl+C)
     if (wsServer && wsServer->hasExited()) {
       juce::Logger::writeToLog(
           "=== Server thread exited, quitting application ===");
@@ -163,13 +144,10 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
  private:
   std::unique_ptr<AudioEngineCore> audioEngine;
-  std::unique_ptr<ProjectManager> projectManager;
-  std::unique_ptr<ModeManager> modeManager;
   std::unique_ptr<Session> session;
   std::unique_ptr<MidiOutputManager> midiOutputManager;
   std::unique_ptr<MidiInputManager> midiInputManager;
   std::unique_ptr<SongPreloader> songPreloader;
-  std::unique_ptr<LiveSetlistManager> liveSetlistManager;
   std::unique_ptr<LoopManager> loopManager;
   std::unique_ptr<EventEngine> eventEngine;
   std::unique_ptr<AppContext> appContext;
