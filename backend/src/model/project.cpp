@@ -112,11 +112,39 @@ std::unique_ptr<Project> Project::loadFromDisk(std::string path) {
   return p;
 }
 
-// Task 1.3 — stub only
 Project Project::readMetadata(std::string path) {
-  // TODO(task-1.3): implement lightweight metadata-only read
   Project p;
-  p.path = std::move(path);
+
+  juce::File dir(path);
+  p.path = dir.getFullPathName().toStdString();
+  const std::string folderName = dir.getFileNameWithoutExtension().toStdString();
+
+  juce::File projectFile = dir.getChildFile("project.json");
+  if (!projectFile.existsAsFile()) {
+    p.name = folderName;
+    return p;
+  }
+
+  try {
+    std::string jsonString = projectFile.loadFileAsString().toStdString();
+    nlohmann::json projectJson = nlohmann::json::parse(jsonString);
+
+    p.id = projectJson.value("id", "");
+    p.name = projectJson.value("name", "");
+  } catch (...) {
+    // Malformed JSON — fall back to folder name
+  }
+
+  if (p.id.empty()) {
+    p.id = juce::Uuid().toString().toStdString();
+  }
+  if (p.name.empty()) {
+    p.name = folderName;
+  }
+
+  p.lastModified =
+      projectFile.getLastModificationTime().toISO8601(true).toStdString();
+
   return p;
 }
 
