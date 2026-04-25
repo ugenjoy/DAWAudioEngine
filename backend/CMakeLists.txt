@@ -86,6 +86,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/commands/event-commands.cpp
     src/commands/clip-commands.cpp
     src/commands/setlist-commands.cpp
+    src/commands/session-commands.cpp
     src/commands/loop-commands.cpp
     src/services/mode-manager.cpp
     src/services/midi-output-manager.cpp
