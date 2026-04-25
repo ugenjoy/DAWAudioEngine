@@ -71,6 +71,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/services/tracks-manager.cpp
     src/services/songs-manager.cpp
     src/services/project-manager.cpp
+    src/services/project-repository.cpp
     src/services/clips-manager.cpp
     src/websocket/websocket-server.cpp
     src/commands/command-factory.cpp
