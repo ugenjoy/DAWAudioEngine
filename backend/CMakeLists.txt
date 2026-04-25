@@ -104,6 +104,7 @@ target_sources(DAWAudioEngine PRIVATE
     src/services/setlist-manager.cpp
     src/services/live-setlist-manager.cpp
     src/services/loop-manager.cpp
+    src/services/session.cpp
 )
 
 target_include_directories(DAWAudioEngine PRIVATE
