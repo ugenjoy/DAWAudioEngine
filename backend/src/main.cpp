@@ -14,7 +14,9 @@
 #include "services/midi-output-manager.hpp"
 #include "services/mode-manager.hpp"
 #include "services/project-manager.hpp"
+#include "services/session.hpp"
 #include "services/song-preloader.hpp"
+#include "websocket/broadcast-helpers.hpp"
 #include "websocket/websocket-server.hpp"
 
 class AudioEngineApplication : public juce::JUCEApplication,
@@ -39,6 +41,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
     songPreloader = std::make_unique<SongPreloader>();
     liveSetlistManager = std::make_unique<LiveSetlistManager>();
     loopManager = std::make_unique<LoopManager>();
+    session = std::make_unique<Session>();
 
     // Create and configure event engine
     eventEngine = std::make_unique<EventEngine>();
@@ -66,22 +69,35 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
     audioEngine->setWebSocketServer(wsServer.get());
 
+    // Wire Session audio callbacks (used by onSongEndReached)
+    session->setAudioCallbacks(
+        [this]() { audioEngine->stop(); },
+        [this]() { audioEngine->pause(); });
+
+    // Wire Session listener: broadcast session.changed on every transition
+    session->setListener([this](const Session& s, Session::Activity /*prev*/) {
+      if (!wsServer) return;
+      nlohmann::json payload = s.toJson();
+      payload["playback"] = {
+          {"isPlaying", audioEngine->isPlaying()},
+          {"playheadPosition", audioEngine->getPlayheadPosition()},
+          {"cursorPosition", audioEngine->getCursorPosition()},
+          {"masterVolume", audioEngine->getMasterVolume()}};
+      broadcast::send(*wsServer, "session.changed", payload);
+    });
+
     // Create application context
     appContext = std::make_unique<AppContext>(
         *audioEngine, *projectManager, *wsServer, *modeManager,
         *eventEngine, *midiOutputManager, *songPreloader,
-        *liveSetlistManager, *loopManager, *midiInputManager);
+        *liveSetlistManager, *loopManager, *midiInputManager, *session);
 
     audioEngine->setLoopManager(loopManager.get());
     audioEngine->setEventEngine(eventEngine.get(), appContext.get());
 
-    // Wire end position callback: stop in edit mode, handle transitions in live mode
+    // Wire end position callback: delegate to Session for transition logic
     audioEngine->setEndPositionCallback([this]() {
-      if (liveSetlistManager->isActive()) {
-        liveSetlistManager->onSongEndReached(*appContext);
-      } else {
-        audioEngine->stop();
-      }
+      session->onSongEndReached();
     });
 
     // Inject AppContext into WebSocket server for HTTP routes
@@ -118,6 +134,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
     juce::Logger::writeToLog("=== Stopping audio engine ===");
     midiInputManager->shutdown();
+    session.reset();
     appContext.reset();
     audioEngine.reset();
     projectManager.reset();
@@ -144,6 +161,7 @@ class AudioEngineApplication : public juce::JUCEApplication,
   std::unique_ptr<AudioEngineCore> audioEngine;
   std::unique_ptr<ProjectManager> projectManager;
   std::unique_ptr<ModeManager> modeManager;
+  std::unique_ptr<Session> session;
   std::unique_ptr<MidiOutputManager> midiOutputManager;
   std::unique_ptr<MidiInputManager> midiInputManager;
   std::unique_ptr<SongPreloader> songPreloader;

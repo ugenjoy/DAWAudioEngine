@@ -113,8 +113,49 @@ bool Session::setPerformingIndex(int index) {
   return true;
 }
 
+void Session::setAudioCallbacks(std::function<void()> stopFn,
+                                std::function<void()> pauseFn) {
+  stopAudio = std::move(stopFn);
+  pauseAudio = std::move(pauseFn);
+}
+
 void Session::onSongEndReached() {
-  // TODO(task-2.3): implement automatic transition logic
+  if (activity != Activity::Performing || !project) {
+    // Not performing — fall back to a simple stop
+    if (stopAudio) stopAudio();
+    return;
+  }
+
+  Setlist* setlist = project->setlists().findById(performingSetlistId);
+  if (!setlist) return;
+
+  const auto& entries = setlist->getEntries();
+  if (performingIndex < 0 ||
+      performingIndex >= static_cast<int>(entries.size()))
+    return;
+
+  const auto transition = entries[performingIndex].transition;
+
+  if (transition == SetlistTransition::Continue) {
+    if (performingIndex + 1 < static_cast<int>(entries.size())) {
+      // Auto-advance to next entry (fireListener triggers preload + audio start
+      // via the listener wired in main.cpp)
+      Activity prev = activity;
+      ++performingIndex;
+      fireListener(prev);
+    } else {
+      // Last song with Continue: setlist ended — stop audio and notify
+      if (stopAudio) stopAudio();
+      fireListener(activity);
+    }
+  } else if (transition == SetlistTransition::Pause) {
+    if (pauseAudio) pauseAudio();
+    fireListener(activity);
+  } else {
+    // SetlistTransition::Stop (default)
+    if (stopAudio) stopAudio();
+    fireListener(activity);
+  }
 }
 
 // ---------------------------------------------------------------------------

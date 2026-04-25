@@ -60,8 +60,12 @@ class Session {
   bool setPerformingIndex(int index);
 
   /** Called when the transport reaches the end of the current song.
-   *  Stub for Task 2.3 — no-op for now. */
+   *  Handles automatic Continue/Stop/Pause transitions. */
   void onSongEndReached();
+
+  /** Set audio callbacks used by onSongEndReached to trigger stop/pause. */
+  void setAudioCallbacks(std::function<void()> stopFn,
+                         std::function<void()> pauseFn);
 
   // ---------------------------------------------------------------------------
   // Queries
@@ -109,6 +113,8 @@ class Session {
   std::string performingSetlistId;
   int performingIndex = 0;
   Listener listener;
+  std::function<void()> stopAudio;
+  std::function<void()> pauseAudio;
 
   /** Fire the listener if one is registered. */
   void fireListener(Activity prev);

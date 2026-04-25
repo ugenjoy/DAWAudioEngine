@@ -4,6 +4,7 @@
 #include "services/live-setlist-manager.hpp"
 #include "services/loop-manager.hpp"
 #include "services/project-manager.hpp"
+#include "services/session.hpp"
 
 class AudioEngineCore;
 class WebSocketServer;
@@ -32,7 +33,8 @@ class AppContext {
              SongPreloader& songPreloader,
              LiveSetlistManager& liveSetlistManager,
              LoopManager& loopManager,
-             MidiInputManager& midiInputManager)
+             MidiInputManager& midiInputManager,
+             Session& session)
       : audioEngine(audioEngine),
         projectManager(projectManager),
         wsServer(wsServer),
@@ -42,7 +44,8 @@ class AppContext {
         songPreloader(songPreloader),
         liveSetlistManager(liveSetlistManager),
         loopManager(loopManager),
-        midiInputManager(midiInputManager) {}
+        midiInputManager(midiInputManager),
+        session(session) {}
 
   AudioEngineCore& getAudioEngine() { return audioEngine; }
   SongsManager& getSongsManager() {
@@ -64,6 +67,7 @@ class AppContext {
   LiveSetlistManager& getLiveSetlistManager() { return liveSetlistManager; }
   LoopManager& getLoopManager() { return loopManager; }
   MidiInputManager& getMidiInputManager() { return midiInputManager; }
+  Session& getSession() { return session; }
 
   /** Injected after construction to avoid circular dependency. */
   void setCommandProcessor(CommandProcessor* processor) {
@@ -82,5 +86,6 @@ class AppContext {
   LiveSetlistManager& liveSetlistManager;
   LoopManager& loopManager;
   MidiInputManager& midiInputManager;
+  Session& session;
   CommandProcessor* commandProcessor = nullptr;
 };
