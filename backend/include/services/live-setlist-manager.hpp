@@ -9,6 +9,7 @@
 #include "model/song.hpp"
 
 class AppContext;
+class Session;
 
 /**
  * Manages the currently active setlist during a live performance.
@@ -49,6 +50,9 @@ class LiveSetlistManager {
    */
   void onSongEndReached(AppContext& ctx);
 
+  /** Wire the Session so performing state stays in sync. */
+  void setSession(Session* s);
+
  private:
   void changeSong(int newIndex, AppContext& ctx, bool fireEvents = true);
   Song* getSongAt(int index, AppContext& ctx) const;
@@ -58,4 +62,5 @@ class LiveSetlistManager {
   int currentIndex = 0;
   Setlist setlistSnapshot;
   std::vector<std::string> songIds;  // Ordered IDs for the runtime
+  Session* session_ = nullptr;
 };

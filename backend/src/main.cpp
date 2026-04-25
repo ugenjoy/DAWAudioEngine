@@ -70,6 +70,9 @@ class AudioEngineApplication : public juce::JUCEApplication,
 
     audioEngine->setWebSocketServer(wsServer.get());
 
+    // Wire Session into LiveSetlistManager for performing-state sync
+    liveSetlistManager->setSession(session.get());
+
     // Wire Session audio callbacks (used by onSongEndReached)
     session->setAudioCallbacks(
         [this]() { audioEngine->stop(); },

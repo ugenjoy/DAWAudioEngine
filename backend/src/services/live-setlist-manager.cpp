@@ -2,6 +2,7 @@
 #include "services/live-setlist-manager.hpp"
 
 #include "app-context.hpp"
+#include "services/session.hpp"
 #include "audio/audio-engine-core.hpp"
 #include "events/event-engine.hpp"
 #include "model/song.hpp"
@@ -9,6 +10,10 @@
 #include "services/song-preloader.hpp"
 #include "services/songs-manager.hpp"
 #include "websocket/broadcast-helpers.hpp"
+
+void LiveSetlistManager::setSession(Session* s) {
+  session_ = s;
+}
 
 void LiveSetlistManager::load(const Setlist& setlist,
                               const std::vector<Song*>& allSongs,
@@ -31,6 +36,7 @@ void LiveSetlistManager::load(const Setlist& setlist,
                   {{"setlist", setlistSnapshot.toJson()},
                    {"currentIndex", currentIndex},
                    {"song", currentSongJson(ctx)}});
+  if (session_) session_->startPerforming(setlistSnapshot.getId());
 }
 
 void LiveSetlistManager::loadSingle(Song* song, AppContext& ctx) {
@@ -59,6 +65,7 @@ void LiveSetlistManager::loadSingle(Song* song, AppContext& ctx) {
                   {{"setlist", setlistSnapshot.toJson()},
                    {"currentIndex", 0},
                    {"song", song->toJson()}});
+  if (session_) session_->startPerforming(setlistSnapshot.getId());
 }
 
 void LiveSetlistManager::unload(AppContext& ctx) {
@@ -66,18 +73,21 @@ void LiveSetlistManager::unload(AppContext& ctx) {
   active = false;
   ctx.getSongPreloader().onLiveModeExited();
   broadcast::send(ctx.getWebSocketServer(), "setlist.unloaded", {});
+  if (session_) session_->stopActivity();
 }
 
 bool LiveSetlistManager::advance(AppContext& ctx) {
   if (!active || currentIndex + 1 >= static_cast<int>(songIds.size()))
     return false;
   changeSong(currentIndex + 1, ctx);
+  if (session_) session_->setPerformingIndex(currentIndex);
   return true;
 }
 
 bool LiveSetlistManager::previous(AppContext& ctx) {
   if (!active || currentIndex <= 0) return false;
   changeSong(currentIndex - 1, ctx);
+  if (session_) session_->setPerformingIndex(currentIndex);
   return true;
 }
 
@@ -85,6 +95,7 @@ bool LiveSetlistManager::goTo(int index, AppContext& ctx) {
   if (!active || index < 0 || index >= static_cast<int>(songIds.size()))
     return false;
   changeSong(index, ctx);
+  if (session_) session_->setPerformingIndex(currentIndex);
   return true;
 }
 
