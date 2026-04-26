@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { Project } from '../models/project'
 import { useWebSocket } from './websocket-provider'
+import { useSession } from './session-provider'
 import { Song } from '../models/song'
 import { Loop } from '../models/loop'
 import { Track } from '../models/track'
@@ -127,6 +128,7 @@ export function ProjectProvider({
   ...props
 }: Readonly<ProjectProviderProps>) {
   const { ws, isConnected, send } = useWebSocket()
+  const { session, hasRestored } = useSession()
   const [project, setProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [activeSong, setActiveSong] = useState<Song>()
@@ -142,6 +144,39 @@ export function ProjectProvider({
   const trackLevelsRef = useRef<Record<string, number>>({})
   const [loops, setLoops] = useState<Loop[]>([])
   const [activeLoop, setActiveLoop] = useState<Loop | null>(null)
+  const playbackInitRef = useRef<boolean>(false)
+
+  // Sync project from SessionProvider on identity change (open/close).
+  // session.changed re-broadcasts the full project snapshot on every transition;
+  // syncing only on id change avoids overwriting in-flight song.* updates.
+  useEffect(() => {
+    setProject(session.project)
+    setIsLoading(false)
+    if (session.project === null) {
+      setIsDirty(false)
+    }
+  }, [session.project?.id])
+
+  // Sync activeSong from session focus (editing or performing).
+  useEffect(() => {
+    const focused =
+      session.editing?.song ?? session.performing?.song ?? null
+    setActiveSong(focused ?? undefined)
+    setLoops(focused?.loops ?? [])
+    setActiveLoop(null)
+  }, [session.editing?.song, session.performing?.song])
+
+  // One-time playback hydration from initial session snapshot.
+  // Subsequent updates come from transport.* events.
+  useEffect(() => {
+    if (!hasRestored || playbackInitRef.current) return
+    playbackInitRef.current = true
+    setPlaying(session.playback.isPlaying)
+    setMasterVolume(session.playback.masterVolume)
+    playheadPosRef.current = session.playback.playheadPosition
+    playheadUpdateRef.current++
+    cursorPosRef.current = session.playback.cursorPosition
+  }, [hasRestored])
 
   const fetchAudioInputs = useCallback(() => {
     if (ws && isConnected) {
@@ -281,7 +316,9 @@ export function ProjectProvider({
         if (!prev) return prev
         return {
           ...prev,
-          songs: prev.songs.map((s) => (s.id === uuid ? { ...s, name } : s)),
+          songs: (prev.songs ?? []).map((s) =>
+            s.id === uuid ? { ...s, name } : s,
+          ),
         }
       })
       if (activeSong?.id === uuid) {
@@ -297,7 +334,7 @@ export function ProjectProvider({
     (uuid: string, index: number) => {
       setProject((prev) => {
         if (!prev) return prev
-        const songs = [...prev.songs]
+        const songs = [...(prev.songs ?? [])]
         const oldIndex = songs.findIndex((s) => s.id === uuid)
         if (oldIndex < 0) return prev
         const [moved] = songs.splice(oldIndex, 1)
@@ -369,7 +406,6 @@ export function ProjectProvider({
     if (ws && isConnected) {
       ws.addEventListener('message', onMessage)
       try {
-        send({ action: 'project.getLoaded' })
         send({ action: 'audio.listInputs' })
       } catch (error) {
         console.error(error)
@@ -395,35 +431,6 @@ export function ProjectProvider({
     if (typeof ev.data !== 'string') return
     const data = JSON.parse(ev.data)
     switch (data.event) {
-      case 'session.currentState':
-      case 'project.currentLoaded': {
-        if (data.project !== undefined) setProject(data.project)
-        if (data.activeSong !== undefined) {
-          setActiveSong(data.activeSong)
-          setLoops(data.activeSong?.loops ?? [])
-          setActiveLoop(null)
-        }
-        if (data.playheadPosition !== undefined) {
-          playheadPosRef.current = data.playheadPosition
-          playheadUpdateRef.current++
-        }
-        if (data.cursorPosition !== undefined)
-          cursorPosRef.current = data.cursorPosition
-        if (data.isPlaying !== undefined) setPlaying(data.isPlaying)
-        if (data.masterVolume !== undefined) setMasterVolume(data.masterVolume)
-        setIsLoading(false)
-        break
-      }
-      case 'project.loaded':
-      case 'project.created': {
-        if (data.project !== undefined) setProject(data.project)
-        setActiveSong(undefined)
-        setLoops([])
-        setActiveLoop(null)
-        setIsDirty(false)
-        setIsLoading(false)
-        break
-      }
       case 'project.saved': {
         setIsDirty(false)
         break

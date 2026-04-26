@@ -119,6 +119,10 @@ void Session::setAudioCallbacks(std::function<void()> stopFn,
   pauseAudio = std::move(pauseFn);
 }
 
+void Session::setAdvanceCallback(std::function<void()> fn) {
+  advanceFn = std::move(fn);
+}
+
 void Session::onSongEndReached() {
   if (activity != Activity::Performing || !project) {
     // Not performing — fall back to a simple stop
@@ -138,11 +142,11 @@ void Session::onSongEndReached() {
 
   if (transition == SetlistTransition::Continue) {
     if (performingIndex + 1 < static_cast<int>(entries.size())) {
-      // Auto-advance to next entry (fireListener triggers preload + audio start
-      // via the listener wired in main.cpp)
-      Activity prev = activity;
-      ++performingIndex;
-      fireListener(prev);
+      // Delegate to the advance callback so the next song is swapped through
+      // the same path as a manual advance (markers reset, preload rotation,
+      // broadcast). The advance handler is responsible for keeping playback
+      // gapless — Continue must not produce an audible stop.
+      if (advanceFn) advanceFn();
     } else {
       // Last song with Continue: setlist ended — stop audio and notify
       if (stopAudio) stopAudio();

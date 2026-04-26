@@ -3,6 +3,7 @@
 #include "commands/command-factory.hpp"
 #include "commands/command-processor.hpp"
 #include "commands/command-queue.hpp"
+#include "commands/session-commands.hpp"
 #include "events/event-engine.hpp"
 #include "events/midi-action-executor.hpp"
 #include "events/transport-action-executor.hpp"
@@ -63,6 +64,15 @@ class AudioEngineApplication : public juce::JUCEApplication,
     session->setAudioCallbacks(
         [this]() { audioEngine->stop(); },
         [this]() { audioEngine->pause(); });
+
+    // Wire Session advance callback: when a Continue transition fires from
+    // the audio thread, queue a SessionAdvanceCommand in keepPlaying mode so
+    // the new song goes through the full load path (markers reset, preload)
+    // without stopping transport — the audio engine clamps the playhead at
+    // endPosition until loadSong() resets the flag, keeping playback gapless.
+    session->setAdvanceCallback([this]() {
+      commandQueue->push(std::make_unique<SessionAdvanceCommand>(true));
+    });
 
     // Wire Session listener: broadcast session.changed on every transition
     session->setListener([this](const Session& s, Session::Activity /*prev*/) {

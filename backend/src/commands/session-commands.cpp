@@ -242,6 +242,9 @@ REGISTER_COMMAND("session.stopActivity", StopActivityCommand);
 
 // ── SessionAdvanceCommand ────────────────────────────────────────────────────
 
+SessionAdvanceCommand::SessionAdvanceCommand(bool keepPlaying)
+    : keepPlaying(keepPlaying) {}
+
 void SessionAdvanceCommand::execute(AppContext& ctx) {
   auto& session = ctx.getSession();
   auto* project = session.getProject();
@@ -266,7 +269,12 @@ void SessionAdvanceCommand::execute(AppContext& ctx) {
   Song* newSong = project->songs().getSongById(entries[nextIdx].songId);
   if (!newSong) return;
 
-  ctx.getAudioEngine().stop();
+  // Manual advance: stop transport. Continue transition: skip the stop so
+  // playback stays "playing" through the swap; loadSong() resets the
+  // end-position clamp and the audio thread resumes on the new song.
+  if (!keepPlaying) {
+    ctx.getAudioEngine().stop();
+  }
 
   // Unload old song if not preloaded
   if (oldSong && oldSong != newSong &&

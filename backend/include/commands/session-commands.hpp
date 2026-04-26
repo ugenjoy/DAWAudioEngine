@@ -43,7 +43,16 @@ class StopActivityCommand : public Command {
 
 class SessionAdvanceCommand : public Command {
  public:
+  /** @param keepPlaying  When true, do not stop the audio engine before
+   *  loading the next song.  Used by Continue transitions for gapless
+   *  playback (loadSong resets endPositionFired and playhead, audio resumes
+   *  on the new song without a transport stop).  Defaults to false for
+   *  manual advances, which behave like a normal stop+load. */
+  explicit SessionAdvanceCommand(bool keepPlaying = false);
   void execute(AppContext& ctx) override;
+
+ private:
+  bool keepPlaying;
 };
 
 class SessionPreviousCommand : public Command {

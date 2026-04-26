@@ -67,6 +67,12 @@ class Session {
   void setAudioCallbacks(std::function<void()> stopFn,
                          std::function<void()> pauseFn);
 
+  /** Set the callback used by onSongEndReached to trigger an automatic
+   *  advance on a Continue transition.  Implementations typically queue a
+   *  SessionAdvanceCommand so the new song is loaded through the same path
+   *  as a manual advance (markers reset, audio reload, preload, broadcast). */
+  void setAdvanceCallback(std::function<void()> advanceFn);
+
   // ---------------------------------------------------------------------------
   // Queries
   // ---------------------------------------------------------------------------
@@ -115,6 +121,7 @@ class Session {
   Listener listener;
   std::function<void()> stopAudio;
   std::function<void()> pauseAudio;
+  std::function<void()> advanceFn;
 
   /** Fire the listener if one is registered. */
   void fireListener(Activity prev);
