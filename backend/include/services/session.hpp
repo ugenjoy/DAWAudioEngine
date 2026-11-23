@@ -16,9 +16,15 @@
  * A single Listener is notified after every state transition so that callers
  * (e.g. WebSocket command handlers) can broadcast the appropriate events.
  */
-class Session {
- public:
-  enum class Activity { None, Editing, Performing };
+class Session
+{
+public:
+  enum class Activity
+  {
+    None,
+    Editing,
+    Performing
+  };
 
   // ---------------------------------------------------------------------------
   // Project lifecycle
@@ -30,18 +36,18 @@ class Session {
   /** Stop any running activity then release the project. */
   void closeProject();
 
-  Project* getProject();
-  const Project* getProject() const;
+  Project *getProject();
+  const Project *getProject() const;
 
   // ---------------------------------------------------------------------------
   // Activity transitions (implicit stop of previous activity)
   // ---------------------------------------------------------------------------
 
   /** Begin editing the given song.  Implicitly stops Performing if active. */
-  bool startEditing(const std::string& songId);
+  bool startEditing(const std::string_view &songId);
 
   /** Begin performing the given setlist.  Implicitly stops Editing if active. */
-  bool startPerforming(const std::string& setlistId);
+  bool startPerforming(const std::string_view &setlistId);
 
   /** Return to Activity::None, clearing editing/performing state. */
   void stopActivity();
@@ -95,13 +101,13 @@ class Session {
    *   - Performing → the song at the current performing index
    *   - None       → nullptr
    */
-  Song* getFocusedSong() const;
+  Song *getFocusedSong() const;
 
   // ---------------------------------------------------------------------------
   // Observability
   // ---------------------------------------------------------------------------
 
-  using Listener = std::function<void(const Session&, Activity prev)>;
+  using Listener = std::function<void(const Session &, Activity prev)>;
 
   /** Replace the current listener (pass nullptr to disable). */
   void setListener(Listener);
@@ -112,7 +118,7 @@ class Session {
 
   nlohmann::json toJson() const;
 
- private:
+private:
   std::unique_ptr<Project> project;
   Activity activity = Activity::None;
   std::string editingSongId;
